@@ -1,0 +1,14 @@
+{
+  "name": "ShuttleBoard — Badminton Tracker",
+  "short_name": "ShuttleBoard",
+  "description": "Premium badminton scoreboard with AI line calls, doubles, and match export.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1b2a",
+  "theme_color": "#0d1b2a",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon", "purpose": "any" }
+  ]
+}

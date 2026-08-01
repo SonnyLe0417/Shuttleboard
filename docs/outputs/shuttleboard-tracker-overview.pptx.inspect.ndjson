@@ -1,0 +1,94 @@
+{"kind":"deck","id":"pr/zvq69g","name":"Deck"}
+{"kind":"layout","layoutId":"a56d57c9-1206-4301-9a1f-5a4ada8d072c","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"c00f817e-33dc-4c0e-a6e5-1368e2375347","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/6romx5","slide":1,"title":"🏸","textShapes":10}
+{"kind":"shape","id":"sh/fit4jupk","slide":1,"bbox":[0,0,450,720]}
+{"kind":"shape","id":"sh/0j2lcz65","slide":1,"bbox":[0,80,400,400]}
+{"kind":"shape","id":"sh/1kvml47q","slide":1,"bbox":[56,205,230,230]}
+{"kind":"shape","id":"sh/2543e9ob","slide":1,"bbox":[119,270,104,104]}
+{"kind":"shape","id":"sh/n6d4nepw","slide":1,"bbox":[206,157,80,80]}
+{"kind":"textbox","id":"sh/o7mlgj6h","slide":1,"text":"🏸","textPreview":"🏸","textChars":2,"textLines":1,"bbox":[144,256,120,100]}
+{"kind":"textbox","id":"sh/p8vmpo72","slide":1,"text":"ShuttleBoard","textPreview":"ShuttleBoard","textChars":12,"textLines":1,"bbox":[72,48,320,32]}
+{"kind":"textbox","id":"sh/i9032587","slide":1,"text":"A premium badminton\ntracker for every rally.","textPreview":"A premium badminton | tracker for every rally.","textChars":44,"textLines":2,"bbox":[492,80,660,120]}
+{"kind":"textbox","id":"sh/3a9kbapc","slide":1,"text":"From live scoring to player-specific Elo, ShuttleBoard turns a match into a feedback loop: play, understand, improve.","textPreview":"From live scoring to player-specific Elo, ShuttleBoard turns a match into a feedback loop: play, understand, improve.","textChars":117,"textLines":1,"bbox":[496,224,600,72]}
+{"kind":"shape","id":"sh/fedcnuxg","slide":1,"bbox":[496,360,310,112]}
+{"kind":"textbox","id":"sh/ud4ve9gv","slide":1,"text":"THE PROBLEM","textPreview":"THE PROBLEM","textChars":11,"textLines":1,"bbox":[520,382,230,22]}
+{"kind":"textbox","id":"sh/hgvup4f6","slide":1,"text":"Match notes, scores, and progress live in separate places.","textPreview":"Match notes, scores, and progress live in separate places.","textChars":58,"textLines":1,"bbox":[520,414,246,46]}
+{"kind":"shape","id":"sh/gfmdgzyl","slide":1,"bbox":[832,360,310,112]}
+{"kind":"textbox","id":"sh/7qtcjux4","slide":1,"text":"THE PROMISE","textPreview":"THE PROMISE","textChars":11,"textLines":1,"bbox":[856,382,230,22]}
+{"kind":"textbox","id":"sh/6pkvapgj","slide":1,"text":"One focused home for the court, the result, and the next goal.","textPreview":"One focused home for the court, the result, and the next goal.","textChars":62,"textLines":1,"bbox":[856,414,246,46]}
+{"kind":"textbox","id":"sh/tcvul4fa","slide":1,"text":"Live score  ·  AI line calls  ·  Elo  ·  coaching  ·  community","textPreview":"Live score  ·  AI line calls  ·  Elo  ·  coaching  ·  community","textChars":63,"textLines":1,"bbox":[496,548,650,24]}
+{"kind":"textbox","id":"sh/sbmdczyp","slide":1,"text":"SHUTTLEBOARD  ·  01","textPreview":"SHUTTLEBOARD  ·  01","textChars":19,"textLines":1,"bbox":[72,682,260,18]}
+{"kind":"notes","id":"nt/6romx5","slide":1,"text":""}
+{"kind":"slide","id":"sl/t1e9jn","slide":2,"title":"🏸","textShapes":15}
+{"kind":"shape","id":"sh/h8z6ts3i","slide":2,"bbox":[0,0,300,720]}
+{"kind":"shape","id":"sh/u587ixk7","slide":2,"bbox":[0,100,360,360]}
+{"kind":"shape","id":"sh/f6hor2lc","slide":2,"bbox":[50,252,170,170]}
+{"kind":"shape","id":"sh/s36pgn21","slide":2,"bbox":[136,338,82,82]}
+{"kind":"textbox","id":"sh/t4z6ps3m","slide":2,"text":"🏸","textPreview":"🏸","textChars":2,"textLines":1,"bbox":[116,286,100,80]}
+{"kind":"textbox","id":"sh/6ho7edkv","slide":2,"text":"Key Components Of Presentation","textPreview":"Key Components Of Presentation","textChars":30,"textLines":1,"bbox":[350,48,850,48]}
+{"kind":"shape","id":"sh/72xonilg","slide":2,"bbox":[350,130,272,140]}
+{"kind":"textbox","id":"sh/kf65c32p","slide":2,"text":"Problem","textPreview":"Problem","textChars":7,"textLines":1,"bbox":[366,146,240,28]}
+{"kind":"textbox","id":"sh/5gf6l83a","slide":2,"text":"Players juggle scores, notes, rankings, and video in separate places. Progress disappears after the match.","textPreview":"Players juggle scores, notes, rankings, and video in separate places. Progress disappears after the match.","textChars":106,"textLines":1,"bbox":[366,180,240,76]}
+{"kind":"shape","id":"sh/dofu1cfi","slide":2,"bbox":[664,130,272,140]}
+{"kind":"textbox","id":"sh/c3mt87ed","slide":2,"text":"Solution","textPreview":"Solution","textChars":8,"textLines":1,"bbox":[680,146,240,28]}
+{"kind":"textbox","id":"sh/b2dcz2xs","slide":2,"text":"ShuttleBoard unifies live scoring, match memory, personalized Elo, AI review, and next-session coaching.","textPreview":"ShuttleBoard unifies live scoring, match memory, personalized Elo, AI review, and next-session coaching.","textChars":104,"textLines":1,"bbox":[680,180,240,76]}
+{"kind":"shape","id":"sh/q14b6xw7","slide":2,"bbox":[350,296,272,140]}
+{"kind":"textbox","id":"sh/p0vuxcfm","slide":2,"text":"Back story","textPreview":"Back story","textChars":10,"textLines":1,"bbox":[366,312,240,28]}
+{"kind":"textbox","id":"sh/ozmt47e1","slide":2,"text":"Built around one question: what if every match could tell a player what to practice next?","textPreview":"Built around one question: what if every match could tell a player what to practice next?","textChars":89,"textLines":1,"bbox":[366,346,240,76]}
+{"kind":"shape","id":"sh/3ydcv2xg","slide":2,"bbox":[664,296,272,140]}
+{"kind":"textbox","id":"sh/2x4b2xwv","slide":2,"text":"Features & differentiator","textPreview":"Features & differentiator","textChars":25,"textLines":1,"bbox":[680,312,240,28]}
+{"kind":"textbox","id":"sh/1wvutsfq","slide":2,"text":"Live court controls, voice/referee mode, AI line calls, five ranked divisions, and personal dashboards.","textPreview":"Live court controls, voice/referee mode, AI line calls, five ranked divisions, and personal dashboards.","textChars":103,"textLines":1,"bbox":[680,346,240,76]}
+{"kind":"shape","id":"sh/gv2t0ne5","slide":2,"bbox":[350,462,272,140]}
+{"kind":"textbox","id":"sh/sf6tgn61","slide":2,"text":"What we learned","textPreview":"What we learned","textChars":15,"textLines":1,"bbox":[366,478,240,28]}
+{"kind":"textbox","id":"sh/tgfupsn6","slide":2,"text":"A premium experience needs speed at the court, trustworthy saved data, and clear insights—not a crowded screen.","textPreview":"A premium experience needs speed at the court, trustworthy saved data, and clear insights—not a crowded screen.","textChars":111,"textLines":1,"bbox":[366,512,240,76]}
+{"kind":"shape","id":"sh/6dobexov","slide":2,"bbox":[664,462,272,140]}
+{"kind":"textbox","id":"sh/7excn25g","slide":2,"text":"Next steps","textPreview":"Next steps","textChars":10,"textLines":1,"bbox":[680,478,240,28]}
+{"kind":"textbox","id":"sh/kb6tcn6p","slide":2,"text":"Connect AI inspection confidence to Elo, add clubs and leagues, and expand video rally intelligence.","textPreview":"Connect AI inspection confidence to Elo, add clubs and leagues, and expand video rally intelligence.","textChars":100,"textLines":1,"bbox":[680,512,240,76]}
+{"kind":"textbox","id":"sh/5cfulsna","slide":2,"text":"SHUTTLEBOARD  ·  02","textPreview":"SHUTTLEBOARD  ·  02","textChars":19,"textLines":1,"bbox":[72,682,260,18]}
+{"kind":"notes","id":"nt/t1e9jn","slide":2,"text":""}
+{"kind":"slide","id":"sl/hujm7m","slide":3,"title":"RANKED PROGRESSION","textShapes":16}
+{"kind":"textbox","id":"sh/ovm9cf6t","slide":3,"text":"RANKED PROGRESSION","textPreview":"RANKED PROGRESSION","textChars":18,"textLines":1,"bbox":[72,48,420,24]}
+{"kind":"textbox","id":"sh/nudsjap8","slide":3,"text":"Every match moves a player story forward.","textPreview":"Every match moves a player story forward.","textChars":41,"textLines":1,"bbox":[72,78,1120,66]}
+{"kind":"textbox","id":"sh/2t4ra5on","slide":3,"text":"Elo begins at 1000, then adapts to opponent strength, score margin, and match category.","textPreview":"Elo begins at 1000, then adapts to opponent strength, score margin, and match category.","textChars":87,"textLines":1,"bbox":[72,152,1020,42]}
+{"kind":"shape","id":"sh/1svqh072","slide":3,"bbox":[72,236,500,326]}
+{"kind":"textbox","id":"sh/0rm98v6x","slide":3,"text":"How Elo moves","textPreview":"How Elo moves","textChars":13,"textLines":1,"bbox":[104,266,400,32]}
+{"kind":"shape","id":"sh/fqt8fqpc","slide":3,"bbox":[104,328,12,12]}
+{"kind":"textbox","id":"sh/epkr6lor","slide":3,"text":"Start at 1000","textPreview":"Start at 1000","textChars":13,"textLines":1,"bbox":[128,322,386,24]}
+{"kind":"textbox","id":"sh/dobqdg76","slide":3,"text":"A clear baseline makes the first result meaningful.","textPreview":"A clear baseline makes the first result meaningful.","textChars":51,"textLines":1,"bbox":[128,347,386,44]}
+{"kind":"shape","id":"sh/sn29kv6l","slide":3,"bbox":[104,408,12,12]}
+{"kind":"textbox","id":"sh/q1sva5s7","slide":3,"text":"Stronger wins matter more","textPreview":"Stronger wins matter more","textChars":25,"textLines":1,"bbox":[128,402,386,24]}
+{"kind":"textbox","id":"sh/b21w3a9s","slide":3,"text":"Opponent-adjusted gains reward beating higher-rated players.","textPreview":"Opponent-adjusted gains reward beating higher-rated players.","textChars":60,"textLines":1,"bbox":[128,427,386,44]}
+{"kind":"shape","id":"sh/cnadcfad","slide":3,"bbox":[104,488,12,12]}
+{"kind":"textbox","id":"sh/doje5kry","slide":3,"text":"Margins add context","textPreview":"Margins add context","textChars":19,"textLines":1,"bbox":[128,482,386,24]}
+{"kind":"textbox","id":"sh/2x8v65sb","slide":3,"text":"A close loss and a decisive loss do not tell the same story.","textPreview":"A close loss and a decisive loss do not tell the same story.","textChars":60,"textLines":1,"bbox":[128,507,386,44]}
+{"kind":"shape","id":"sh/3yhwzq9w","slide":3,"bbox":[620,236,588,326]}
+{"kind":"textbox","id":"sh/ozqd8vah","slide":3,"text":"Separate ranked events","textPreview":"Separate ranked events","textChars":22,"textLines":1,"bbox":[652,266,500,32]}
+{"kind":"textbox","id":"sh/p0je10r2","slide":3,"text":"Men’s Singles     Women’s Singles","textPreview":"Men’s Singles     Women’s Singles","textChars":33,"textLines":1,"bbox":[652,326,500,26]}
+{"kind":"textbox","id":"sh/et8v2lsf","slide":3,"text":"Men’s Doubles     Women’s Doubles","textPreview":"Men’s Doubles     Women’s Doubles","textChars":33,"textLines":1,"bbox":[652,374,500,26]}
+{"kind":"textbox","id":"sh/fuhwvq9k","slide":3,"text":"Mixed Doubles","textPreview":"Mixed Doubles","textChars":13,"textLines":1,"bbox":[652,422,500,26]}
+{"kind":"textbox","id":"sh/jyds3mpc","slide":3,"text":"Profile gender filters ineligible women’s or men’s events from the dashboard and lobby. Rating confidence grows from Provisional to Building to Established as matches are saved.","textPreview":"Profile gender filters ineligible women’s or men’s events from the dashboard and lobby. Rating confidence grows from Provisional to Build...","textChars":177,"textLines":1,"bbox":[652,476,510,58]}
+{"kind":"textbox","id":"sh/ix4bah87","slide":3,"text":"SHUTTLEBOARD  ·  03","textPreview":"SHUTTLEBOARD  ·  03","textChars":19,"textLines":1,"bbox":[72,682,260,18]}
+{"kind":"notes","id":"nt/hujm7m","slide":3,"text":""}
+{"kind":"slide","id":"sl/gopmsd","slide":4,"title":"WHY IT STANDS OUT","textShapes":15}
+{"kind":"textbox","id":"sh/sjqlkbqh","slide":4,"text":"WHY IT STANDS OUT","textPreview":"WHY IT STANDS OUT","textChars":17,"textLines":1,"bbox":[72,48,420,24]}
+{"kind":"textbox","id":"sh/rih4r69c","slide":4,"text":"The tracker remembers the player, not just the points.","textPreview":"The tracker remembers the player, not just the points.","textChars":54,"textLines":1,"bbox":[72,78,1120,66]}
+{"kind":"textbox","id":"sh/6h83i18r","slide":4,"text":"Built to feel useful before, during, and after a session.","textPreview":"Built to feel useful before, during, and after a session.","textChars":57,"textLines":1,"bbox":[72,152,1020,42]}
+{"kind":"shape","id":"sh/5gzmpwr6","slide":4,"bbox":[72,236,530,320]}
+{"kind":"textbox","id":"sh/4fqlgrql","slide":4,"text":"What makes it different","textPreview":"What makes it different","textChars":23,"textLines":1,"bbox":[104,266,430,32]}
+{"kind":"shape","id":"sh/jehknm90","slide":4,"bbox":[104,330,12,12]}
+{"kind":"textbox","id":"sh/ido3eh8f","slide":4,"text":"Personalized Elo","textPreview":"Personalized Elo","textChars":16,"textLines":1,"bbox":[128,324,406,24]}
+{"kind":"textbox","id":"sh/hcf2lcru","slide":4,"text":"Five ranked divisions with opponent-adjusted movement.","textPreview":"Five ranked divisions with opponent-adjusted movement.","textChars":54,"textLines":1,"bbox":[128,349,406,44]}
+{"kind":"shape","id":"sh/wb6lcrqp","slide":4,"bbox":[104,414,12,12]}
+{"kind":"textbox","id":"sh/ilwzmpgb","slide":4,"text":"Premium match memory","textPreview":"Premium match memory","textChars":20,"textLines":1,"bbox":[128,408,406,24]}
+{"kind":"textbox","id":"sh/jm5gvuhg","slide":4,"text":"Rematch the same players, court, title, and team setup.","textPreview":"Rematch the same players, court, title, and team setup.","textChars":55,"textLines":1,"bbox":[128,433,406,44]}
+{"kind":"shape","id":"sh/4nehofy1","slide":4,"bbox":[104,498,12,12]}
+{"kind":"textbox","id":"sh/58nixkzm","slide":4,"text":"Actionable coaching","textPreview":"Actionable coaching","textChars":19,"textLines":1,"bbox":[128,492,406,24]}
+{"kind":"textbox","id":"sh/uhczi5gz","slide":4,"text":"Turn saved matches and video into a next-session focus.","textPreview":"Turn saved matches and video into a next-session focus.","textChars":55,"textLines":1,"bbox":[128,517,406,44]}
+{"kind":"shape","id":"sh/vilgrahk","slide":4,"bbox":[650,236,558,320]}
+{"kind":"textbox","id":"sh/wjuhkfy5","slide":4,"text":"What development taught us","textPreview":"What development taught us","textChars":26,"textLines":1,"bbox":[684,266,460,32]}
+{"kind":"textbox","id":"sh/hk3ytkzq","slide":4,"text":"The best experience is not a crowded analytics screen. It is a clear sequence: prepare quickly, track confidently, and leave knowing what to do next.","textPreview":"The best experience is not a crowded analytics screen. It is a clear sequence: prepare quickly, track confidently, and leave knowing what...","textChars":149,"textLines":1,"bbox":[684,326,470,106]}
+{"kind":"textbox","id":"sh/mdcze5g3","slide":4,"text":"Next steps","textPreview":"Next steps","textChars":10,"textLines":1,"bbox":[684,462,220,24]}
+{"kind":"textbox","id":"sh/nelgnaho","slide":4,"text":"Connect AI inspection confidence to Elo, add club leagues, and expand video-based rally insights.","textPreview":"Connect AI inspection confidence to Elo, add club leagues, and expand video-based rally insights.","textChars":97,"textLines":1,"bbox":[684,494,460,48]}
+{"kind":"textbox","id":"sh/byhwv6xg","slide":4,"text":"SHUTTLEBOARD  ·  04","textPreview":"SHUTTLEBOARD  ·  04","textChars":19,"textLines":1,"bbox":[72,682,260,18]}
+{"kind":"notes","id":"nt/gopmsd","slide":4,"text":""}

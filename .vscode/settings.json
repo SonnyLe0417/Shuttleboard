@@ -1,0 +1,25 @@
+{
+  "explorer.compactFolders": true,
+  "files.exclude": {
+    "**/.agents": true,
+    "**/.lovable": true,
+    "**/.output": true,
+    "**/.tanstack": true,
+    "**/.wrangler": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/.agents": true,
+    "**/.lovable": true,
+    "**/.output": true,
+    "**/.tanstack": true,
+    "**/.wrangler": true,
+    "**/node_modules": true
+  },
+  "files.watcherExclude": {
+    "**/.output/**": true,
+    "**/.tanstack/**": true,
+    "**/.wrangler/**": true,
+    "**/node_modules/**": true
+  }
+}
