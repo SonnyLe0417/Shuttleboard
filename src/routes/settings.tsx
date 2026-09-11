@@ -64,6 +64,11 @@ import { sendTestPush } from "@/lib/push.functions";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useSession } from "@/hooks/useSession";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  DASHBOARD_CORE_QUERY_KEY,
+  PREFERENCES_QUERY_KEY,
+  PROGRESS_QUERY_KEY,
+} from "@/lib/query-keys";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -167,12 +172,18 @@ function SettingsPage() {
   const [notifications, setNotifications] = useState<NotificationSettings>(DEFAULT_NOTIFICATIONS);
   const [privacy, setPrivacy] = useState<PrivacySettings>(DEFAULT_PRIVACY);
   const [celebrationEnabled, setCelebrationEnabled] = useState(true);
-  const [activeSection, setActiveSection] = useState<SettingsSection>("accessibility");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("reauth") === "delete"
+      ? "account"
+      : "accessibility",
+  );
   const [installEvent, setInstallEvent] = useState<Event | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const preferencesQuery = useQuery({
@@ -195,6 +206,8 @@ function SettingsPage() {
     mutationFn: (data: Record<string, unknown>) => savePreferences({ data: data as any }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "preferences"] });
+      queryClient.invalidateQueries({ queryKey: PREFERENCES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
       toast.success("Settings saved");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -209,7 +222,10 @@ function SettingsPage() {
   });
   const progressMutation = useMutation({
     mutationFn: (data: { celebration_enabled: boolean }) => saveProgress({ data }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["progress", "summary"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+    },
     onError: (error: Error) => toast.error(error.message),
   });
 
@@ -351,22 +367,16 @@ function SettingsPage() {
       return toast.error("Type DELETE MY ACCOUNT to continue");
     }
     try {
-      const provider = String(
-        user?.app_metadata?.provider ?? user?.identities?.[0]?.provider ?? "",
-      );
-      if (provider === "email") {
-        if (!deletePassword || !user?.email) return toast.error("Enter your current password");
-        const { error } = await supabase.auth.signInWithPassword({
-          email: user.email,
-          password: deletePassword,
-        });
-        if (error) throw error;
-      }
-      await deleteAccount({ data: { confirmation: "DELETE MY ACCOUNT" } });
+      setDeleting(true);
+      await deleteAccount({
+        data: { confirmation: "DELETE MY ACCOUNT", password: deletePassword || undefined },
+      });
       await supabase.auth.signOut();
       window.location.assign("/auth");
     } catch (error: any) {
       toast.error(error.message ?? "Could not delete account");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -388,6 +398,14 @@ function SettingsPage() {
 
   const signedOut = !user;
   const darkThemes = THEMES.filter((theme) => theme.mode === "dark");
+  const activeCategory =
+    activeSection === "notifications"
+      ? "notifications"
+      : activeSection === "privacy"
+        ? "privacy"
+        : activeSection === "account"
+          ? "account"
+          : "experience";
 
   return (
     <div className="space-y-8">
@@ -399,32 +417,28 @@ function SettingsPage() {
           Make ShuttleBoard work for you
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Accessibility, notifications, privacy, and account controls in one place.
+          The essentials first, with advanced controls available when you need them.
           {signedOut
             ? " Sign in to sync settings across devices."
             : " Your account preferences sync across devices."}
         </p>
       </header>
 
-      <nav className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-card/50 p-2 sm:grid-cols-4 lg:grid-cols-8">
+      <nav className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-card/50 p-2 sm:grid-cols-4">
         {(
           [
-            ["accessibility", "Accessibility", Accessibility],
-            ["notifications", "Notifications", Bell],
-            ["privacy", "Privacy", Shield],
-            ["account", "Account", Lock],
-            ["match", "Match", Volume2],
-            ["theme", "Theme", Moon],
-            ["accent", "Accent", Palette],
-            ["preview", "Preview", Check],
+            ["notifications", "Notifications", Bell, "notifications"],
+            ["experience", "Experience", Accessibility, "accessibility"],
+            ["privacy", "Privacy & social", Shield, "privacy"],
+            ["account", "Account & data", Lock, "account"],
           ] as const
-        ).map(([key, label, Icon]) => (
+        ).map(([key, label, Icon, target]) => (
           <button
             key={key}
             type="button"
-            onClick={() => setActiveSection(key)}
+            onClick={() => setActiveSection(target)}
             className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-semibold transition ${
-              activeSection === key
+              activeCategory === key
                 ? "bg-primary text-primary-foreground shadow"
                 : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
             }`}
@@ -434,22 +448,19 @@ function SettingsPage() {
         ))}
       </nav>
 
-      {signedOut &&
-        activeSection !== "theme" &&
-        activeSection !== "accent" &&
-        activeSection !== "preview" && (
-          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-            You can preview local appearance controls without signing in. Sign in to save
-            notification, privacy, and account settings.
-          </div>
-        )}
+      {signedOut && activeCategory !== "experience" && (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
+          You can preview local appearance controls without signing in. Sign in to save
+          notification, privacy, and account settings.
+        </div>
+      )}
 
       {activeSection === "accessibility" && (
         <section className="space-y-4">
           <SectionHeader
             icon={<Accessibility className="h-4 w-4" />}
-            title="Accessibility"
-            detail="Applies instantly"
+            title="Experience"
+            detail="Appearance, accessibility, and match feel"
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <Card>
@@ -514,6 +525,31 @@ function SettingsPage() {
               }}
             />
           </div>
+          <details className="group rounded-2xl border border-white/10 bg-card/30 p-1">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-3 text-xs font-semibold text-foreground transition hover:bg-background/40 [&::-webkit-details-marker]:hidden">
+              <span>Advanced experience settings</span>
+              <span className="text-muted-foreground transition group-open:rotate-180">Open</span>
+            </summary>
+            <div className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(
+                [
+                  ["match", "Match experience", Volume2],
+                  ["theme", "Theme", Moon],
+                  ["accent", "Accent color", Palette],
+                  ["preview", "Visual preview", Check],
+                ] as const
+              ).map(([target, label, Icon]) => (
+                <button
+                  key={target}
+                  type="button"
+                  onClick={() => setActiveSection(target)}
+                  className="button-secondary justify-start"
+                >
+                  <Icon className="h-3.5 w-3.5 text-primary" /> {label}
+                </button>
+              ))}
+            </div>
+          </details>
         </section>
       )}
 
@@ -625,83 +661,87 @@ function SettingsPage() {
               }
             />
           </div>
-          <Card>
-            <div className="flex items-center gap-2">
+          <details className="rounded-2xl border border-white/10 bg-card/30 p-1">
+            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-background/40 [&::-webkit-details-marker]:hidden">
               <Clock3 className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-sm font-semibold">Schedule and quiet hours</h3>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Alerts are queued during quiet hours and delivered when the allowed window opens.
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <ToggleTile
-                title="Use schedule"
-                description="Limit all pushes to a daily window."
-                checked={notifications.schedule_enabled ?? false}
-                onToggle={() =>
-                  updateNotification({
-                    schedule_enabled: !(notifications.schedule_enabled ?? false),
-                  })
-                }
-                compact
-              />
-              <Field label="Allowed from">
-                <input
-                  type="time"
-                  value={notifications.schedule_start ?? "08:00"}
-                  onChange={(event) => updateNotification({ schedule_start: event.target.value })}
-                  className="control"
-                />
-              </Field>
-              <Field label="Allowed until">
-                <input
-                  type="time"
-                  value={notifications.schedule_end ?? "21:00"}
-                  onChange={(event) => updateNotification({ schedule_end: event.target.value })}
-                  className="control"
-                />
-              </Field>
-              <Field label="Timezone">
-                <input
-                  value={notifications.timezone ?? "UTC"}
-                  onChange={(event) => updateNotification({ timezone: event.target.value })}
-                  className="control"
-                  placeholder="Europe/Amsterdam"
-                />
-              </Field>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <ToggleTile
-                title="Quiet hours"
-                description="Hold pushes overnight."
-                checked={notifications.quiet_hours_enabled ?? false}
-                onToggle={() =>
-                  updateNotification({
-                    quiet_hours_enabled: !(notifications.quiet_hours_enabled ?? false),
-                  })
-                }
-                compact
-              />
-              <Field label="Quiet hours start">
-                <input
-                  type="time"
-                  value={notifications.quiet_hours_start ?? "22:00"}
-                  onChange={(event) =>
-                    updateNotification({ quiet_hours_start: event.target.value })
+              <span>Schedule and quiet hours</span>
+            </summary>
+            <div className="p-4 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Alerts are queued during quiet hours and delivered when the allowed window opens.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <ToggleTile
+                  title="Use schedule"
+                  description="Limit all pushes to a daily window."
+                  checked={notifications.schedule_enabled ?? false}
+                  onToggle={() =>
+                    updateNotification({
+                      schedule_enabled: !(notifications.schedule_enabled ?? false),
+                    })
                   }
-                  className="control"
+                  compact
                 />
-              </Field>
-              <Field label="Quiet hours end">
-                <input
-                  type="time"
-                  value={notifications.quiet_hours_end ?? "07:00"}
-                  onChange={(event) => updateNotification({ quiet_hours_end: event.target.value })}
-                  className="control"
+                <Field label="Allowed from">
+                  <input
+                    type="time"
+                    value={notifications.schedule_start ?? "08:00"}
+                    onChange={(event) => updateNotification({ schedule_start: event.target.value })}
+                    className="control"
+                  />
+                </Field>
+                <Field label="Allowed until">
+                  <input
+                    type="time"
+                    value={notifications.schedule_end ?? "21:00"}
+                    onChange={(event) => updateNotification({ schedule_end: event.target.value })}
+                    className="control"
+                  />
+                </Field>
+                <Field label="Timezone">
+                  <input
+                    value={notifications.timezone ?? "UTC"}
+                    onChange={(event) => updateNotification({ timezone: event.target.value })}
+                    className="control"
+                    placeholder="Europe/Amsterdam"
+                  />
+                </Field>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <ToggleTile
+                  title="Quiet hours"
+                  description="Hold pushes overnight."
+                  checked={notifications.quiet_hours_enabled ?? false}
+                  onToggle={() =>
+                    updateNotification({
+                      quiet_hours_enabled: !(notifications.quiet_hours_enabled ?? false),
+                    })
+                  }
+                  compact
                 />
-              </Field>
+                <Field label="Quiet hours start">
+                  <input
+                    type="time"
+                    value={notifications.quiet_hours_start ?? "22:00"}
+                    onChange={(event) =>
+                      updateNotification({ quiet_hours_start: event.target.value })
+                    }
+                    className="control"
+                  />
+                </Field>
+                <Field label="Quiet hours end">
+                  <input
+                    type="time"
+                    value={notifications.quiet_hours_end ?? "07:00"}
+                    onChange={(event) =>
+                      updateNotification({ quiet_hours_end: event.target.value })
+                    }
+                    className="control"
+                  />
+                </Field>
+              </div>
             </div>
-          </Card>
+          </details>
         </section>
       )}
 
@@ -882,6 +922,31 @@ function SettingsPage() {
                 <div className="flex items-center gap-2">
                   <Trash2 className="h-4 w-4 text-destructive" />
                   <h3 className="font-display text-sm font-semibold">Delete account</h3>
+                  {user?.identities?.some((i) => i.provider === "google") && (
+                    <button
+                      type="button"
+                      className="mt-2 text-sm text-primary underline"
+                      onClick={() =>
+                        void supabase.auth
+                          .signInWithOAuth({
+                            provider: "google",
+                            options: {
+                              redirectTo: window.location.origin + "/settings?reauth=delete",
+                              queryParams: { prompt: "select_account" },
+                            },
+                          })
+                          .then(({ error }) => {
+                            if (error) toast.error(error.message);
+                          })
+                      }
+                    >
+                      Reauthenticate with Google
+                    </button>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Enter your current password or reauthenticate with Google, then confirm deletion
+                    within five minutes. Reauthentication does not delete anything.
+                  </p>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   This permanently removes your account and owned data. Export anything you need
@@ -904,6 +969,7 @@ function SettingsPage() {
                 </div>
                 <button
                   type="button"
+                  disabled={deleting}
                   onClick={() => void removeAccount()}
                   className="mt-3 inline-flex items-center gap-2 rounded-full bg-destructive px-4 py-2 text-xs font-semibold text-destructive-foreground"
                 >

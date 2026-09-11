@@ -151,6 +151,8 @@ export const listGroupChats = createServerFn({ method: "GET" })
     if (membershipError) throw new Error(membershipError.message);
     const groupIds = (memberships ?? []).map((row: any) => row.group_id);
     if (!groupIds.length) return [];
+    // Only IDs proved by the caller's own RLS-protected memberships reach the admin query.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: groups, error: groupsError }, { data: members, error: membersError }] =
       await Promise.all([
@@ -159,7 +161,7 @@ export const listGroupChats = createServerFn({ method: "GET" })
           .select("id, name, owner_id, created_at")
           .in("id", groupIds)
           .order("created_at", { ascending: false }),
-        context.supabase
+        supabaseAdmin
           .from("chat_group_members")
           .select("group_id, user_id, role")
           .in("group_id", groupIds),
@@ -222,7 +224,9 @@ export const createGroupChat = createServerFn({ method: "POST" })
       .single();
     if (groupError) throw new Error(groupError.message);
 
-    const { error: memberError } = await context.supabase
+    // The group was just created with the authenticated owner; all invitees were checked above.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: memberError } = await supabaseAdmin
       .from("chat_group_members")
       .insert([
         { group_id: group.id, user_id: context.userId, role: "owner" },

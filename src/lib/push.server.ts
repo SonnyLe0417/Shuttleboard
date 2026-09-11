@@ -1,11 +1,10 @@
 import webpush from "web-push";
+import { getPushConfig } from "@/lib/push-config.server";
 
 let configured = false;
-function ensureConfigured() {
+async function ensureConfigured() {
   if (configured) return;
-  const pub = process.env.VAPID_PUBLIC_KEY;
-  const priv = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT ?? "mailto:notifications@shuttleboard.app";
+  const { publicKey: pub, privateKey: priv, subject } = await getPushConfig();
   if (!pub || !priv) throw new Error("VAPID keys not configured");
   webpush.setVapidDetails(subject, pub, priv);
   configured = true;
@@ -26,7 +25,7 @@ export type PushPayload = {
 };
 
 export async function sendToSubscription(sub: PushRow, payload: PushPayload) {
-  ensureConfigured();
+  await ensureConfigured();
   try {
     await webpush.sendNotification(
       {

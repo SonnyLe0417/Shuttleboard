@@ -29,6 +29,7 @@ import {
 import { Share2 } from "lucide-react";
 import { getMyProfile } from "@/lib/matches.functions";
 import { renderProgressShareCard, renderHeadToHeadShareCard } from "@/lib/match-export";
+import { DASHBOARD_CORE_QUERY_KEY, MATCHES_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({
@@ -44,7 +45,12 @@ function HistoryPage() {
   const qc = useQueryClient();
   const fetchMatches = useServerFn(listMyMatches);
   const delFn = useServerFn(deleteMatch);
-  const { data: matches, isLoading } = useQuery({
+  const {
+    data: matches,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["matches", "mine"],
     queryFn: () => fetchMatches(),
   });
@@ -52,7 +58,9 @@ function HistoryPage() {
     mutationFn: (id: string) => delFn({ data: { id } }),
     onSuccess: () => {
       toast.success("Match deleted");
-      qc.invalidateQueries({ queryKey: ["matches", "mine"] });
+      qc.invalidateQueries({ queryKey: MATCHES_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
     },
     onError: (e: any) => toast.error(e.message ?? "Delete failed"),
   });
@@ -77,6 +85,15 @@ function HistoryPage() {
           {isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </div>
+          ) : isError && !matches ? (
+            <div role="alert">
+              <p className="text-sm text-muted-foreground">
+                Your match history couldn't load. Your saved matches haven't been removed.
+              </p>
+              <button className="button-secondary mt-3" onClick={() => void refetch()}>
+                Try again
+              </button>
             </div>
           ) : !matches || matches.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -262,7 +279,8 @@ function MatchRow({ match, onDelete }: { match: any; onDelete: () => void }) {
         },
       });
       toast.success("Saved");
-      qc.invalidateQueries({ queryKey: ["matches", "mine"] });
+      qc.invalidateQueries({ queryKey: MATCHES_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
       setEditing(false);
     } catch (err: any) {
       toast.error(err.message ?? "Save failed");
@@ -276,7 +294,8 @@ function MatchRow({ match, onDelete }: { match: any; onDelete: () => void }) {
     try {
       await saveReflection({ data: { match_id: match.id, ...reflection } });
       toast.success("Reflection saved");
-      qc.invalidateQueries({ queryKey: ["progress", "summary"] });
+      qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
       setReflectionOpen(false);
     } catch (err: any) {
       toast.error(err.message ?? "Reflection failed");
@@ -299,7 +318,8 @@ function MatchRow({ match, onDelete }: { match: any; onDelete: () => void }) {
         },
       });
       toast.success("Opponent strategy saved privately");
-      qc.invalidateQueries({ queryKey: ["progress", "summary"] });
+      qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
       setMemoryOpen(false);
     } catch (err: any) {
       toast.error(err.message ?? "Strategy note failed");
@@ -722,7 +742,7 @@ function LogMatchCard() {
     setSaving(true);
     try {
       const winner = scoreA === scoreB ? null : scoreA > scoreB ? "A" : "B";
-      await saveFn({
+      const saved = await saveFn({
         data: {
           mode: defaults.mode ?? "singles",
           format: defaults.format || "21-point",
@@ -744,7 +764,13 @@ function LogMatchCard() {
         },
       });
       toast.success("Match logged");
-      qc.invalidateQueries({ queryKey: ["matches", "mine"] });
+      if (saved.progressPending)
+        toast.warning(
+          "Your match is safe. Open Progress and choose Sync saved progress to retry rewards.",
+        );
+      qc.invalidateQueries({ queryKey: MATCHES_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
       setAName(defaults.starting_a ?? "");
       setBName(defaults.starting_b ?? "");
       setBHandle("");

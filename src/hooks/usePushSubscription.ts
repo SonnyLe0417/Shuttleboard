@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { subscribePush, unsubscribePush } from "@/lib/push.functions";
-
-// Public VAPID key (safe to expose). Must match VAPID_PUBLIC_KEY server secret.
-const VAPID_PUBLIC_KEY =
-  "BMrMJocM4uKh1Ij-vNLvO1ojboia3TVI39lc-PzZB0LJtBKDyeLpeoio5R4N8bpZRzNmUYG4JO7yCeAcOjwi4Uk";
+import { subscribePush, unsubscribePush, getPushPublicKey } from "@/lib/push.functions";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -31,6 +27,7 @@ export function usePushSubscription() {
   const [busy, setBusy] = useState(false);
   const subscribe = useServerFn(subscribePush);
   const unsubscribe = useServerFn(unsubscribePush);
+  const getPublicKey = useServerFn(getPushPublicKey);
 
   const supported =
     typeof window !== "undefined" &&
@@ -65,11 +62,21 @@ export function usePushSubscription() {
         (await navigator.serviceWorker.getRegistration("/sw.js")) ??
         (await navigator.serviceWorker.register("/sw.js"));
       await navigator.serviceWorker.ready;
+      const { publicKey } = await getPublicKey();
       let sub = await reg.pushManager.getSubscription();
+      const expectedKey = urlBase64ToUint8Array(publicKey);
+      if (
+        sub &&
+        sub.options.applicationServerKey &&
+        bufToBase64Url(sub.options.applicationServerKey) !== publicKey
+      ) {
+        await sub.unsubscribe();
+        sub = null;
+      }
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
+          applicationServerKey: expectedKey.buffer as ArrayBuffer,
         });
       }
       const p256dh = bufToBase64Url(sub.getKey("p256dh"));
@@ -86,7 +93,7 @@ export function usePushSubscription() {
     } finally {
       setBusy(false);
     }
-  }, [subscribe, supported]);
+  }, [subscribe, supported, getPublicKey]);
 
   const disable = useCallback(async () => {
     if (!supported) return;

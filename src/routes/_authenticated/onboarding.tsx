@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -23,15 +23,16 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 
 const STEPS = ["Identity", "Match defaults", "Ready"] as const;
 
-const COURT_COLORS = [
-  { value: "#1b4332", label: "Forest" },
-  { value: "#0e7490", label: "Ocean" },
-  { value: "#7c2d12", label: "Clay" },
-  { value: "#1e293b", label: "Slate" },
-  { value: "#4c1d95", label: "Amethyst" },
-];
+const FOCUS_OPTIONS = [
+  "Consistency",
+  "Match confidence",
+  "Singles",
+  "Doubles",
+  "Reflection",
+] as const;
 
 function OnboardingWizard() {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const fetchProfile = useServerFn(getMyProfile);
   const fetchPrefs = useServerFn(getMyPreferences);
@@ -54,6 +55,7 @@ function OnboardingWizard() {
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [favoriteRacket, setFavoriteRacket] = useState("");
   const [homeCourt, setHomeCourt] = useState("");
+  const [primaryFocus, setPrimaryFocus] = useState<(typeof FOCUS_OPTIONS)[number]>("Consistency");
 
   const [preset, setPreset] = useState<PresetId>("21");
   const [mode, setMode] = useState<"singles" | "doubles">("singles");
@@ -115,6 +117,7 @@ function OnboardingWizard() {
         data: {
           handle: handle.toLowerCase(),
           display_name: displayName.trim(),
+          primary_focus: primaryFocus,
           location: location || null,
           playing_hand: playingHand || null,
           gender: gender || null,
@@ -131,6 +134,8 @@ function OnboardingWizard() {
         },
       });
       window.localStorage.removeItem("shuttleboard.referral");
+      await queryClient.invalidateQueries({ queryKey: ["auth", "onboarding"] });
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
       toast.success("You're all set — welcome!");
       router.navigate({ to: "/dashboard", replace: true });
     } catch (err: any) {
@@ -171,14 +176,16 @@ function OnboardingWizard() {
             <Field label="Display name">
               <TextInput value={displayName} onChange={setDisplayName} maxLength={60} />
             </Field>
-            <Field label="Location" hint="optional">
-              <TextInput
-                value={location}
-                onChange={setLocation}
-                maxLength={80}
-                placeholder="Copenhagen, DK"
-              />
-            </Field>
+            <div className="hidden">
+              <Field label="Location" hint="optional">
+                <TextInput
+                  value={location}
+                  onChange={setLocation}
+                  maxLength={80}
+                  placeholder="Copenhagen, DK"
+                />
+              </Field>
+            </div>
             <Field label="Playing hand">
               <div className="flex gap-2">
                 {(["right", "left", "ambi"] as const).map((h) => (
@@ -192,31 +199,40 @@ function OnboardingWizard() {
                 ))}
               </div>
             </Field>
-            <Field label="Gender" hint="used for eligible junior divisions">
-              <div className="flex gap-2">
-                {(["male", "female"] as const).map((value) => (
-                  <Chip
-                    key={value}
-                    active={gender === value}
-                    onClick={() => setGender(gender === value ? "" : value)}
-                  >
-                    {value[0].toUpperCase() + value.slice(1)}
-                  </Chip>
-                ))}
+            <div className="hidden">
+              <Field label="Gender" hint="used for eligible junior divisions">
+                <div className="flex gap-2">
+                  {(["male", "female"] as const).map((value) => (
+                    <Chip
+                      key={value}
+                      active={gender === value}
+                      onClick={() => setGender(gender === value ? "" : value)}
+                    >
+                      {value[0].toUpperCase() + value.slice(1)}
+                    </Chip>
+                  ))}
+                </div>
+              </Field>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Favorite racket" hint="optional">
+                  <TextInput
+                    value={favoriteRacket}
+                    onChange={setFavoriteRacket}
+                    placeholder="Yonex Astrox 88D"
+                  />
+                </Field>
+                <Field label="Home court" hint="optional">
+                  <TextInput
+                    value={homeCourt}
+                    onChange={setHomeCourt}
+                    placeholder="Nørrebrohallen"
+                  />
+                </Field>
               </div>
-            </Field>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Favorite racket" hint="optional">
-                <TextInput
-                  value={favoriteRacket}
-                  onChange={setFavoriteRacket}
-                  placeholder="Yonex Astrox 88D"
-                />
-              </Field>
-              <Field label="Home court" hint="optional">
-                <TextInput value={homeCourt} onChange={setHomeCourt} placeholder="Nørrebrohallen" />
-              </Field>
             </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              You can add location, racket, home court, and other profile details later.
+            </p>
           </Section>
         )}
 
@@ -225,29 +241,7 @@ function OnboardingWizard() {
             icon={<Sliders className="h-4 w-4 text-primary" />}
             title="How do you like to play?"
           >
-            <Field label="Format">
-              <div className="grid grid-cols-2 gap-2">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setPreset(p.id)}
-                    className={`rounded-lg border px-3 py-3 text-left text-sm transition ${
-                      preset === p.id
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-white/10 bg-background text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <div className="font-medium text-foreground">{p.label}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      to {p.target}
-                      {p.decidingPoint ? " · sudden death" : ` · cap ${p.cap}`}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <Field label="Default mode">
+            <Field label="Preferred format">
               <div className="flex gap-2">
                 <Chip active={mode === "singles"} onClick={() => setMode("singles")}>
                   Singles
@@ -257,25 +251,16 @@ function OnboardingWizard() {
                 </Chip>
               </div>
             </Field>
-            <Field label="Court color">
+            <Field label="What do you want to improve first?">
               <div className="flex flex-wrap gap-2">
-                {COURT_COLORS.map((c) => (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setCourtColor(c.value)}
-                    className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
-                      courtColor === c.value
-                        ? "border-primary text-foreground"
-                        : "border-white/10 text-muted-foreground hover:text-foreground"
-                    }`}
+                {FOCUS_OPTIONS.map((focus) => (
+                  <Chip
+                    key={focus}
+                    active={primaryFocus === focus}
+                    onClick={() => setPrimaryFocus(focus)}
                   >
-                    <span
-                      className="h-4 w-4 rounded-full border border-white/20"
-                      style={{ backgroundColor: c.value }}
-                    />
-                    {c.label}
-                  </button>
+                    {focus}
+                  </Chip>
                 ))}
               </div>
             </Field>
@@ -296,15 +281,7 @@ function OnboardingWizard() {
                 label="Playing hand"
                 value={playingHand ? playingHand[0].toUpperCase() + playingHand.slice(1) : "—"}
               />
-              <Summary
-                label="Junior divisions"
-                value={
-                  gender
-                    ? `${gender[0].toUpperCase()}${gender.slice(1)} divisions`
-                    : "Set in profile later"
-                }
-              />
-              <Summary label="Home court" value={homeCourt || "—"} />
+              <Summary label="Focus" value={primaryFocus} />
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span

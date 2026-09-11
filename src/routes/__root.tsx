@@ -16,7 +16,6 @@ import { ThemeInit } from "../components/ThemeInit";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../integrations/supabase/client";
 import { LoaderCircle, MoreHorizontal, Sparkles, UserRound } from "lucide-react";
-import { BadmintonMatchProvider } from "@/components/BadmintonMatchProvider";
 import {
   TrackNetAnalysisProvider,
   useTrackNetAnalysis,
@@ -26,9 +25,44 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+type MoreMenuItem = { label: string; to: string };
+
+const MORE_MENU_GROUPS: Array<{ label: string; items: MoreMenuItem[] }> = [
+  {
+    label: "Coaching",
+    items: [
+      { label: "AI Referee", to: "/ai" },
+      { label: "Video analysis", to: "/video" },
+    ],
+  },
+  {
+    label: "Learn",
+    items: [
+      { label: "Rules", to: "/rules" },
+      { label: "USAB Juniors", to: "/junior-rankings" },
+    ],
+  },
+  {
+    label: "Community",
+    items: [{ label: "Social", to: "/social" }],
+  },
+  {
+    label: "Account",
+    items: [
+      { label: "Profile", to: "/profile" },
+      { label: "Settings", to: "/settings" },
+    ],
+  },
+];
+
+function isPlayRoute(pathname: string) {
+  return pathname === "/scoreboard" || pathname === "/match-lobby";
+}
 
 function NotFoundComponent() {
   return (
@@ -144,11 +178,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BadmintonMatchProvider>
-        <TrackNetAnalysisProvider>
-          <RootContent />
-        </TrackNetAnalysisProvider>
-      </BadmintonMatchProvider>
+      <TrackNetAnalysisProvider>
+        <RootContent />
+      </TrackNetAnalysisProvider>
     </QueryClientProvider>
   );
 }
@@ -164,10 +196,18 @@ function RootContent() {
     (trackNetPhase === "uploading" || trackNetPhase === "queued" || trackNetPhase === "processing");
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+    let previousUserId: string | null | undefined;
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user.id ?? null;
+      const changed = previousUserId !== undefined && previousUserId !== nextUserId;
+      previousUserId = nextUserId;
+      if (changed || event === "SIGNED_OUT") {
+        queryClient.clear();
+        queueMicrotask(() => void router.invalidate());
+      } else if (event === "USER_UPDATED") {
+        void queryClient.invalidateQueries({ queryKey: ["me", "profile"] });
+        void queryClient.invalidateQueries({ queryKey: ["dashboard", "core"] });
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);
@@ -197,43 +237,52 @@ function RootContent() {
             </Link>
             <div className="flex min-w-0 items-center gap-2">
               <div className="site-nav-links flex items-center gap-0.5 rounded-full border border-white/5 bg-card/60 p-1">
-                {user && <NavLink to="/dashboard">Dashboard</NavLink>}
-                {user && <NavLink to="/junior-rankings">USAB Juniors</NavLink>}
-                <NavLink to="/scoreboard">Scoreboard</NavLink>
+                {user && <NavLink to="/dashboard">Home</NavLink>}
+                <NavLink
+                  to={user ? "/match-lobby" : "/scoreboard"}
+                  forceActive={isPlayRoute(pathname)}
+                >
+                  Play
+                </NavLink>
                 {user && <NavLink to="/history">History</NavLink>}
                 {user && <NavLink to="/progress">Progress</NavLink>}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="site-nav-more inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      type="button"
+                      className="site-nav-more inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full border-0 bg-transparent px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label="More navigation options"
                     >
                       <span className="site-nav-more-label">More</span>
-                      <MoreHorizontal className="h-3.5 w-3.5" />
+                      <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="w-44 border-white/10 bg-card/95 backdrop-blur-xl"
+                    sideOffset={8}
+                    className="w-52 rounded-xl border-white/10 bg-card/95 p-1.5 shadow-[var(--shadow-tile)] backdrop-blur-xl"
                   >
-                    <DropdownMenuItem asChild>
-                      <Link to="/ai">AI Referee</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/video">Video analysis</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/rules">Rules</Link>
-                    </DropdownMenuItem>
-                    {user && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/social">Social</Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator className="bg-white/10" />
-                    <DropdownMenuItem asChild>
-                      <Link to={"/settings" as any}>Settings</Link>
-                    </DropdownMenuItem>
+                    {MORE_MENU_GROUPS.map((group, groupIndex) => {
+                      const items = group.items.filter(({ to }) => user || to === "/rules");
+                      if (!items.length) return null;
+                      return (
+                        <div key={group.label}>
+                          {groupIndex > 0 && <DropdownMenuSeparator className="bg-white/10" />}
+                          <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                            {group.label}
+                          </DropdownMenuLabel>
+                          {items.map((item) => (
+                            <DropdownMenuItem
+                              key={item.to}
+                              asChild
+                              className="rounded-lg px-2 py-1.5 text-xs text-foreground focus:bg-primary/10 focus:text-primary"
+                            >
+                              <Link to={item.to as any}>{item.label}</Link>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -300,12 +349,20 @@ function formatEta(seconds: number | null | undefined) {
   return remainingSeconds ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
 }
 
-function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
+function NavLink({
+  to,
+  children,
+  forceActive = false,
+}: {
+  to: string;
+  children: React.ReactNode;
+  forceActive?: boolean;
+}) {
   return (
     <Link
       to={to}
-      activeProps={{ className: "tab-active text-foreground" }}
-      className="site-nav-link relative rounded-full px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+      activeProps={{ className: "site-nav-link tab-active text-foreground" }}
+      className={`site-nav-link relative rounded-full px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground ${forceActive ? "tab-active text-foreground" : ""}`}
     >
       {children}
     </Link>

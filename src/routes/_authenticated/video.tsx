@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Upload,
   Play,
   Pause,
   RotateCcw,
@@ -24,6 +23,9 @@ import {
 } from "@/lib/birdie-tracker";
 import { createTrackNetPreview, type TrackNetPoint } from "@/lib/tracknet-client";
 import { useTrackNetAnalysis } from "@/components/TrackNetAnalysisProvider";
+import { VideoUploadPanel } from "@/components/video/VideoUploadPanel";
+import { VideoPreviewPanel } from "@/components/video/VideoPreviewPanel";
+import { previewFailureMessage, shouldCreateBrowserPreview } from "@/lib/video-preview";
 
 export const Route = createFileRoute("/_authenticated/video")({
   head: () => ({
@@ -344,8 +346,8 @@ function VideoAnalyzerPage() {
   };
 
   const handleVideoError = () => {
-    if (!selectedFile || previewAttemptedRef.current) {
-      setError("This video could not be loaded. Try exporting it as an MP4 or MOV file.");
+    if (!shouldCreateBrowserPreview(selectedFile, previewAttemptedRef.current)) {
+      setError(previewFailureMessage());
       return;
     }
 
@@ -358,7 +360,7 @@ function VideoAnalyzerPage() {
       })
       .catch((previewError) => {
         setError(
-          `This video could not be previewed. ${previewError instanceof Error ? previewError.message : "Try exporting it as an MP4 or MOV file."}`,
+          previewFailureMessage(previewError instanceof Error ? previewError.message : undefined),
         );
       });
   };
@@ -825,53 +827,24 @@ function VideoAnalyzerPage() {
         </div>
       )}
 
-      {phase === "upload" && (
-        <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-card p-10 text-center transition-colors hover:border-primary/60">
-          <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">Click to upload a game video</span>
-          <span className="mt-1 text-xs text-muted-foreground">
-            MP4 / WebM / MOV — up to a few minutes
-          </span>
-          <input
-            type="file"
-            accept="video/*"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
-          />
-        </label>
-      )}
+      {phase === "upload" && <VideoUploadPanel onFile={onFile} />}
 
       {phase !== "upload" && videoUrl && (
         <>
-          <div className="relative aspect-video overflow-hidden rounded-xl border border-border bg-black">
-            <video
-              ref={videoRef}
-              src={tracknetVideoUrl ?? videoUrl}
-              className="block h-full w-full object-contain"
-              preload="auto"
-              autoPlay={phase === "calibrate"}
-              playsInline
-              muted
-              onError={handleVideoError}
-              onLoadedMetadata={syncTrackNetOverlay}
-              onTimeUpdate={() => {
-                if (analysisMode === "tracknet") drawOverlay();
-              }}
-            />
-            {phase === "calibrate" && (
-              <canvas
-                ref={calibCanvasRef}
-                onClick={onCalibClick}
-                className="absolute inset-0 block h-full w-full cursor-crosshair"
-              />
-            )}
-            {phase !== "calibrate" && (
-              <canvas
-                ref={overlayRef}
-                className="pointer-events-none absolute inset-0 h-full w-full"
-              />
-            )}
-          </div>
+          <VideoPreviewPanel
+            videoRef={videoRef}
+            calibrationCanvasRef={calibCanvasRef}
+            overlayRef={overlayRef}
+            src={tracknetVideoUrl ?? videoUrl}
+            calibrating={phase === "calibrate"}
+            autoPlay={phase === "calibrate"}
+            onError={handleVideoError}
+            onCalibrationClick={onCalibClick}
+            onLoadedMetadata={syncTrackNetOverlay}
+            onTimeUpdate={() => {
+              if (analysisMode === "tracknet") drawOverlay();
+            }}
+          />
           <canvas ref={workRef} className="hidden" />
         </>
       )}

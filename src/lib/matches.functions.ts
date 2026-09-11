@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { TablesInsert } from "@/integrations/supabase/types";
-import { awardProgressXp } from "@/lib/progress.functions";
+import { matchForPlayer } from "@/lib/player-matches";
 import { completeReferralForUser } from "@/lib/growth.functions";
 
 const gameSchema = z.object({ a: z.number().int(), b: z.number().int() });
@@ -129,7 +129,13 @@ export const saveMatch = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Match was not saved.");
     if (data.status === "finished") {
-      void awardProgressXp(supabase, userId, `match:${row.id}:saved`, "match", 10).catch(() => {});
+      const { synchronizeProgressForMatch } = await import("@/lib/progress.server");
+      try {
+        await synchronizeProgressForMatch(supabase, row.id);
+      } catch (progressError) {
+        console.error("Saved match; progress sync needs retry", progressError);
+        return { id: row.id, progressPending: true };
+      }
       void completeReferralForUser(userId).catch(() => {});
     }
     // Fire-and-forget streak alert on a finished win
@@ -140,17 +146,17 @@ export const saveMatch = createServerFn({ method: "POST" })
         void checkAndSendStreakAlert(userId).catch(() => {});
       }
     }
-    return { id: row.id };
+    return { id: row.id, progressPending: false };
   });
 
 async function checkAndSendStreakAlert(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { sendToUser } = await import("@/lib/push.server");
+  const { queueNotification } = await import("@/lib/progress.server");
 
   // Look at last 10 finished matches for the user
   const { data: recent } = await supabaseAdmin
     .from("matches")
-    .select("winner, team_a_user_ids, team_b_user_ids, finished_at")
+    .select("id, winner, team_a_user_ids, team_b_user_ids, finished_at")
     .eq("status", "finished")
     .or(`team_a_user_ids.cs.{${userId}},team_b_user_ids.cs.{${userId}}`)
     .order("finished_at", { ascending: false })
@@ -173,27 +179,15 @@ async function checkAndSendStreakAlert(userId: string) {
     .maybeSingle();
   if ((pref?.notifications as any)?.win_streak_alerts === false) return;
 
-  // Dedupe by streak count so each new streak length triggers once
-  const bucket = `streak-${streak}`;
-  const { data: already } = await supabaseAdmin
-    .from("notification_log")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("kind", "streak_alert")
-    .eq("bucket", bucket)
-    .maybeSingle();
-  if (already) return;
-
-  const emoji = streak >= 10 ? "🔥🔥" : streak >= 5 ? "🔥" : "⭐";
-  await sendToUser(supabaseAdmin, userId, {
-    title: `${streak}-win streak ${emoji}`,
-    body: `You've won ${streak} matches in a row. Keep it going!`,
-    url: "/history",
-    tag: `streak-${streak}`,
-  });
-  await supabaseAdmin
-    .from("notification_log")
-    .insert({ user_id: userId, kind: "streak_alert", bucket });
+  await queueNotification(
+    supabaseAdmin,
+    userId,
+    `streak:${recent?.[0]?.id}:${streak}`,
+    "streak",
+    `${streak}-win streak`,
+    `You've won ${streak} matches in a row. Keep it going!`,
+    "/history",
+  );
 }
 
 export const listMyMatches = createServerFn({ method: "GET" })
@@ -206,7 +200,7 @@ export const listMyMatches = createServerFn({ method: "GET" })
       .order("started_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map((match) => matchForPlayer(match, context.userId));
   });
 
 export const deleteMatch = createServerFn({ method: "POST" })
@@ -504,6 +498,7 @@ const onboardingSchema = z.object({
     .max(24)
     .regex(/^[a-z0-9_]+$/, "lowercase letters, numbers, underscores"),
   display_name: z.string().min(1).max(60),
+  primary_focus: z.string().max(80).nullable().optional(),
   location: z.string().max(80).nullable().optional(),
   playing_hand: z.enum(["right", "left", "ambi"]).nullable().optional(),
   favorite_racket: z.string().max(80).nullable().optional(),
@@ -552,7 +547,10 @@ export const completeOnboarding = createServerFn({ method: "POST" })
     const { error: prefErr } = await context.supabase.from("user_preferences").upsert({
       id: context.userId,
       match_defaults: { ...((existing as any)?.match_defaults ?? {}), ...data.match_defaults },
-      dashboard: (existing as any)?.dashboard ?? {},
+      dashboard: {
+        ...((existing as any)?.dashboard ?? {}),
+        ...(data.primary_focus ? { primary_focus: data.primary_focus } : {}),
+      },
       notifications: (existing as any)?.notifications ?? {},
       onboarded_at: new Date().toISOString(),
     } as any);

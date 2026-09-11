@@ -218,11 +218,15 @@ export const exportMyAccountData = createServerFn({ method: "GET" })
 export const deleteMyAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((raw: unknown) =>
-    z.object({ confirmation: z.literal("DELETE MY ACCOUNT") }).parse(raw),
+    z
+      .object({
+        confirmation: z.literal("DELETE MY ACCOUNT"),
+        password: z.string().min(1).max(256).optional(),
+      })
+      .strict()
+      .parse(raw),
   )
-  .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
+  .handler(async ({ context, data }) => {
+    const { deleteAuthenticatedAccount } = await import("@/lib/account-deletion.server");
+    return deleteAuthenticatedAccount(context, data.password);
   });

@@ -9,6 +9,14 @@ const subInput = z.object({
   user_agent: z.string().max(300).optional(),
 });
 
+export const getPushPublicKey = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { getPushConfig } = await import("@/lib/push-config.server");
+    const config = await getPushConfig();
+    return { publicKey: config.publicKey };
+  });
+
 export const subscribePush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((raw: unknown) => subInput.parse(raw))
@@ -55,5 +63,7 @@ export const sendTestPush = createServerFn({ method: "POST" })
       url: "/",
       tag: "test",
     });
+    if (result.sent === 0)
+      throw new Error("No push was delivered. Enable notifications on this device and try again.");
     return result;
   });

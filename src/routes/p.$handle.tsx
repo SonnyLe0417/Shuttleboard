@@ -11,7 +11,7 @@ import { getPublicProfile } from "@/lib/growth.functions";
 export const Route = createFileRoute("/p/$handle")({
   head: ({ params }) => ({
     meta: [
-      { title: `${params.handle} · ShuttleBoard` },
+      { title: `${params.handle} - ShuttleBoard` },
       { name: "description", content: "Public badminton player profile on ShuttleBoard." },
     ],
   }),
@@ -29,7 +29,7 @@ function PublicProfilePage() {
 
   async function share() {
     try {
-      if (navigator.share) await navigator.share({ title: `${handle} · ShuttleBoard`, url: link });
+      if (navigator.share) await navigator.share({ title: `${handle} - ShuttleBoard`, url: link });
       else {
         await navigator.clipboard?.writeText(link);
         toast.success("Profile link copied");
@@ -96,11 +96,11 @@ function PublicProfilePage() {
           </div>
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span className="rounded-full border border-white/10 px-3 py-1.5">
-              <Trophy className="mr-1 inline h-3.5 w-3.5 text-primary" /> {stats.wins} wins ·{" "}
+              <Trophy className="mr-1 inline h-3.5 w-3.5 text-primary" /> {stats.wins} wins -{" "}
               {stats.losses} losses
             </span>
             <span className="rounded-full border border-white/10 px-3 py-1.5">
-              <Users className="mr-1 inline h-3.5 w-3.5 text-primary" /> {stats.singles} singles ·{" "}
+              <Users className="mr-1 inline h-3.5 w-3.5 text-primary" /> {stats.singles} singles -{" "}
               {stats.doubles} doubles
             </span>
           </div>
@@ -119,7 +119,7 @@ function PublicProfilePage() {
         </div>
       </section>
       <p className="mt-4 text-center text-[11px] text-muted-foreground">
-        ShuttleBoard · Make every rally count.
+        ShuttleBoard - Make every rally count.
       </p>
     </main>
   );

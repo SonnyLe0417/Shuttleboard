@@ -1,34 +1,47 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { ACHIEVEMENTS } from "@/lib/achievement-catalog";
+import { levelBounds } from "@/lib/player-matches";
+import { Button } from "@/components/ui/button";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Check, Flame, Gauge, Sparkles, Trophy } from "lucide-react";
-import { getProgressSummary, updateProgressSettings } from "@/lib/progress.functions";
+import {
+  getProgressSummary,
+  updateProgressSettings,
+  refreshMyProgress,
+} from "@/lib/progress.functions";
+import { DASHBOARD_CORE_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/progress")({
   head: () => ({ meta: [{ title: "Progress · ShuttleBoard" }] }),
   component: ProgressPage,
 });
 
-const achievements = [
-  ["first-match", "First Match", "Save your first completed result."],
-  ["first-reflection", "First Reflection", "Write your first post-match lesson."],
-  ["first-personal-best", "Personal Best", "Set a new best in any tracked category."],
-  ["three-match-streak", "On a Streak", "Win three completed matches in a row."],
-  ["five-reflections", "Court Journal", "Complete five reflections."],
-  ["three-quests", "Focused Player", "Complete three coach quests."],
-  ["decider-tested", "Decider Tested", "Finish three matches with a deciding game."],
-  ["comeback", "Comeback Match", "Win after falling behind in a game."],
-  ["opponent-analyst", "Opponent Analyst", "Save a private strategy memory."],
-  ["consistent-player", "Consistent Player", "Play two matches in a period."],
-] as const;
+const achievements = ACHIEVEMENTS;
 
 function ProgressPage() {
   const qc = useQueryClient();
   const fetchProgress = useServerFn(getProgressSummary);
   const saveSettings = useServerFn(updateProgressSettings);
-  const progressQ = useQuery({ queryKey: ["progress", "summary"], queryFn: () => fetchProgress() });
+  const refreshProgress = useServerFn(refreshMyProgress);
+  const refreshMutation = useMutation({
+    mutationFn: () => refreshProgress(),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY }),
+        qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY }),
+      ]);
+      toast.success("Progress synchronized with your saved matches");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const progressQ = useQuery({
+    queryKey: PROGRESS_QUERY_KEY,
+    queryFn: () => fetchProgress(),
+    refetchOnMount: false,
+  });
   const [cadence, setCadence] = useState<"weekly" | "monthly">("weekly");
   const [streaksEnabled, setStreaksEnabled] = useState(true);
   const [celebrationEnabled, setCelebrationEnabled] = useState(true);
@@ -39,10 +52,16 @@ function ProgressPage() {
       celebration_enabled?: boolean;
     }) => saveSettings({ data }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["progress", "summary"] });
-      toast.success("Coach quest cadence updated");
+      qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      toast.success("Progress settings saved");
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => {
+      toast.error(error.message);
+      setCadence(progressQ.data?.progress.quest_cadence ?? "weekly");
+      setStreaksEnabled(progressQ.data?.progress.streaks_enabled ?? true);
+      setCelebrationEnabled(progressQ.data?.progress.celebration_enabled ?? true);
+    },
   });
 
   const summary = progressQ.data;
@@ -55,11 +74,48 @@ function ProgressPage() {
   const earned = new Set((summary?.achievements ?? []).map((item: any) => item.achievement_key));
   const level = summary?.progress.current_level ?? 1;
   const xp = summary?.progress.total_xp ?? 0;
-  const nextLevel =
-    [100, 250, 500, 850, 1300, 1850, 2500].find((threshold) => threshold > xp) ?? xp + 700;
+  const bounds = levelBounds(xp);
+  const nextLevel = bounds.end;
+  if (!summary) {
+    return (
+      <section className="app-state" aria-busy={progressQ.isPending}>
+        <h1 className="app-page-title">
+          {progressQ.isPending ? "Loading your progress" : "Progress couldn't load"}
+        </h1>
+        {progressQ.isPending ? (
+          <div className="mt-4 h-32 animate-pulse rounded-2xl bg-muted" />
+        ) : (
+          <>
+            <p className="app-state-description">
+              Your saved results have not been reset. We couldn't retrieve them.
+            </p>
+            <Button onClick={() => void progressQ.refetch()}>Try again</Button>
+          </>
+        )}
+      </section>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {progressQ.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            Showing your last loaded progress. Refresh to try again.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Based on your saved matches and reflections.
+          </p>
+        )}
+        <Button
+          variant="outline"
+          disabled={refreshMutation.isPending}
+          onClick={() => refreshMutation.mutate()}
+        >
+          {refreshMutation.isPending ? "Syncing…" : "Sync saved progress"}
+        </Button>
+      </div>
       <header className="rounded-3xl border border-primary/20 bg-card/70 p-6 shadow-[0_20px_80px_oklch(0.16_0.04_190/0.3)] sm:p-8">
         <p className="eyebrow text-primary">
           <Sparkles className="h-3.5 w-3.5" /> Player progress
@@ -78,12 +134,18 @@ function ProgressPage() {
             <p className="text-xs text-muted-foreground">
               Level {level} · {Math.max(0, nextLevel - xp)} to next
             </p>
+            <Link
+              to="/profile"
+              className="mt-2 inline-flex text-xs font-semibold text-primary hover:underline"
+            >
+              View profile
+            </Link>
           </div>
         </div>
         <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
           <div
             className="animate-progress-fill h-full rounded-full bg-primary transition-all"
-            style={{ width: `${Math.min(100, Math.max(8, (xp / nextLevel) * 100))}%` }}
+            style={{ width: `${bounds.percent}%` }}
           />
         </div>
       </header>
@@ -162,6 +224,7 @@ function ProgressPage() {
           <label className="text-xs text-muted-foreground">
             Quest cadence{" "}
             <select
+              disabled={settingsMutation.isPending}
               value={cadence}
               onChange={(event) => {
                 const next = event.target.value as "weekly" | "monthly";
@@ -212,6 +275,7 @@ function ProgressPage() {
           <label className="flex items-center justify-between rounded-xl border border-white/10 bg-background/30 px-3 py-3 text-sm">
             Show streaks
             <input
+              disabled={settingsMutation.isPending}
               type="checkbox"
               checked={streaksEnabled}
               onChange={(event) => {

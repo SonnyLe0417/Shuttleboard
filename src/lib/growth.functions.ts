@@ -1,13 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createHash, randomBytes } from "node:crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { awardProgressXp } from "@/lib/progress.functions";
 
 const uuid = z.string().uuid();
 
-function hashToken(token: string) {
+async function hashToken(token: string) {
+  const { createHash } = await import("node:crypto");
   return createHash("sha256").update(token).digest("hex");
 }
 
@@ -45,6 +43,7 @@ async function publicStats(db: any, userId: string) {
 export const getPublicProfile = createServerFn({ method: "GET" })
   .validator((raw: unknown) => z.object({ handle: z.string().min(2).max(24) }).parse(raw))
   .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const { data: profile, error } = await db
       .from("profiles")
@@ -75,7 +74,9 @@ export const createMatchInvite = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { randomBytes } = await import("node:crypto");
     const token = randomBytes(24).toString("hex");
+    const tokenHash = await hashToken(token);
     const { data: row, error } = await db
       .from("match_invites")
       .insert({
@@ -83,7 +84,7 @@ export const createMatchInvite = createServerFn({ method: "POST" })
         sender_id: context.userId,
         recipient_id: data.recipient_id ?? null,
         team_side: data.team_side,
-        token_hash: hashToken(token),
+        token_hash: tokenHash,
       })
       .select("id, expires_at")
       .single();
@@ -147,16 +148,19 @@ export const respondToMatchInvite = createServerFn({ method: "POST" })
 export const getInviteByToken = createServerFn({ method: "GET" })
   .validator((raw: unknown) => z.object({ token: z.string().min(20).max(100) }).parse(raw))
   .handler(async ({ data }) => {
-    const { data: invite, error } = await (supabaseAdmin as any)
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const tokenHash = await hashToken(data.token);
+    const { data: invite, error } = await db
       .from("match_invites")
       .select("id, match_id, sender_id, team_side, status, expires_at")
-      .eq("token_hash", hashToken(data.token))
+      .eq("token_hash", tokenHash)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!invite) return null;
     if (invite.status !== "pending" || new Date(invite.expires_at).getTime() < Date.now())
       return { ...invite, unavailable: true };
-    const { data: sender } = await (supabaseAdmin as any)
+    const { data: sender } = await db
       .from("profiles")
       .select("handle, display_name")
       .eq("id", invite.sender_id)
@@ -169,10 +173,11 @@ export const acceptInviteToken = createServerFn({ method: "POST" })
   .validator((raw: unknown) => z.object({ token: z.string().min(20).max(100) }).parse(raw))
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const tokenHash = await hashToken(data.token);
     const { data: invite, error } = await db
       .from("match_invites")
       .select("*")
-      .eq("token_hash", hashToken(data.token))
+      .eq("token_hash", tokenHash)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (
@@ -244,6 +249,8 @@ export const attributeReferral = createServerFn({ method: "POST" })
   });
 
 export async function completeReferralForUser(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { awardProgressXp } = await import("@/lib/progress.server");
   const db = supabaseAdmin as any;
   const { data: referral } = await db
     .from("referrals")

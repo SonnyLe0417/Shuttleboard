@@ -1,3 +1,4 @@
+import { levelBounds } from "@/lib/player-matches";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -16,6 +17,9 @@ type ProfileProgressHomeProps = {
   avatarPreview: string;
   bannerImage: string;
   summary: any;
+  progressLoading: boolean;
+  progressError: boolean;
+  retryProgress: () => void;
   friends: any[];
   editHref: string;
 };
@@ -33,6 +37,9 @@ export function ProfileProgressHome({
   avatarPreview,
   bannerImage,
   summary,
+  progressLoading,
+  progressError,
+  retryProgress,
   friends,
   editHref,
 }: ProfileProgressHomeProps) {
@@ -40,9 +47,9 @@ export function ProfileProgressHome({
   const stats = summary?.stats ?? {};
   const xp = Number(progress.total_xp ?? 0);
   const level = Number(progress.current_level ?? 1);
-  const nextLevel =
-    [100, 250, 500, 850, 1300, 1850, 2500].find((threshold) => threshold > xp) ?? xp + 700;
-  const levelProgress = Math.min(100, Math.max(6, (xp / nextLevel) * 100));
+  const bounds = levelBounds(xp);
+  const nextLevel = bounds.end;
+  const levelProgress = bounds.percent;
   const matches = Number(stats.matches ?? 0);
   const earned = new Set((summary?.achievements ?? []).map((item: any) => item.achievement_key));
   const pathProgress = (key: string) => {
@@ -81,7 +88,7 @@ export function ProfileProgressHome({
               )}
             </div>
             <span className="absolute -bottom-2 -right-2 inline-flex items-center gap-1 rounded-full border border-primary/40 bg-background px-2 py-1 text-[10px] font-bold text-primary">
-              <Zap className="h-3 w-3" /> L{level}
+              <Zap className="h-3 w-3" /> {summary ? `L${level}` : "—"}
             </span>
           </div>
           <div className="min-w-0 flex-1">
@@ -115,179 +122,208 @@ export function ProfileProgressHome({
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
-        <StatCard icon={<Zap />} label="XP" value={xp.toLocaleString()} detail={`Level ${level}`} />
-        <StatCard
-          icon={<Flame />}
-          label="Current streak"
-          value={`${stats.currentStreak ?? 0}`}
-          detail="match wins"
+      {progressError && (
+        <div role="alert" className="app-state">
+          <p>Progress couldn't refresh. Your saved results haven't been reset.</p>
+          <button className="button-secondary" onClick={retryProgress}>
+            Try again
+          </button>
+        </div>
+      )}
+      {!summary && progressLoading && (
+        <div
+          className="h-36 animate-pulse rounded-2xl bg-muted"
+          role="status"
+          aria-label="Loading progress"
         />
-        <StatCard
-          icon={<Trophy />}
-          label="Personal bests"
-          value={`${summary?.personalBests?.length ?? 0}`}
-          detail="records tracked"
-        />
-        <StatCard
-          icon={<Medal />}
-          label="Achievements"
-          value={`${summary?.achievements?.length ?? 0}`}
-          detail="unlocked"
-        />
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
-        <div className="bento-tile interactive-lift p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="eyebrow text-primary">
-                <Target className="h-3.5 w-3.5" /> Level {level} ·{" "}
-                {progress.level_name ?? "New Player"}
-              </p>
-              <h2 className="mt-1 font-display text-xl font-semibold">Keep the rally going</h2>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {Math.max(0, nextLevel - xp)} XP to next
-            </span>
-          </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="animate-progress-fill h-full rounded-full bg-gradient-to-r from-primary to-cyan-300"
-              style={{ width: `${levelProgress}%` }}
+      )}
+      {summary && (
+        <>
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
+            <StatCard
+              icon={<Zap />}
+              label="XP"
+              value={xp.toLocaleString()}
+              detail={`Level ${level}`}
             />
-          </div>
-          <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-            <span>{xp} XP</span>
-            <span>{nextLevel} XP</span>
-          </div>
-        </div>
-        <div className="bento-tile interactive-lift p-5">
-          <p className="eyebrow">
-            <Flame className="h-3.5 w-3.5" /> Coach’s Corner
-          </p>
-          <h2 className="mt-1 font-display text-xl font-semibold">
-            {summary?.activeQuest?.title ?? "Start your match story"}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {summary?.activeQuest?.description ?? "Save a match to unlock a personalized quest."}
-          </p>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{
-                width: `${Math.min(100, ((summary?.activeQuest?.progress ?? 0) / Math.max(1, summary?.activeQuest?.target_value ?? 1)) * 100)}%`,
-              }}
+            <StatCard
+              icon={<Flame />}
+              label="Current streak"
+              value={`${stats.currentStreak ?? 0}`}
+              detail="match wins"
             />
-          </div>
-        </div>
-      </section>
+            <StatCard
+              icon={<Trophy />}
+              label="Personal bests"
+              value={`${summary?.personalBests?.length ?? 0}`}
+              detail="records tracked"
+            />
+            <StatCard
+              icon={<Medal />}
+              label="Achievements"
+              value={`${summary?.achievements?.length ?? 0}`}
+              detail="unlocked"
+            />
+          </section>
 
-      <section className="bento-tile p-5">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="eyebrow text-primary">
-              <Sparkles className="h-3.5 w-3.5" /> Training paths
-            </p>
-            <h2 className="mt-1 font-display text-xl font-semibold">Choose what to grow next</h2>
-          </div>
-          <span className="text-xs text-muted-foreground">Match data first</span>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {paths.map((path) => {
-            const value = pathProgress(path.key);
-            return (
-              <div
-                key={path.key}
-                className="interactive-lift rounded-2xl border border-white/10 bg-background/30 p-3"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">{path.label}</p>
-                  <span className="text-[10px] text-primary">{Math.round(value)}%</span>
+          <section className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
+            <div className="bento-tile interactive-lift p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="eyebrow text-primary">
+                    <Target className="h-3.5 w-3.5" /> Level {level} ·{" "}
+                    {progress.level_name ?? "New Player"}
+                  </p>
+                  <h2 className="mt-1 font-display text-xl font-semibold">Keep the rally going</h2>
                 </div>
-                <p className="mt-1 min-h-10 text-xs leading-5 text-muted-foreground">
-                  {path.description}
+                <span className="text-xs text-muted-foreground">
+                  {Math.max(0, nextLevel - xp)} XP to next
+                </span>
+              </div>
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="animate-progress-fill h-full rounded-full bg-gradient-to-r from-primary to-cyan-300"
+                  style={{ width: `${levelProgress}%` }}
+                />
+              </div>
+              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                <span>{xp} XP</span>
+                <span>{nextLevel} XP</span>
+              </div>
+            </div>
+            <div className="bento-tile interactive-lift p-5">
+              <p className="eyebrow">
+                <Flame className="h-3.5 w-3.5" /> Coach’s Corner
+              </p>
+              <h2 className="mt-1 font-display text-xl font-semibold">
+                {summary?.activeQuest?.title ?? "Start your match story"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {summary?.activeQuest?.description ??
+                  "Save a match to unlock a personalized quest."}
+              </p>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${Math.min(100, ((summary?.activeQuest?.progress ?? 0) / Math.max(1, summary?.activeQuest?.target_value ?? 1)) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="bento-tile p-5">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="eyebrow text-primary">
+                  <Sparkles className="h-3.5 w-3.5" /> Training paths
                 </p>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <h2 className="mt-1 font-display text-xl font-semibold">
+                  Choose what to grow next
+                </h2>
+              </div>
+              <span className="text-xs text-muted-foreground">Match data first</span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {paths.map((path) => {
+                const value = pathProgress(path.key);
+                return (
                   <div
-                    className="animate-progress-fill h-full rounded-full bg-primary"
-                    style={{ width: `${Math.max(value, value ? 8 : 3)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+                    key={path.key}
+                    className="interactive-lift rounded-2xl border border-white/10 bg-background/30 p-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{path.label}</p>
+                      <span className="text-[10px] text-primary">{Math.round(value)}%</span>
+                    </div>
+                    <p className="mt-1 min-h-10 text-xs leading-5 text-muted-foreground">
+                      {path.description}
+                    </p>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="animate-progress-fill h-full rounded-full bg-primary"
+                        style={{ width: `${value}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="bento-tile p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="eyebrow">
-                <Trophy className="h-3.5 w-3.5" /> Personal bests
-              </p>
-              <h2 className="mt-1 font-display text-xl font-semibold">Small records, real proof</h2>
-            </div>
-            <Link to="/progress" className="text-xs text-primary">
-              See all
-            </Link>
-          </div>
-          <div className="mt-4 space-y-2">
-            {(summary?.personalBests ?? []).slice(0, 3).map((best: any) => (
-              <div
-                key={best.metric_key}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-background/30 px-3 py-2.5"
-              >
-                <span className="text-sm capitalize">
-                  {String(best.metric_key).replaceAll("_", " ")}
-                </span>
-                <span className="font-semibold text-primary">
-                  {best.value} {best.unit}
-                </span>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="bento-tile p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="eyebrow">
+                    <Trophy className="h-3.5 w-3.5" /> Personal bests
+                  </p>
+                  <h2 className="mt-1 font-display text-xl font-semibold">
+                    Small records, real proof
+                  </h2>
+                </div>
+                <Link to="/progress" className="text-xs text-primary">
+                  See all
+                </Link>
               </div>
-            ))}
-            {!summary?.personalBests?.length && (
-              <p className="text-sm text-muted-foreground">
-                Your first saved match can create your first record.
-              </p>
-            )}
-          </div>
-        </section>
-        <section className="bento-tile p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="eyebrow">
-                <Users className="h-3.5 w-3.5" /> Friends
-              </p>
-              <h2 className="mt-1 font-display text-xl font-semibold">Your court circle</h2>
-            </div>
-            <Link to="/social" className="text-xs text-primary">
-              Manage friends
-            </Link>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {friends.slice(0, 6).map((friend: any) => (
-              <div
-                key={friend.id}
-                className="flex items-center gap-2 rounded-full border border-white/10 bg-background/30 px-2.5 py-1.5"
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-                  {(friend.other?.display_name ?? "?").slice(0, 1).toUpperCase()}
-                </span>
-                <span className="max-w-24 truncate text-xs">
-                  {friend.other?.display_name ?? "Player"}
-                </span>
+              <div className="mt-4 space-y-2">
+                {(summary?.personalBests ?? []).slice(0, 3).map((best: any) => (
+                  <div
+                    key={best.metric_key}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-background/30 px-3 py-2.5"
+                  >
+                    <span className="text-sm capitalize">
+                      {String(best.metric_key).replaceAll("_", " ")}
+                    </span>
+                    <span className="font-semibold text-primary">
+                      {best.value} {best.unit}
+                    </span>
+                  </div>
+                ))}
+                {!summary?.personalBests?.length && (
+                  <p className="text-sm text-muted-foreground">
+                    Your first saved match can create your first record.
+                  </p>
+                )}
               </div>
-            ))}
-            {!friends.length && (
-              <p className="text-sm text-muted-foreground">
-                Add friends to build your court circle.
-              </p>
-            )}
+            </section>
+            <section className="bento-tile p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="eyebrow">
+                    <Users className="h-3.5 w-3.5" /> Friends
+                  </p>
+                  <h2 className="mt-1 font-display text-xl font-semibold">Your court circle</h2>
+                </div>
+                <Link to="/social" className="text-xs text-primary">
+                  Manage friends
+                </Link>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {friends.slice(0, 6).map((friend: any) => (
+                  <div
+                    key={friend.id}
+                    className="flex items-center gap-2 rounded-full border border-white/10 bg-background/30 px-2.5 py-1.5"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+                      {(friend.other?.display_name ?? "?").slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className="max-w-24 truncate text-xs">
+                      {friend.other?.display_name ?? "Player"}
+                    </span>
+                  </div>
+                ))}
+                {!friends.length && (
+                  <p className="text-sm text-muted-foreground">
+                    Add friends to build your court circle.
+                  </p>
+                )}
+              </div>
+            </section>
           </div>
-        </section>
-      </div>
+        </>
+      )}
     </div>
   );
 }

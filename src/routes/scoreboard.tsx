@@ -1,15 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { useSharedBadmintonMatch } from "@/components/BadmintonMatchProvider";
+import {
+  BadmintonMatchProvider,
+  useSharedBadmintonMatch,
+} from "@/components/BadmintonMatchProvider";
 import { Court } from "@/components/badminton/Court";
 import { landingVerdict } from "@/lib/badminton";
 import { PRESETS, type PresetId } from "@/lib/badminton-rules";
 import { getStoredPrefs } from "@/lib/themes";
 import { createVoiceController, voiceSupported } from "@/lib/voice";
-import { matchToCsv, downloadText, downloadBlob, renderShareCard } from "@/lib/match-export";
 import { saveMatch } from "@/lib/matches.functions";
 import { createMatchInvite } from "@/lib/growth.functions";
+import { DASHBOARD_CORE_QUERY_KEY, MATCHES_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
 import { useSession } from "@/hooks/useSession";
 import { toast } from "sonner";
 import {
@@ -49,10 +53,19 @@ export const Route = createFileRoute("/scoreboard")({
       },
     ],
   }),
-  component: ScoreboardPage,
+  component: ScoreboardRoute,
 });
 
+function ScoreboardRoute() {
+  return (
+    <BadmintonMatchProvider>
+      <ScoreboardPage />
+    </BadmintonMatchProvider>
+  );
+}
+
 function ScoreboardPage() {
+  const queryClient = useQueryClient();
   const match = useSharedBadmintonMatch();
   const { user, loading: sessionLoading } = useSession();
   const {
@@ -224,11 +237,13 @@ function ScoreboardPage() {
     return () => window.clearTimeout(t);
   }, [state.celebrateAt, state.celebrateKind, dismissCelebration]);
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
+    const { downloadText, matchToCsv } = await import("@/lib/match-export");
     downloadText(`shuttleboard-${dateSlug()}.csv`, "text/csv", matchToCsv(state));
   };
   const exportPdf = () => window.print();
   const shareCard = async () => {
+    const { downloadBlob, renderShareCard } = await import("@/lib/match-export");
     const blob = await renderShareCard(state);
     const file = new File([blob], `shuttleboard-${dateSlug()}.png`, { type: "image/png" });
     const nav = navigator as Navigator & {
@@ -297,7 +312,16 @@ function ScoreboardPage() {
       setSavedMatchId(saved.id);
       window.localStorage.setItem("shuttleboard.saved-history-key.v1", historyKey);
       window.localStorage.removeItem("shuttleboard.pending-match-meta.v1");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: MATCHES_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY }),
+      ]);
       toast.success("Match saved to History");
+      if (saved.progressPending)
+        toast.warning(
+          "Your match is safe. Progress couldn't sync yet — open Progress and choose Sync saved progress.",
+        );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Match could not be saved");
     } finally {

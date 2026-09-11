@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { LiveRally } from "@/lib/live-rally";
+import { startLiveFramePump } from "@/lib/live-frame-pump";
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Camera,
@@ -17,7 +19,15 @@ import {
   LOCAL_TRACK_COAST_MS,
   type LocalTrack,
 } from "@/lib/birdie-tracker";
-import { useSharedBadmintonMatch } from "@/components/BadmintonMatchProvider";
+import {
+  BadmintonMatchProvider,
+  useSharedBadmintonMatch,
+} from "@/components/BadmintonMatchProvider";
+import {
+  connectLiveTrackNet,
+  type LiveTrackNetConnection,
+  type LiveTrackNetDetection,
+} from "@/lib/tracknet-client";
 
 type CourtPoint = { x: number; y: number };
 type TrackingRoi = { x: number; y: number; width: number; height: number };
@@ -27,6 +37,8 @@ type CameraControls = {
   zoom?: CameraRange;
   exposure?: CameraRange;
 };
+type RefereeMode = "current" | "tracknet";
+type TrackNetConnectionStatus = "idle" | "connecting" | "ready" | "error";
 type CameraPreset = "1080p60" | "720p60" | "720p30" | "480p30";
 const CAMERA_PRESETS: Array<{
   id: CameraPreset;
@@ -57,8 +69,16 @@ export const Route = createFileRoute("/_authenticated/ai")({
       },
     ],
   }),
-  component: AiVisionPage,
+  component: AiRoute,
 });
+
+function AiRoute() {
+  return (
+    <BadmintonMatchProvider>
+      <AiVisionPage />
+    </BadmintonMatchProvider>
+  );
+}
 
 interface TrackResult {
   shuttleVisible: boolean;
@@ -97,6 +117,29 @@ function expandFlightZone(corners: CourtPoint[]): CourtPoint[] {
     x: Math.max(0, Math.min(1, corner.x + Math.sign(corner.x - center.x) * FLIGHT_ZONE_PADDING_X)),
     y: Math.max(0, Math.min(1, corner.y + Math.sign(corner.y - center.y) * FLIGHT_ZONE_PADDING_Y)),
   }));
+}
+
+function pointInPolygon(point: CourtPoint, polygon: CourtPoint[]) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    const crosses = a.y > point.y !== b.y > point.y;
+    if (crosses && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function landingTeam(point: CourtPoint, corners: CourtPoint[], p1Side: "left" | "right") {
+  if (corners.length !== 4 || !pointInPolygon(point, corners)) return null;
+  const p1Center = { x: (corners[0].x + corners[1].x) / 2, y: (corners[0].y + corners[1].y) / 2 };
+  const p2Center = { x: (corners[2].x + corners[3].x) / 2, y: (corners[2].y + corners[3].y) / 2 };
+  const p1Distance = Math.hypot(point.x - p1Center.x, point.y - p1Center.y);
+  const p2Distance = Math.hypot(point.x - p2Center.x, point.y - p2Center.y);
+  const onP1Side = p1Distance <= p2Distance;
+  return (p1Side === "left" ? onP1Side : !onP1Side) ? (2 as const) : (1 as const);
 }
 
 function chooseTrackingRoi(track: LocalTrack | null, videoAspect: number): TrackingRoi {
@@ -172,16 +215,32 @@ function AiVisionPage() {
   const previousGrayRef = useRef<Uint8ClampedArray | null>(null);
   const localFpsWindowRef = useRef({ frames: 0, startedAt: 0 });
   const localStatusRef = useRef(0);
+  const liveConnectionRef = useRef<LiveTrackNetConnection | null>(null);
+  const liveFrameRef = useRef(0);
+  const liveAwaitingRef = useRef(false);
+  const liveReadyRef = useRef(false);
+  const liveVisibleHistoryRef = useRef<Array<{ x: number; y: number; confidence: number }>>([]);
+  const liveMissingFramesRef = useRef(0);
 
   const [streaming, setStreaming] = useState(false);
   const [tracking, setTracking] = useState(false);
+  const [refereeMode, setRefereeMode] = useState<RefereeMode>("current");
   const [p1Side, setP1Side] = useState<"left" | "right">("left");
   const [result, setResult] = useState<TrackResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastPoint, setLastPoint] = useState<{ team: 1 | 2; at: number } | null>(null);
+  const rallyRef = useRef(new LiveRally());
+  const reviewRef = useRef(false);
+  const [pointReview, setPointReview] = useState<string | null>(null);
   const [fps, setFps] = useState(0);
   const [localFps, setLocalFps] = useState(0);
   const [localConfidence, setLocalConfidence] = useState(0);
+  const [tracknetFps, setTracknetFps] = useState(0);
+  const [tracknetBackend, setTracknetBackend] = useState("—");
+  const [tracknetDevice, setTracknetDevice] = useState("—");
+  const [tracknetDroppedFrames, setTracknetDroppedFrames] = useState(0);
+  const [tracknetConnectionStatus, setTracknetConnectionStatus] =
+    useState<TrackNetConnectionStatus>("idle");
   const [cameraFps, setCameraFps] = useState(0);
   const [cameraResolution, setCameraResolution] = useState({ width: 0, height: 0 });
   const [processingMs, setProcessingMs] = useState(0);
@@ -306,6 +365,12 @@ function AiVisionPage() {
 
   const stopCamera = useCallback(() => {
     trackingRef.current = false;
+    liveConnectionRef.current?.close();
+    liveConnectionRef.current = null;
+    liveAwaitingRef.current = false;
+    liveReadyRef.current = false;
+    liveVisibleHistoryRef.current = [];
+    liveMissingFramesRef.current = 0;
     localTrackRef.current = null;
     previousGrayRef.current = null;
     trailRef.current = [];
@@ -319,6 +384,11 @@ function AiVisionPage() {
     setTracking(false);
     setLocalFps(0);
     setLocalConfidence(0);
+    setTracknetFps(0);
+    setTracknetBackend("—");
+    setTracknetDevice("—");
+    setTracknetDroppedFrames(0);
+    setTracknetConnectionStatus("idle");
     setCameraFps(0);
     setCameraResolution({ width: 0, height: 0 });
     setLocalMode("lost");
@@ -349,6 +419,41 @@ function AiVisionPage() {
       setLandingConfirmationCount(0);
     }
   }, [tracking]);
+
+  const chooseRefereeMode = useCallback(
+    (nextMode: RefereeMode) => {
+      if (nextMode === refereeMode) return;
+      trackingRef.current = false;
+      liveConnectionRef.current?.close();
+      liveConnectionRef.current = null;
+      liveAwaitingRef.current = false;
+      liveReadyRef.current = false;
+      liveVisibleHistoryRef.current = [];
+      liveMissingFramesRef.current = 0;
+      localTrackRef.current = null;
+      previousGrayRef.current = null;
+      trailRef.current = [];
+      pendingLandingRef.current = null;
+      landingLockedRef.current = false;
+      landingReleaseFramesRef.current = 0;
+      setRefereeMode(nextMode);
+      setTracking(false);
+      setResult(null);
+      setError(null);
+      setLastPoint(null);
+      setLandingConfirmationCount(0);
+      setLocalFps(0);
+      setLocalConfidence(0);
+      setTracknetFps(0);
+      setTracknetBackend("—");
+      setTracknetDevice("—");
+      setTracknetDroppedFrames(0);
+      setTracknetConnectionStatus("idle");
+      setFusionMode("local");
+      setLocalMode("lost");
+    },
+    [refereeMode],
+  );
 
   const captureFrame = useCallback((): string | null => {
     const video = videoRef.current;
@@ -572,10 +677,10 @@ function AiVisionPage() {
     }
   }, [captureFrame, mode, p1Side, courtCorners, lastHitter, addPoint]);
 
-  // Browser-side tracking runs at camera frame-rate so the circle can keep up
-  // with badminton-speed motion. OpenAI remains the slower line judge/scorer.
+  // The current referee's browser-side tracker runs at camera frame-rate so
+  // the circle can keep up with badminton-speed motion.
   useEffect(() => {
-    if (!tracking || !streaming) return;
+    if (!tracking || !streaming || refereeMode !== "current") return;
 
     let cancelled = false;
     localFpsWindowRef.current = { frames: 0, startedAt: performance.now() };
@@ -745,12 +850,12 @@ function AiVisionPage() {
         frameVideo.cancelVideoFrameCallback(localFrameCallbackRef.current);
       }
     };
-  }, [streaming, tracking, courtCorners]);
+  }, [streaming, tracking, courtCorners, refereeMode]);
 
-  // AI judgment runs continuously but does not drive every circle movement.
-  // It confirms landed/in/out and point assignment from periodic clearer frames.
+  // The existing AI referee uses the current line-judge flow. It remains
+  // separate from TrackNet so the player can choose which engine to run.
   useEffect(() => {
-    if (!tracking) return;
+    if (!tracking || !streaming || refereeMode !== "current") return;
     trackingRef.current = true;
     // One in-flight request keeps AI corrections in chronological order and
     // avoids spending bandwidth on frames that are already stale.
@@ -774,7 +879,169 @@ function AiVisionPage() {
     return () => {
       trackingRef.current = false;
     };
-  }, [tracking, analyzeFrame]);
+  }, [tracking, streaming, refereeMode, analyzeFrame]);
+
+  // TrackNet/OpenVINO live inference. Only one frame may be in flight; this
+  // prevents a slow machine from building an ever-growing socket queue.
+  useEffect(() => {
+    if (!tracking || !streaming || refereeMode !== "tracknet") return;
+    let cancelled = false;
+    const controller = new AbortController();
+    let connection: LiveTrackNetConnection | null = null;
+    let framePump: ReturnType<typeof startLiveFramePump> | undefined;
+    const startedAt = performance.now();
+    let responses = 0;
+    liveReadyRef.current = false;
+    liveAwaitingRef.current = false;
+    liveVisibleHistoryRef.current = [];
+    setLocalConfidence(0);
+    setTracknetFps(0);
+    setResult(null);
+    rallyRef.current = new LiveRally();
+    reviewRef.current = false;
+    setPointReview(null);
+    setTracknetConnectionStatus("connecting");
+
+    const handleMessage = (message: LiveTrackNetDetection) => {
+      if (cancelled) return;
+      if (message.type === "ready") {
+        setTracknetBackend(message.backend ?? "—");
+        setTracknetDevice(message.device ?? "—");
+        liveReadyRef.current = true;
+        setTracknetConnectionStatus("ready");
+        setConfidenceReason("TrackNet connected; waiting for shuttle frames.");
+        setError(null);
+        return;
+      }
+      liveAwaitingRef.current = false;
+      if (message.type === "error") {
+        setTracknetConnectionStatus("error");
+        setError(`TrackNet live error: ${message.error ?? "unknown error"}`);
+        return;
+      }
+      responses++;
+      queueMicrotask(() => {
+        if (!cancelled) framePump?.ready();
+      });
+      const clue = rallyRef.current.update(
+        message.visible ? (message.x ?? null) : null,
+        message.visible ? (message.y ?? null) : null,
+        message.confidence ?? 0,
+        message.timestamp ?? Date.now(),
+      );
+      if (clue && !reviewRef.current) {
+        reviewRef.current = true;
+        setPointReview(clue);
+      }
+      setTracknetFps(Math.round((responses * 1000) / Math.max(1, performance.now() - startedAt)));
+      if (message.processing_ms !== undefined) setProcessingMs(Math.round(message.processing_ms));
+      if (message.visible && message.x != null && message.y != null) {
+        const point = { x: message.x, y: message.y, confidence: message.confidence ?? 0 };
+        liveMissingFramesRef.current = 0;
+        liveVisibleHistoryRef.current = [...liveVisibleHistoryRef.current, point].slice(-8);
+        const liveResult: TrackResult = {
+          shuttleVisible: true,
+          position: { x: point.x, y: point.y },
+          landed: false,
+          call: "unknown",
+          pointTo: "none",
+          confidence: point.confidence,
+          reasoning: `Local TrackNet detection on ${message.device ?? "the active device"}.`,
+        };
+        setResult(liveResult);
+        setLocalConfidence(point.confidence);
+        setLocalMode("locked");
+        setConfidenceReason(
+          `TrackNet detected the shuttle at ${Math.round(point.confidence * 100)}% confidence.`,
+        );
+        return;
+      }
+
+      liveMissingFramesRef.current++;
+      const history = liveVisibleHistoryRef.current;
+      const last = history[history.length - 1];
+      setLocalMode("lost");
+      setLocalConfidence(0);
+      setConfidenceReason("TrackNet is scanning the camera for the shuttle.");
+      setResult({
+        shuttleVisible: false,
+        position: last ? { x: last.x, y: last.y } : { x: 0.5, y: 0.5 },
+        landed: false,
+        call: "unknown",
+        pointTo: "none",
+        confidence: 0,
+        reasoning: "Shuttle not visible; no point counted. Confirm the winner if the rally ended.",
+      });
+      if (liveMissingFramesRef.current >= 5) liveVisibleHistoryRef.current = [];
+    };
+
+    const start = async () => {
+      try {
+        connection = await connectLiveTrackNet(
+          handleMessage,
+          (event) => {
+            if (!cancelled) {
+              liveReadyRef.current = false;
+              setLocalConfidence(0);
+              setTracknetFps(0);
+              setResult(null);
+              setTracking(false);
+              setTracknetConnectionStatus("error");
+              setConfidenceReason(
+                event.type.includes("timeout")
+                  ? "TrackNet timed out waiting for a response."
+                  : "TrackNet connection lost.",
+              );
+              setError("TrackNet live connection lost. Restart tracking to reconnect.");
+            }
+          },
+          () => {
+            if (!cancelled) {
+              liveReadyRef.current = false;
+              setTracknetConnectionStatus("error");
+              setLocalConfidence(0);
+              setTracknetFps(0);
+              setResult(null);
+              setTracking(false);
+              setConfidenceReason("TrackNet connection closed.");
+              setError("TrackNet live connection closed before it could finish tracking.");
+            }
+          },
+          { signal: controller.signal },
+        );
+        if (cancelled) {
+          connection.close();
+          return;
+        }
+        liveConnectionRef.current = connection;
+        if (!videoRef.current) throw new Error("Camera is unavailable");
+        framePump = startLiveFramePump(videoRef.current, connection, (count) =>
+          setTracknetDroppedFrames((total) => total + count),
+        );
+        return () => framePump?.stop();
+      } catch (error) {
+        if (!cancelled) {
+          setTracknetConnectionStatus("error");
+          setConfidenceReason("TrackNet could not connect.");
+          setError(error instanceof Error ? error.message : "TrackNet live connection failed.");
+        }
+      }
+    };
+    let cleanupTimer: (() => void) | undefined;
+    void start().then((cleanup) => {
+      cleanupTimer = cleanup;
+    });
+    return () => {
+      cancelled = true;
+      controller.abort();
+      framePump?.stop();
+      liveReadyRef.current = false;
+      cleanupTimer?.();
+      liveAwaitingRef.current = false;
+      connection?.close();
+      if (liveConnectionRef.current === connection) liveConnectionRef.current = null;
+    };
+  }, [tracking, streaming, refereeMode, captureFrame, courtCorners, p1Side, addPoint]);
 
   // Overlay render loop (animation frame) — draws trail + current position smoothly
   useEffect(() => {
@@ -879,11 +1146,11 @@ function AiVisionPage() {
             localTrack.confidence > LOCAL_TRACK_MIN_CONFIDENCE * 0.6 &&
             now - localTrack.updatedAt < LOCAL_TRACK_COAST_MS,
           );
-          const hasAiTrack =
-            !localTrack && Boolean(aiResult?.shuttleVisible && aiResult.confidence >= 0.9);
+          const hasAiTrack = Boolean(aiResult?.shuttleVisible && aiResult.confidence >= 0.35);
           if (hasLocalTrack || hasAiTrack) {
-            const px = hasLocalTrack ? localTrack!.x : aiResult!.position.x;
-            const py = hasLocalTrack ? localTrack!.y : aiResult!.position.y;
+            const useTrackNet = hasAiTrack;
+            const px = useTrackNet ? aiResult!.position.x : localTrack!.x;
+            const py = useTrackNet ? aiResult!.position.y : localTrack!.y;
             const cx = px * canvas.width;
             const cy = py * canvas.height;
             const radius = Math.max(9, Math.min(canvas.width, canvas.height) * 0.024);
@@ -965,11 +1232,104 @@ function AiVisionPage() {
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">AI Referee</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          The AI watches every frame, follows the shuttle, and scores automatically when it lands.
+          Choose how you want the referee to follow the shuttle and score the match.
         </p>
       </div>
 
+      <section
+        className="rounded-2xl border border-border bg-card p-4"
+        aria-labelledby="referee-mode-title"
+      >
+        <div className="mb-3">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Referee engine
+          </p>
+          <h2 id="referee-mode-title" className="mt-1 text-base font-semibold text-foreground">
+            Choose your AI referee
+          </h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => chooseRefereeMode("current")}
+            className={`rounded-xl border p-4 text-left transition-colors ${refereeMode === "current" ? "border-primary bg-primary/10" : "border-border bg-background hover:border-primary/50"}`}
+            aria-pressed={refereeMode === "current"}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 font-semibold text-foreground">
+                <Camera className="h-4 w-4 text-primary" /> Live referee
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                Current
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Uses the existing browser motion tracker and AI line judge for live scoring.
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => chooseRefereeMode("tracknet")}
+            className={`rounded-xl border p-4 text-left transition-colors ${refereeMode === "tracknet" ? "border-primary bg-primary/10" : "border-border bg-background hover:border-primary/50"}`}
+            aria-pressed={refereeMode === "tracknet"}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 font-semibold text-foreground">
+                <Crosshair className="h-4 w-4 text-primary" /> TrackNet AI
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                OpenVINO
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Uses the local TrackNet model for dedicated shuttle detection and landing calls.
+            </p>
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {refereeMode === "tracknet"
+            ? "TrackNet must be running with npm run shuttleboard before you start tracking."
+            : "This is the current referee experience. Choose TrackNet when you want the dedicated model."}
+        </p>
+      </section>
+
       {/* Scoreboard */}
+      {refereeMode === "tracknet" && pointReview && (
+        <div className="rounded-xl border border-border bg-card p-4" role="status">
+          <p>{pointReview}</p>
+          <p className="text-sm text-muted-foreground">
+            No point added yet. Pick the winner only if the rally ended.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {([0, 1] as const).map((team) => (
+              <button
+                key={team}
+                className="rounded-lg bg-primary px-3 py-2 text-primary-foreground"
+                onClick={() => {
+                  if (!reviewRef.current) return;
+                  reviewRef.current = false;
+                  rallyRef.current.resolve();
+                  setPointReview(null);
+                  addPoint(team, "wins a user-confirmed rally");
+                  setLastPoint({ team: team === 0 ? 1 : 2, at: Date.now() });
+                }}
+              >
+                {teamName(team)} wins
+              </button>
+            ))}
+            <button
+              className="rounded-lg border px-3 py-2"
+              onClick={() => {
+                reviewRef.current = false;
+                rallyRef.current.resolve();
+                setPointReview(null);
+              }}
+            >
+              Still playing / dismiss
+            </button>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <ScoreCard
           label={`${teamName(0)} (${p1Side === "left" ? "LEFT" : "RIGHT"})`}
@@ -986,17 +1346,15 @@ function AiVisionPage() {
       <AiStatusStrip
         streaming={streaming}
         tracking={tracking}
+        refereeMode={refereeMode}
+        tracknetConnectionStatus={tracknetConnectionStatus}
         calibrating={calibrating}
         localMode={localMode}
         fusionMode={fusionMode}
         confidence={Math.round(
           Math.min(
             0.99,
-            Math.max(
-              result?.confidence ?? 0,
-              localConfidence,
-              (result?.confidence ?? 0) * 0.6 + localConfidence * 0.6,
-            ),
+            Math.max(result?.confidence ?? 0, localConfidence, result?.confidence ?? 0),
           ) * 100,
         )}
         reason={confidenceReason}
@@ -1241,8 +1599,12 @@ function AiVisionPage() {
               Local tracker: {localFps} fps · {localMode}
             </span>
             <span>
-              AI: {fps.toFixed(1)} fps · {processingMs}ms
+              TrackNet: {tracknetFps} fps · {processingMs}ms
             </span>
+            <span>
+              Backend: {tracknetBackend} · {tracknetDevice}
+            </span>
+            <span>Dropped frames: {tracknetDroppedFrames}</span>
             <span>
               Fusion: {fusionMode} · recoveries {recoveryCount}
             </span>
@@ -1278,14 +1640,8 @@ function AiVisionPage() {
             <span className="text-xs text-muted-foreground">
               Confidence{" "}
               {Math.round(
-                Math.min(
-                  0.99,
-                  Math.max(
-                    result.confidence,
-                    localConfidence,
-                    result.confidence * 0.6 + localConfidence * 0.6,
-                  ),
-                ) * 100,
+                Math.min(0.99, Math.max(result.confidence, localConfidence, result.confidence)) *
+                  100,
               )}
               %
             </span>
@@ -1342,6 +1698,8 @@ function AiVisionPage() {
 function AiStatusStrip({
   streaming,
   tracking,
+  refereeMode,
+  tracknetConnectionStatus,
   calibrating,
   localMode,
   fusionMode,
@@ -1350,6 +1708,8 @@ function AiStatusStrip({
 }: {
   streaming: boolean;
   tracking: boolean;
+  refereeMode: RefereeMode;
+  tracknetConnectionStatus: TrackNetConnectionStatus;
   calibrating: boolean;
   localMode: "lost" | "acquiring" | "locked" | "coasting";
   fusionMode: "local" | "agreeing" | "ai-recovery" | "disagreeing";
@@ -1370,21 +1730,42 @@ function AiStatusStrip({
         }
       : !tracking
         ? {
-            label: "Tracking paused",
-            detail: "Start tracking when the full court is visible.",
+            label: refereeMode === "tracknet" ? "TrackNet ready" : "Tracking paused",
+            detail:
+              refereeMode === "tracknet"
+                ? "Start tracking to connect to the local TrackNet model."
+                : "Start tracking when the full court is visible.",
             tone: "muted",
           }
-        : localMode === "locked"
+        : refereeMode === "tracknet" && tracknetConnectionStatus === "connecting"
           ? {
-              label: fusionMode === "agreeing" ? "AI and camera agree" : "Shuttle locked",
-              detail: reason,
-              tone: "good",
-            }
-          : {
-              label: "Searching for shuttle",
-              detail: reason || "Keep the camera steady and the full court in frame.",
+              label: "Connecting to TrackNet",
+              detail: "Waiting for the local model to accept camera frames.",
               tone: "warn",
-            };
+            }
+          : refereeMode === "tracknet" && tracknetConnectionStatus === "error"
+            ? {
+                label: "TrackNet unavailable",
+                detail: "Check npm run shuttleboard, then pause and restart tracking.",
+                tone: "warn",
+              }
+            : refereeMode === "tracknet" && localMode === "locked"
+              ? {
+                  label: "TrackNet locked",
+                  detail: reason,
+                  tone: "good",
+                }
+              : localMode === "locked"
+                ? {
+                    label: fusionMode === "agreeing" ? "AI and camera agree" : "Shuttle locked",
+                    detail: reason,
+                    tone: "good",
+                  }
+                : {
+                    label: "Searching for shuttle",
+                    detail: reason || "Keep the camera steady and the full court in frame.",
+                    tone: "warn",
+                  };
   const toneClass =
     status.tone === "good"
       ? "border-primary/30 bg-primary/10"

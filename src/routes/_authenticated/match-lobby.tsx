@@ -70,7 +70,7 @@ function MatchLobbyPage() {
         warmup,
       }),
     );
-    navigate({ to: "/" });
+    navigate({ to: "/scoreboard" });
   }
 
   return (

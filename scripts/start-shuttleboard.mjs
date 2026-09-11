@@ -18,6 +18,9 @@ const ffmpegCandidates = [
   "C:\\Program Files\\Streamlabs OBS\\resources\\app.asar.unpacked\\node_modules\\obs-studio-node\\ffmpeg.exe",
 ].filter(Boolean);
 const ffmpegPath = ffmpegCandidates.find((candidate) => existsSync(candidate));
+const appUrl = `http://127.0.0.1:${appPort}`;
+const tracknetUrl = `http://127.0.0.1:${tracknetPort}`;
+const prewarmRoutes = ["/", "/auth", "/dashboard", "/match-lobby", "/scoreboard"];
 
 if (!existsSync(tracknetDir)) {
   console.error(`TrackNet folder not found: ${tracknetDir}`);
@@ -68,32 +71,67 @@ function shutdown(code = 0) {
   setTimeout(() => process.exit(code), 250);
 }
 
+async function waitForHttp(url, label, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url, { redirect: "manual" });
+      if (response.status < 500) {
+        console.log(`[startup] ${label} is responding`);
+        return true;
+      }
+    } catch {
+      // The service may still be compiling or loading its model.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  console.warn(`[startup] ${label} did not become ready within ${timeoutMs / 1000}s`);
+  return false;
+}
+
+async function prewarmShuttleBoard() {
+  if (!(await waitForHttp(`${appUrl}/`, "ShuttleBoard"))) return;
+  console.log(`[startup] Prewarming ${prewarmRoutes.length} ShuttleBoard routes`);
+  for (const route of prewarmRoutes) {
+    try {
+      await fetch(`${appUrl}${route}`, { redirect: "manual" });
+      console.log(`[startup] Warmed ${route}`);
+    } catch (error) {
+      console.warn(`[startup] Could not warm ${route}: ${error.message}`);
+    }
+  }
+}
+
+async function waitForTrackNetModel() {
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${tracknetUrl}/health`);
+      if (response.ok) {
+        const status = await response.json();
+        if (status.model_loaded) {
+          console.log(
+            `[startup] TrackNet ready (${status.backend ?? "unknown"}/${status.device ?? "unknown"})`,
+          );
+          return;
+        }
+      }
+    } catch {
+      // TrackNet can take time to start its Python environment and model.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  console.warn(
+    "[startup] TrackNet is still loading; the AI page will remain unavailable until ready.",
+  );
+}
+
 process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
-console.log(`Starting ShuttleBoard on http://127.0.0.1:${appPort}`);
-console.log(`Starting TrackNet on http://127.0.0.1:${tracknetPort}`);
+console.log(`Starting ShuttleBoard first on ${appUrl}`);
+console.log(`TrackNet will start in the background on ${tracknetUrl}`);
 
-start(
-  "tracknet",
-  pythonPath,
-  ["-m", "uvicorn", "tracknet_service:app", "--host", "127.0.0.1", "--port", tracknetPort],
-  tracknetDir,
-  {
-    PYTHONUNBUFFERED: "1",
-    TRACKNET_BACKEND: process.env.TRACKNET_BACKEND ?? "openvino",
-    TRACKNET_DEVICE: process.env.TRACKNET_DEVICE ?? "AUTO",
-    TRACKNET_BATCH_SIZE: process.env.TRACKNET_BATCH_SIZE ?? "1",
-    TRACKNET_FRAME_STRIDE: process.env.TRACKNET_FRAME_STRIDE ?? "4",
-    TRACKNET_INTRA_THREADS: process.env.TRACKNET_INTRA_THREADS ?? "2",
-    TRACKNET_INTER_THREADS: process.env.TRACKNET_INTER_THREADS ?? "1",
-    TF_NUM_INTRAOP_THREADS: process.env.TF_NUM_INTRAOP_THREADS ?? "2",
-    TF_NUM_INTEROP_THREADS: process.env.TF_NUM_INTEROP_THREADS ?? "1",
-    OMP_NUM_THREADS: process.env.OMP_NUM_THREADS ?? "2",
-    MKL_NUM_THREADS: process.env.MKL_NUM_THREADS ?? "2",
-    ...(ffmpegPath ? { TRACKNET_FFMPEG: ffmpegPath } : {}),
-  },
-);
 start(
   "shuttleboard",
   process.execPath,
@@ -107,3 +145,41 @@ start(
   ],
   appDir,
 );
+
+void (async () => {
+  await waitForHttp(`${appUrl}/`, "ShuttleBoard");
+  if (shuttingDown) return;
+  console.log(`Starting TrackNet in the background on ${tracknetUrl}`);
+  start(
+    "tracknet",
+    pythonPath,
+    [
+      "-m",
+      "uvicorn",
+      "tracknet_live:app",
+      "--app-dir",
+      resolve(appDir, "scripts"),
+      "--host",
+      "127.0.0.1",
+      "--port",
+      tracknetPort,
+    ],
+    tracknetDir,
+    {
+      PYTHONUNBUFFERED: "1",
+      TRACKNET_BACKEND: process.env.TRACKNET_BACKEND ?? "openvino",
+      TRACKNET_DEVICE: process.env.TRACKNET_DEVICE ?? "AUTO",
+      TRACKNET_BATCH_SIZE: process.env.TRACKNET_BATCH_SIZE ?? "1",
+      TRACKNET_FRAME_STRIDE: process.env.TRACKNET_FRAME_STRIDE ?? "4",
+      TRACKNET_INTRA_THREADS: process.env.TRACKNET_INTRA_THREADS ?? "2",
+      TRACKNET_INTER_THREADS: process.env.TRACKNET_INTER_THREADS ?? "1",
+      TF_NUM_INTRAOP_THREADS: process.env.TF_NUM_INTRAOP_THREADS ?? "2",
+      TF_NUM_INTEROP_THREADS: process.env.TF_NUM_INTEROP_THREADS ?? "1",
+      OMP_NUM_THREADS: process.env.OMP_NUM_THREADS ?? "2",
+      MKL_NUM_THREADS: process.env.MKL_NUM_THREADS ?? "2",
+      ...(ffmpegPath ? { TRACKNET_FFMPEG: ffmpegPath } : {}),
+    },
+  );
+
+  await Promise.all([prewarmShuttleBoard(), waitForTrackNetModel()]);
+})();
