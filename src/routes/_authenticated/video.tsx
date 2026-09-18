@@ -1,17 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Play,
-  Pause,
-  RotateCcw,
-  Trophy,
-  AlertCircle,
-  Sparkles,
-  CheckCircle2,
-  Clock3,
-  Target,
-  ListVideo,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   detectBirdieMotion,
   LOCAL_TRACK_WIDTH,
@@ -22,10 +11,34 @@ import {
   type Point,
 } from "@/lib/birdie-tracker";
 import { createTrackNetPreview, type TrackNetPoint } from "@/lib/tracknet-client";
+import type { AnalysisRally, ShotType } from "@/lib/analysis-results";
+import {
+  acquireAnalyzerLock,
+  cancellationMessage,
+  createFreshAnalyzerState,
+  showsPlaybackControl,
+} from "@/lib/video-analyzer-flow";
+import {
+  getRallyReviewReasons,
+  rallyCountsTowardScore,
+  setRallyReviewStatus,
+} from "@/lib/analysis-results";
 import { useTrackNetAnalysis } from "@/components/TrackNetAnalysisProvider";
 import { VideoUploadPanel } from "@/components/video/VideoUploadPanel";
 import { VideoPreviewPanel } from "@/components/video/VideoPreviewPanel";
+import { CourtCalibrationPanel } from "@/components/video/CourtCalibrationPanel";
+import { AnalysisProgressPanel } from "@/components/video/AnalysisProgressPanel";
+import { AnalysisResultsPanel } from "@/components/video/AnalysisResultsPanel";
+import { AnalysisControlsPanel } from "@/components/video/AnalysisControlsPanel";
 import { previewFailureMessage, shouldCreateBrowserPreview } from "@/lib/video-preview";
+import {
+  addCourtCorner,
+  courtDestinationCorners,
+  hasFourCourtCorners,
+  loadCourtCalibration,
+  pointFromCanvasClick,
+  saveCourtCalibration,
+} from "@/lib/court-calibration";
 
 export const Route = createFileRoute("/_authenticated/video")({
   head: () => ({
@@ -46,35 +59,13 @@ export const Route = createFileRoute("/_authenticated/video")({
 });
 
 type Phase = "upload" | "calibrate" | "analyze" | "done";
-type ShotType = "unknown" | "smash" | "clear" | "drop" | "drive" | "lift" | "net";
-
-interface Rally {
-  id: number;
-  t: number; // video time in seconds
-  landingImgX: number;
-  landingImgY: number;
-  landingCourtX: number;
-  landingCourtY: number;
-  inBounds: boolean;
-  winner: "p1" | "p2";
-  aiConfidence: number;
-  aiNote: string;
-  shotType?: ShotType;
-  manuallyCorrected?: boolean;
-}
+type Rally = AnalysisRally;
 
 interface TrailPt {
   x: number;
   y: number;
   t: number;
 }
-
-const CORNER_LABELS = [
-  "Near-left corner (bottom-left of court)",
-  "Near-right corner (bottom-right of court)",
-  "Far-right corner (top-right of court)",
-  "Far-left corner (top-left of court)",
-];
 
 const TRACKNET_COURT_STORAGE_KEY = "shuttleboard.tracknet-court";
 
@@ -93,7 +84,7 @@ function buildTrackNetRallies(points: TrackNetPoint[], homography: number[]): Ra
   const visiblePoints = points.filter(
     (point): point is VisibleTrackNetPoint => point.visible && point.x !== null && point.y !== null,
   );
-  if (visiblePoints.length < 6) return [];
+  if (visiblePoints.length < 3) return [];
 
   const chunks: VisibleTrackNetPoint[][] = [];
   let chunk: VisibleTrackNetPoint[] = [];
@@ -140,17 +131,12 @@ function buildTrackNetRallies(points: TrackNetPoint[], homography: number[]): Ra
 
   const rallies: Rally[] = [];
   const finishSegment = (segment: VisibleTrackNetPoint[]) => {
-    if (segment.length < 6) {
+    if (segment.length < 3) {
       return;
     }
     const first = segment[0];
     const last = segment[segment.length - 1];
-    if (last.time - first.time < 0.4) {
-      return;
-    }
-    if (endsOffCamera(segment)) {
-      return;
-    }
+    const offCamera = endsOffCamera(segment);
 
     const court = applyHomography(homography, { x: last.x, y: last.y });
     const inBounds = court.x >= -0.02 && court.x <= 1.02 && court.y >= -0.02 && court.y <= 1.02;
@@ -158,6 +144,15 @@ function buildTrackNetRallies(points: TrackNetPoint[], homography: number[]): Ra
     // landing on the far half gives it to the near player.
     const winner: "p1" | "p2" = court.y > 0.5 ? "p2" : "p1";
     const confidence = segment.reduce((sum, point) => sum + point.confidence, 0) / segment.length;
+    const evidenceFrames = segment.length;
+    const reviewReasons = getRallyReviewReasons({
+      aiConfidence: confidence,
+      evidenceFrames,
+      offCamera,
+      landingCourtX: court.x,
+      landingCourtY: court.y,
+    });
+    if (last.time - first.time < 0.4) reviewReasons.push("The landing evidence is too brief.");
 
     rallies.push({
       id: rallies.length + 1,
@@ -169,7 +164,15 @@ function buildTrackNetRallies(points: TrackNetPoint[], homography: number[]): Ra
       inBounds,
       winner,
       aiConfidence: confidence,
-      aiNote: "TrackNet auto-scored from visible landing evidence and court side.",
+      aiNote: reviewReasons.length
+        ? reviewReasons.join(" ")
+        : "TrackNet auto-scored from visible landing evidence and court side.",
+      evidenceFrames,
+      offCamera,
+      needsReview: reviewReasons.length > 0,
+      reviewReasons,
+      countsTowardScore: !offCamera,
+      reviewStatus: reviewReasons.length ? "needs-review" : undefined,
     });
   };
 
@@ -193,6 +196,8 @@ function VideoAnalyzerPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastHitter, setLastHitter] = useState<"p1" | "p2">("p1");
   const [selectedRally, setSelectedRally] = useState<number | null>(null);
+  const [analysisStarting, setAnalysisStarting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -212,8 +217,11 @@ function VideoAnalyzerPage() {
   const previewAttemptedRef = useRef(false);
   const rafRef = useRef<number>(0);
   const scoreRef = useRef({ p1: 0, p2: 0 });
+  const analysisStartLockRef = useRef(false);
+  const retryLockRef = useRef(false);
   const {
     start: startTrackNet,
+    clear: clearTrackNet,
     job: tracknetJob,
     phase: tracknetPhase,
     progress: tracknetProgress,
@@ -229,24 +237,12 @@ function VideoAnalyzerPage() {
   }, [videoUrl]);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(TRACKNET_COURT_STORAGE_KEY);
-      if (!stored) return;
-      const parsed = JSON.parse(stored) as {
-        corners?: Point[];
-        homography?: number[];
-      };
-      if (
-        Array.isArray(parsed.corners) &&
-        parsed.corners.length === 4 &&
-        Array.isArray(parsed.homography) &&
-        parsed.homography.length === 9
-      ) {
-        normalizedCornersRef.current = parsed.corners;
-        homographyRef.current = parsed.homography;
-      }
-    } catch {
-      // A missing or malformed saved calibration should not block analysis.
+    const calibration = loadCourtCalibration(
+      window.localStorage.getItem(TRACKNET_COURT_STORAGE_KEY),
+    );
+    if (calibration) {
+      normalizedCornersRef.current = calibration.corners;
+      homographyRef.current = calibration.homography;
     }
   }, []);
 
@@ -268,6 +264,11 @@ function VideoAnalyzerPage() {
     }
 
     if (tracknetPhase === "completed" && tracknetResult) {
+      if (tracknetResult.job_id !== tracknetJob.jobId) return;
+      analysisStartLockRef.current = false;
+      setAnalysisStarting(false);
+      retryLockRef.current = false;
+      setRetrying(false);
       setTracknetPoints(tracknetResult.coordinates);
       tracknetPointsRef.current = tracknetResult.coordinates;
       const scoredRallies = homographyRef.current
@@ -275,8 +276,8 @@ function VideoAnalyzerPage() {
         : [];
       const scored = scoredRallies.reduce(
         (currentScore, rally) => ({
-          p1: currentScore.p1 + (rally.winner === "p1" ? 1 : 0),
-          p2: currentScore.p2 + (rally.winner === "p2" ? 1 : 0),
+          p1: currentScore.p1 + (rallyCountsTowardScore(rally) && rally.winner === "p1" ? 1 : 0),
+          p2: currentScore.p2 + (rallyCountsTowardScore(rally) && rally.winner === "p2" ? 1 : 0),
         }),
         { p1: 0, p2: 0 },
       );
@@ -293,11 +294,13 @@ function VideoAnalyzerPage() {
     }
 
     if (tracknetPhase === "failed") {
+      analysisStartLockRef.current = false;
+      setAnalysisStarting(false);
+      retryLockRef.current = false;
+      setRetrying(false);
       setPhase(selectedFile ? "calibrate" : "upload");
       setStatus("");
-      setError(
-        `TrackNet is unavailable. ${tracknetError ?? "The analysis could not be completed."}`,
-      );
+      setError(null);
     }
   }, [
     selectedFile,
@@ -317,15 +320,30 @@ function VideoAnalyzerPage() {
     setRallies((current) => {
       const previous = current.find((r) => r.id === id);
       if (!previous) return current;
-      if (patch.winner && patch.winner !== previous.winner) {
+      if (patch.winner && patch.winner !== previous.winner && rallyCountsTowardScore(previous)) {
         scoreRef.current = {
           p1: scoreRef.current.p1 + (patch.winner === "p1" ? 1 : -1),
           p2: scoreRef.current.p2 + (patch.winner === "p2" ? 1 : -1),
         };
         setScore({ ...scoreRef.current });
       }
-      return current.map((r) => (r.id === id ? { ...r, ...patch, manuallyCorrected: true } : r));
+      return current.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              ...patch,
+              manuallyCorrected: true,
+              reviewStatus: "corrected",
+            }
+          : r,
+      );
     });
+  };
+  const setReviewStatus = (
+    id: number,
+    reviewStatus: "needs-review" | "confirmed" | "corrected",
+  ) => {
+    setRallies((current) => setRallyReviewStatus(current, id, reviewStatus));
   };
   const onFile = (file: File) => {
     setError(null);
@@ -334,6 +352,11 @@ function VideoAnalyzerPage() {
       return;
     }
     const url = URL.createObjectURL(file);
+    analysisStartLockRef.current = false;
+    retryLockRef.current = false;
+    setAnalysisStarting(false);
+    setRetrying(false);
+    clearTrackNet();
     setSelectedFile(file);
     previewAttemptedRef.current = false;
     setVideoUrl(url);
@@ -346,7 +369,7 @@ function VideoAnalyzerPage() {
   };
 
   const handleVideoError = () => {
-    if (!shouldCreateBrowserPreview(selectedFile, previewAttemptedRef.current)) {
+    if (!selectedFile || !shouldCreateBrowserPreview(selectedFile, previewAttemptedRef.current)) {
       setError(previewFailureMessage());
       return;
     }
@@ -375,16 +398,54 @@ function VideoAnalyzerPage() {
     scoreRef.current = { p1: 0, p2: 0 };
     setScore({ p1: 0, p2: 0 });
     setRallies([]);
+    setPlaying(false);
     setStatus("");
+    setError(null);
     setSelectedRally(null);
   };
 
   const runTrackNetAnalysis = async () => {
-    if (!selectedFile) return;
+    if (
+      !selectedFile ||
+      tracknetPhase === "uploading" ||
+      tracknetPhase === "queued" ||
+      tracknetPhase === "processing"
+    )
+      return;
     setError(null);
     setStatus("Uploading video to TrackNet…");
     setPhase("analyze");
     await startTrackNet(selectedFile);
+  };
+
+  const retryAnalysis = () => {
+    if (!acquireAnalyzerLock(retryLockRef.current)) return;
+    retryLockRef.current = true;
+    setRetrying(true);
+    if (analysisMode === "tracknet") {
+      void runTrackNetAnalysis();
+      return;
+    }
+    startAnalysis();
+    retryLockRef.current = false;
+    setRetrying(false);
+  };
+
+  const cancelAnalysis = () => {
+    clearTrackNet();
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    videoRef.current?.pause();
+    analysisStartLockRef.current = false;
+    retryLockRef.current = false;
+    setAnalysisStarting(false);
+    setRetrying(false);
+    setTracknetVideoUrl(null);
+    setTracknetPoints([]);
+    tracknetPointsRef.current = [];
+    resetAnalysisState();
+    setPhase(selectedFile ? "calibrate" : "upload");
+    setStatus(cancellationMessage());
   };
 
   // -------- Calibrate: draw first frame + capture clicks --------
@@ -429,15 +490,34 @@ function VideoAnalyzerPage() {
   const onCalibClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (corners.length >= 4) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * e.currentTarget.width;
-    const y = ((e.clientY - rect.top) / rect.height) * e.currentTarget.height;
-    setCorners([...corners, { x, y }]);
+    const point = pointFromCanvasClick(
+      e.clientX,
+      e.clientY,
+      rect,
+      e.currentTarget.width,
+      e.currentTarget.height,
+    );
+    setCorners((current) => addCourtCorner(current, point));
   };
 
   const startAnalysis = () => {
-    if (corners.length !== 4) return;
+    if (!acquireAnalyzerLock(analysisStartLockRef.current)) return;
+    if (!selectedFile) {
+      setError("Upload a video before starting analysis.");
+      return;
+    }
+    if (!hasFourCourtCorners(corners)) {
+      setError("Select all four court corners before starting analysis.");
+      return;
+    }
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      setError("The video is not ready yet. Please wait and try again.");
+      return;
+    }
+    analysisStartLockRef.current = true;
+    setAnalysisStarting(true);
+    setError(null);
     // Normalize corner coordinates to 0..1 image space so homography works
     // for the small detection canvas too.
     const normCorners = corners.map((c) => ({
@@ -446,19 +526,12 @@ function VideoAnalyzerPage() {
     }));
     normalizedCornersRef.current = normCorners;
     // Map to a normalized court where near baseline is at cy=1, far at cy=0.
-    const dst: Point[] = [
-      { x: 0, y: 1 }, // near-left
-      { x: 1, y: 1 }, // near-right
-      { x: 1, y: 0 }, // far-right
-      { x: 0, y: 0 }, // far-left
-    ];
+    const dst = courtDestinationCorners();
     homographyRef.current = computeHomography(normCorners, dst);
     if (analysisMode === "tracknet" && homographyRef.current) {
       try {
-        window.localStorage.setItem(
-          TRACKNET_COURT_STORAGE_KEY,
-          JSON.stringify({ corners: normCorners, homography: homographyRef.current }),
-        );
+        const saved = saveCourtCalibration(normCorners, homographyRef.current);
+        if (saved) window.localStorage.setItem(TRACKNET_COURT_STORAGE_KEY, saved);
       } catch {
         // Scoring still works during the current page session if storage is unavailable.
       }
@@ -473,6 +546,8 @@ function VideoAnalyzerPage() {
     setTimeout(() => {
       video.play();
       setPlaying(true);
+      analysisStartLockRef.current = false;
+      setAnalysisStarting(false);
     }, 100);
   };
 
@@ -504,6 +579,8 @@ function VideoAnalyzerPage() {
 
     const onEnded = () => {
       setPlaying(false);
+      analysisStartLockRef.current = false;
+      setAnalysisStarting(false);
       setPhase("done");
       setStatus("Analysis complete.");
     };
@@ -516,7 +593,7 @@ function VideoAnalyzerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysisMode, phase]);
 
-  const processFrame = useCallback(() => {
+  function processFrame() {
     const video = videoRef.current;
     const overlay = overlayRef.current;
     const work = workRef.current;
@@ -573,7 +650,7 @@ function VideoAnalyzerPage() {
     }
 
     drawOverlay();
-  }, []);
+  }
 
   const endRally = async () => {
     const video = videoRef.current;
@@ -782,11 +859,36 @@ function VideoAnalyzerPage() {
   };
 
   const restart = () => {
-    setPhase("upload");
-    setVideoUrl(null);
-    setCorners([]);
+    const fresh = createFreshAnalyzerState();
+    clearTrackNet();
+    setSelectedFile(null);
+    setAnalysisMode("browser");
+    setPhase(fresh.phase);
+    setVideoUrl(fresh.videoUrl);
+    setTracknetVideoUrl(fresh.tracknetVideoUrl);
+    setTracknetPoints(fresh.tracknetPoints);
+    tracknetPointsRef.current = fresh.tracknetPoints;
+    setCorners(fresh.corners as Point[]);
     resetAnalysisState();
+    setError(fresh.error);
   };
+
+  const videoPreview = videoUrl ? (
+    <VideoPreviewPanel
+      videoRef={videoRef}
+      calibrationCanvasRef={calibCanvasRef}
+      overlayRef={overlayRef}
+      src={tracknetVideoUrl ?? videoUrl}
+      calibrating={phase === "calibrate"}
+      autoPlay={phase === "calibrate"}
+      onError={handleVideoError}
+      onCalibrationClick={onCalibClick}
+      onLoadedMetadata={syncTrackNetOverlay}
+      onTimeUpdate={() => {
+        if (analysisMode === "tracknet") drawOverlay();
+      }}
+    />
+  ) : null;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -821,76 +923,42 @@ function VideoAnalyzerPage() {
         </div>
       </div>
 
-      {error && (
+      {error && phase !== "calibrate" && phase !== "analyze" && phase !== "done" && (
         <div className="mb-3 flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <AlertCircle className="h-4 w-4" /> {error}
         </div>
       )}
 
+      <AnalysisProgressPanel
+        phase={tracknetPhase}
+        progress={tracknetProgress}
+        etaSeconds={tracknetEtaSeconds}
+        error={tracknetError}
+        onRetry={retryAnalysis}
+        retrying={retrying}
+        onCancel={cancelAnalysis}
+      />
+
       {phase === "upload" && <VideoUploadPanel onFile={onFile} />}
 
       {phase !== "upload" && videoUrl && (
         <>
-          <VideoPreviewPanel
-            videoRef={videoRef}
-            calibrationCanvasRef={calibCanvasRef}
-            overlayRef={overlayRef}
-            src={tracknetVideoUrl ?? videoUrl}
-            calibrating={phase === "calibrate"}
-            autoPlay={phase === "calibrate"}
-            onError={handleVideoError}
-            onCalibrationClick={onCalibClick}
-            onLoadedMetadata={syncTrackNetOverlay}
-            onTimeUpdate={() => {
-              if (analysisMode === "tracknet") drawOverlay();
-            }}
-          />
+          {phase !== "calibrate" && videoPreview}
           <canvas ref={workRef} className="hidden" />
         </>
       )}
 
       {phase === "calibrate" && (
-        <div className="mt-4 rounded-lg border border-border bg-card p-4">
-          <p className="text-sm font-semibold text-foreground">
-            {corners.length < 4 ? `Tap corner ${corners.length + 1} of 4` : "Four corners placed"}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {corners.length < 4 ? CORNER_LABELS[corners.length] : "All corners marked."}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-medium text-foreground">Detector</span>
-            <button
-              type="button"
-              onClick={() => setAnalysisMode("browser")}
-              className={`rounded-md px-3 py-1.5 font-semibold ${analysisMode === "browser" ? "bg-primary text-primary-foreground" : "border border-input bg-background"}`}
-            >
-              Browser fallback
-            </button>
-            <button
-              type="button"
-              onClick={() => setAnalysisMode("tracknet")}
-              className={`rounded-md px-3 py-1.5 font-semibold ${analysisMode === "tracknet" ? "bg-primary text-primary-foreground" : "border border-input bg-background"}`}
-            >
-              TrackNet AI
-            </button>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => setCorners([])}
-              className="rounded-md border border-input bg-background px-3 py-2 text-xs font-medium hover:bg-accent"
-            >
-              <RotateCcw className="mr-1 inline h-3 w-3" /> Reset corners
-            </button>
-            <button
-              onClick={startAnalysis}
-              disabled={corners.length !== 4}
-              className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-40"
-            >
-              <Play className="mr-1 inline h-3 w-3" />
-              {analysisMode === "tracknet" ? "Analyze with TrackNet" : "Start analysis"}
-            </button>
-          </div>
-        </div>
+        <CourtCalibrationPanel
+          corners={corners}
+          analysisMode={analysisMode}
+          preview={videoPreview}
+          onReset={() => setCorners([])}
+          onModeChange={setAnalysisMode}
+          onStart={startAnalysis}
+          starting={analysisStarting}
+          message={error}
+        />
       )}
 
       {(phase === "analyze" || phase === "done") && (
@@ -900,162 +968,37 @@ function VideoAnalyzerPage() {
             <ScoreCard label="Player 2 (far)" value={score.p2} />
           </div>
 
-          {analysisMode === "browser" && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
-              <span className="text-xs text-muted-foreground">Last hitter before landing</span>
-              <button
-                type="button"
-                onClick={() => setLastHitter("p1")}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${lastHitter === "p1" ? "bg-primary text-primary-foreground" : "border border-input bg-background"}`}
-              >
-                Player 1
-              </button>
-              <button
-                type="button"
-                onClick={() => setLastHitter("p2")}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${lastHitter === "p2" ? "bg-primary text-primary-foreground" : "border border-input bg-background"}`}
-              >
-                Player 2
-              </button>
-            </div>
-          )}
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {phase === "analyze" && (
-              <button
-                onClick={togglePlay}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
-              >
-                {playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                {playing ? "Pause" : "Resume"}
-              </button>
-            )}
-            <button
-              onClick={restart}
-              className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs font-medium hover:bg-accent"
-            >
-              <RotateCcw className="h-3 w-3" /> New video
-            </button>
-          </div>
-
-          {status && <p className="mt-2 text-xs text-muted-foreground">{status}</p>}
-
-          {phase === "done" && tracknetVideoUrl && (
-            <a
-              href={tracknetVideoUrl}
-              download="tracknet_predict.mp4"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Download TrackNet processed video (
-              {tracknetPoints.filter((point) => point.visible).length} detected frames)
-            </a>
-          )}
+          <AnalysisControlsPanel
+            mode={analysisMode}
+            showPlayback={showsPlaybackControl(analysisMode, phase)}
+            playing={playing}
+            status={analysisMode === "browser" ? status : ""}
+            error={error}
+            lastHitter={lastHitter}
+            onTogglePlay={togglePlay}
+            onRestart={restart}
+            onLastHitterChange={setLastHitter}
+            onRetry={retryAnalysis}
+            retrying={retrying}
+            canCancel={phase === "analyze" && analysisMode === "browser"}
+            onCancel={cancelAnalysis}
+          />
 
           {phase === "done" && (
-            <AnalysisSummary
+            <AnalysisResultsPanel
               rallies={rallies}
               score={score}
               tracknetPoints={analysisMode === "tracknet" ? tracknetPoints : undefined}
+              processedVideoUrl={tracknetVideoUrl}
+              selectedRally={selectedRally}
+              onSelectRally={(rally) => {
+                setSelectedRally(rally.id);
+                if (videoRef.current) videoRef.current.currentTime = rally.t;
+              }}
+              onCorrectRally={correctRally}
+              onSetReviewStatus={setReviewStatus}
             />
           )}
-
-          <div className="mt-6 rounded-2xl border border-border bg-card">
-            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <ListVideo className="h-4 w-4 text-primary" />
-              <div>
-                <h2 className="text-sm font-semibold">Key moments</h2>
-                <p className="text-[11px] text-muted-foreground">
-                  Select a rally to jump to that moment in the video.
-                </p>
-              </div>
-            </div>
-            {rallies.length === 0 ? (
-              <p className="px-4 py-6 text-center text-xs text-muted-foreground">
-                No rallies scored yet. They will appear here as the shuttle lands.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {rallies.map((r) => (
-                  <li
-                    key={r.id}
-                    className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm transition-colors ${selectedRally === r.id ? "bg-primary/10" : "hover:bg-accent/40"}`}
-                    onClick={() => {
-                      setSelectedRally(r.id);
-                      if (videoRef.current) videoRef.current.currentTime = r.t;
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setSelectedRally(r.id);
-                        if (videoRef.current) videoRef.current.currentTime = r.t;
-                      }
-                    }}
-                  >
-                    <div>
-                      <p className="font-medium">
-                        Rally #{r.id} — Point to {r.winner === "p1" ? "Player 1" : "Player 2"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatTime(r.t)} · Landing {r.inBounds ? "in" : "out"} ·{" "}
-                        {r.aiConfidence > 0 ? `AI ${Math.round(r.aiConfidence * 100)}% — ` : ""}
-                        {r.aiNote}
-                      </p>
-                    </div>
-                    <div
-                      className="mt-2 flex flex-wrap items-center gap-1.5"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <span className="text-[10px] text-muted-foreground">Correct:</span>
-                      {["p1", "p2"].map((player) => (
-                        <button
-                          key={player}
-                          type="button"
-                          onClick={() => correctRally(r.id, { winner: player as "p1" | "p2" })}
-                          className={`rounded border px-1.5 py-0.5 text-[10px] ${r.winner === player ? "border-primary/40 bg-primary/10 text-primary" : "border-white/10 text-muted-foreground"}`}
-                        >
-                          {player.toUpperCase()}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => correctRally(r.id, { inBounds: !r.inBounds })}
-                        className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                      >
-                        {r.inBounds ? "Mark OUT" : "Mark IN"}
-                      </button>
-                      <select
-                        value={r.shotType ?? "unknown"}
-                        onChange={(e) =>
-                          correctRally(r.id, { shotType: e.target.value as ShotType })
-                        }
-                        className="rounded border border-white/10 bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                      >
-                        <option value="unknown">Shot label</option>
-                        <option value="smash">Smash</option>
-                        <option value="clear">Clear</option>
-                        <option value="drop">Drop</option>
-                        <option value="drive">Drive</option>
-                        <option value="lift">Lift</option>
-                        <option value="net">Net</option>
-                      </select>
-                      {r.manuallyCorrected && (
-                        <span className="text-[10px] font-semibold text-primary">Edited</span>
-                      )}
-                    </div>
-                    <span
-                      className={`rounded-full px-2 py-1 text-[10px] font-semibold ${r.winner === "p1" ? "bg-primary/15 text-primary" : "bg-accent text-accent-foreground"}`}
-                    >
-                      {r.winner.toUpperCase()}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </>
       )}
     </div>
@@ -1087,134 +1030,6 @@ function WorkflowStep({
       >
         {label}
       </span>
-    </div>
-  );
-}
-
-function AnalysisSummary({
-  rallies,
-  score,
-  tracknetPoints,
-}: {
-  rallies: Rally[];
-  score: { p1: number; p2: number };
-  tracknetPoints?: TrackNetPoint[];
-}) {
-  const isTrackNet = tracknetPoints !== undefined;
-  const tracknetDetections = tracknetPoints?.filter((point) => point.visible) ?? [];
-  const hasTrackNetScore = isTrackNet && rallies.length > 0;
-  const detected = rallies.filter((r) => r.aiConfidence > 0).length;
-  const confidence = isTrackNet
-    ? tracknetDetections.length
-      ? Math.round(
-          (tracknetDetections.reduce((sum, point) => sum + point.confidence, 0) /
-            tracknetDetections.length) *
-            100,
-        )
-      : 0
-    : rallies.length
-      ? Math.round(
-          (rallies.reduce((sum, r) => sum + (r.aiConfidence || 0.7), 0) / rallies.length) * 100,
-        )
-      : 0;
-  const winner =
-    score.p1 === score.p2 ? "Even match" : score.p1 > score.p2 ? "Player 1 led" : "Player 2 led";
-  return (
-    <section className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="eyebrow">
-            <Sparkles className="h-3.5 w-3.5" /> Analysis summary
-          </p>
-          <h2 className="mt-1 font-display text-xl font-semibold">
-            Your video, distilled into a plan.
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Start with the signal, then open individual moments when you want the detail.
-          </p>
-        </div>
-        <Target className="mt-1 h-5 w-5 text-primary" />
-      </div>
-      <div className="mt-5 grid gap-2 sm:grid-cols-3">
-        <SummaryMetric
-          icon={<Trophy />}
-          label={isTrackNet && !hasTrackNetScore ? "Detector" : "Result"}
-          value={isTrackNet && !hasTrackNetScore ? "TrackNet ready" : winner}
-          detail={
-            isTrackNet && !hasTrackNetScore ? "Processed video ready" : `${score.p1}-${score.p2}`
-          }
-        />
-        <SummaryMetric
-          icon={<ListVideo />}
-          label={isTrackNet && !hasTrackNetScore ? "Shuttle detections" : "Key moments"}
-          value={`${isTrackNet && !hasTrackNetScore ? tracknetDetections.length : rallies.length}`}
-          detail={isTrackNet && !hasTrackNetScore ? "frames detected" : "rallies detected"}
-        />
-        <SummaryMetric
-          icon={<Clock3 />}
-          label="AI confidence"
-          value={`${confidence}%`}
-          detail={`${isTrackNet ? tracknetDetections.length : detected} AI checks`}
-        />
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-primary/15 bg-background/30 p-3">
-          <p className="text-xs font-semibold text-primary">What went well</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {isTrackNet && hasTrackNetScore
-              ? `TrackNet found ${rallies.length} visible rally endings and assigned each point automatically. Off-camera clears are not counted.`
-              : isTrackNet
-                ? "The processed video is ready with TrackNet shuttle markers for review."
-                : "Your strongest moments are now grouped in the timeline so you can revisit successful rallies."}
-          </p>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-background/30 p-3">
-          <p className="text-xs font-semibold text-primary">Next drill</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {isTrackNet && hasTrackNetScore
-              ? getNextPracticeSuggestion(rallies)
-              : isTrackNet
-                ? "Review the processed video and confirm the court corners before scoring."
-                : getNextPracticeSuggestion(rallies)}
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function getNextPracticeSuggestion(rallies: Rally[]) {
-  if (!rallies.length) return "Upload a longer clip to generate a more specific drill.";
-  const outCount = rallies.filter((r) => !r.inBounds).length;
-  const lowConfidence = rallies.filter((r) => r.aiConfidence > 0 && r.aiConfidence < 0.8).length;
-  const labeled = rallies.filter((r) => r.shotType && r.shotType !== "unknown");
-  if (outCount / rallies.length > 0.35)
-    return "Practice control first: play half-court clears and aim for three landing zones before adding pace.";
-  if (lowConfidence >= 2)
-    return "Improve the camera angle and repeat the clip with the full court visible so the AI can track more confidently.";
-  if (labeled.length >= 3)
-    return `Repeat your ${labeled[labeled.length - 1].shotType} pattern, then add one recovery step after every shot.`;
-  return "Review the longest rally, label the key shot manually, and repeat that movement pattern in your next session.";
-}
-function SummaryMetric({
-  icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-background/30 p-3">
-      <div className="flex items-center gap-2 text-primary">
-        <span className="h-3.5 w-3.5">{icon}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-wider">{label}</span>
-      </div>
-      <p className="mt-2 text-lg font-bold">{value}</p>
-      <p className="text-[10px] text-muted-foreground">{detail}</p>
     </div>
   );
 }
@@ -1260,10 +1075,4 @@ function drawCornersOverlay(ctx: CanvasRenderingContext2D, corners: Point[], w: 
   ctx.moveTo(w / 2, 0);
   ctx.lineTo(w / 2, h);
   ctx.stroke();
-}
-
-function formatTime(s: number) {
-  const m = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  return `${m}:${sec.toString().padStart(2, "0")}`;
 }
