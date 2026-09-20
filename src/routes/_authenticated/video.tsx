@@ -12,6 +12,7 @@ import {
 } from "@/lib/birdie-tracker";
 import { createTrackNetPreview, type TrackNetPoint } from "@/lib/tracknet-client";
 import type { AnalysisRally, ShotType } from "@/lib/analysis-results";
+import { buildTrackNetRallies } from "@/lib/tracknet-rally-scorer";
 import {
   acquireAnalyzerLock,
   cancellationMessage,
@@ -19,7 +20,6 @@ import {
   showsPlaybackControl,
 } from "@/lib/video-analyzer-flow";
 import {
-  getRallyReviewReasons,
   rallyCountsTowardScore,
   setRallyReviewStatus,
 } from "@/lib/analysis-results";
@@ -76,108 +76,6 @@ function formatEta(seconds: number | null | undefined) {
   const minutes = Math.floor(rounded / 60);
   const remainingSeconds = rounded % 60;
   return remainingSeconds ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
-}
-
-type VisibleTrackNetPoint = TrackNetPoint & { x: number; y: number };
-
-function buildTrackNetRallies(points: TrackNetPoint[], homography: number[]): Rally[] {
-  const visiblePoints = points.filter(
-    (point): point is VisibleTrackNetPoint => point.visible && point.x !== null && point.y !== null,
-  );
-  if (visiblePoints.length < 3) return [];
-
-  const chunks: VisibleTrackNetPoint[][] = [];
-  let chunk: VisibleTrackNetPoint[] = [];
-  let previous: VisibleTrackNetPoint | null = null;
-  for (const point of visiblePoints) {
-    if (previous && point.time - previous.time > 0.55) {
-      if (chunk.length) chunks.push(chunk);
-      chunk = [];
-    }
-    chunk.push(point);
-    previous = point;
-  }
-  if (chunk.length) chunks.push(chunk);
-
-  const endsOffCamera = (candidate: VisibleTrackNetPoint[]) => {
-    const last = candidate[candidate.length - 1];
-    const nearTop = last.y < 0.14;
-    const nearSide = last.x < 0.04 || last.x > 0.96;
-    const tail = candidate.slice(-Math.min(8, candidate.length));
-    const firstTail = tail[0];
-    const elapsed = last.time - firstTail.time;
-    const rising = elapsed > 0 && (last.y - firstTail.y) / elapsed < -0.08;
-    return nearTop || nearSide || (last.y < 0.4 && rising);
-  };
-
-  // A clear can leave the camera for a short period and then reappear. Do not
-  // turn that temporary gap into a point; merge it back into the same rally.
-  const mergedChunks: VisibleTrackNetPoint[][] = [];
-  for (const nextChunk of chunks) {
-    const current = mergedChunks[mergedChunks.length - 1];
-    const currentLast = current?.[current.length - 1];
-    const nextFirst = nextChunk[0];
-    if (
-      current &&
-      currentLast &&
-      nextFirst.time - currentLast.time <= 1.8 &&
-      endsOffCamera(current)
-    ) {
-      current.push(...nextChunk);
-    } else {
-      mergedChunks.push([...nextChunk]);
-    }
-  }
-
-  const rallies: Rally[] = [];
-  const finishSegment = (segment: VisibleTrackNetPoint[]) => {
-    if (segment.length < 3) {
-      return;
-    }
-    const first = segment[0];
-    const last = segment[segment.length - 1];
-    const offCamera = endsOffCamera(segment);
-
-    const court = applyHomography(homography, { x: last.x, y: last.y });
-    const inBounds = court.x >= -0.02 && court.x <= 1.02 && court.y >= -0.02 && court.y <= 1.02;
-    // A shuttle landing on the near half gives the point to the far player;
-    // landing on the far half gives it to the near player.
-    const winner: "p1" | "p2" = court.y > 0.5 ? "p2" : "p1";
-    const confidence = segment.reduce((sum, point) => sum + point.confidence, 0) / segment.length;
-    const evidenceFrames = segment.length;
-    const reviewReasons = getRallyReviewReasons({
-      aiConfidence: confidence,
-      evidenceFrames,
-      offCamera,
-      landingCourtX: court.x,
-      landingCourtY: court.y,
-    });
-    if (last.time - first.time < 0.4) reviewReasons.push("The landing evidence is too brief.");
-
-    rallies.push({
-      id: rallies.length + 1,
-      t: last.time,
-      landingImgX: last.x,
-      landingImgY: last.y,
-      landingCourtX: court.x,
-      landingCourtY: court.y,
-      inBounds,
-      winner,
-      aiConfidence: confidence,
-      aiNote: reviewReasons.length
-        ? reviewReasons.join(" ")
-        : "TrackNet auto-scored from visible landing evidence and court side.",
-      evidenceFrames,
-      offCamera,
-      needsReview: reviewReasons.length > 0,
-      reviewReasons,
-      countsTowardScore: !offCamera,
-      reviewStatus: reviewReasons.length ? "needs-review" : undefined,
-    });
-  };
-
-  for (const candidate of mergedChunks) finishSegment(candidate);
-  return rallies;
 }
 
 function VideoAnalyzerPage() {
