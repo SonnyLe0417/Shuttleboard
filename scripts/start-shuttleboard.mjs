@@ -2,14 +2,17 @@ import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getTrackNetLaunchConfig } from "./tracknet-launch-config.mjs";
 
 const appDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const tracknetDir = resolve(
-  process.env.TRACKNET_DIR ?? resolve(appDir, "..", "TrackNet-Badminton-Tracking-tensorflow2-main"),
-);
-const pythonPath = resolve(
-  process.env.TRACKNET_PYTHON ?? resolve(tracknetDir, ".venv311", "Scripts", "python.exe"),
-);
+let tracknet;
+try {
+  tracknet = getTrackNetLaunchConfig(appDir);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+const { tracknetDir, pythonPath } = tracknet;
 const tracknetPort = process.env.TRACKNET_PORT ?? "8000";
 const appPort = process.env.SHUTTLEBOARD_PORT ?? "5173";
 const ffmpegCandidates = [
@@ -24,13 +27,13 @@ const prewarmRoutes = ["/", "/auth", "/dashboard", "/match-lobby", "/scoreboard"
 
 if (!existsSync(tracknetDir)) {
   console.error(`TrackNet folder not found: ${tracknetDir}`);
-  console.error("Set TRACKNET_DIR to the folder containing tracknet_service.py to override it.");
+  console.error(tracknet.directoryHint);
   process.exit(1);
 }
 
 if (!existsSync(pythonPath)) {
   console.error(`TrackNet Python environment not found: ${pythonPath}`);
-  console.error("Create the .venv311 environment or set TRACKNET_PYTHON to its Python executable.");
+  console.error(tracknet.pythonHint);
   process.exit(1);
 }
 
@@ -42,7 +45,7 @@ function start(label, command, args, cwd, env = {}) {
     cwd,
     env: { ...process.env, ...env },
     stdio: ["inherit", "pipe", "pipe"],
-    windowsHide: false,
+    windowsHide: true,
   });
 
   child.stdout.on("data", (data) => process.stdout.write(`[${label}] ${data}`));
@@ -130,7 +133,7 @@ process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
 console.log(`Starting ShuttleBoard first on ${appUrl}`);
-console.log(`TrackNet will start in the background on ${tracknetUrl}`);
+console.log(`TrackNet (${tracknet.engine}) will start in the background on ${tracknetUrl}`);
 
 start(
   "shuttleboard",
@@ -156,7 +159,7 @@ void (async () => {
     [
       "-m",
       "uvicorn",
-      "tracknet_live:app",
+      tracknet.serviceModule,
       "--app-dir",
       resolve(appDir, "scripts"),
       "--host",
@@ -167,10 +170,9 @@ void (async () => {
     tracknetDir,
     {
       PYTHONUNBUFFERED: "1",
-      TRACKNET_BACKEND: process.env.TRACKNET_BACKEND ?? "openvino",
+      ...tracknet.env,
       TRACKNET_DEVICE: process.env.TRACKNET_DEVICE ?? "AUTO",
       TRACKNET_BATCH_SIZE: process.env.TRACKNET_BATCH_SIZE ?? "1",
-      TRACKNET_FRAME_STRIDE: process.env.TRACKNET_FRAME_STRIDE ?? "4",
       TRACKNET_INTRA_THREADS: process.env.TRACKNET_INTRA_THREADS ?? "2",
       TRACKNET_INTER_THREADS: process.env.TRACKNET_INTER_THREADS ?? "1",
       TF_NUM_INTRAOP_THREADS: process.env.TF_NUM_INTRAOP_THREADS ?? "2",

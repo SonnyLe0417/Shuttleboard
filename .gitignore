@@ -18,6 +18,9 @@ dist-ssr
 
 # Wrangler / Cloudflare
 .wrangler/
+.tracknet-v3/
+tests/fixtures/*.mp4
+__pycache__/
 .dev.vars
 
 # Editor directories and files

@@ -32,4 +32,10 @@ stop both. By default, it expects the TrackNet repository at
 `../TrackNet-Badminton-Tracking-tensorflow2-main` and uses its `.venv311`
 environment. Set `TRACKNET_DIR` or `TRACKNET_PYTHON` if your folders differ.
 
+TrackNetV3 is available as an optional uploaded-video engine with PyTorch or
+OpenVINO. The current engine remains the default and supports live tracking.
+See [setup](docs/tracknet-v3-reproducibility.md),
+[engine commands and settings](docs/tracknet-engines.md), and
+[measured comparison](docs/tracknet-v3.md).
+
 Generated folders such as `.output`, `.tanstack`, `.wrangler`, and `node_modules` are intentionally hidden from the VS Code Explorer through the workspace settings.

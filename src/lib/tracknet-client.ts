@@ -6,6 +6,16 @@ export interface TrackNetPoint {
   y: number | null;
   confidence: number;
   visible: boolean;
+  detected?: boolean;
+  repaired?: boolean;
+}
+
+export interface TrackNetSettings {
+  backend: "openvino" | "pytorch";
+  device: "CPU" | "GPU" | "AUTO";
+  evalMode: "weight" | "average" | "nonoverlap";
+  inpaint: boolean;
+  intraThreads: number;
 }
 
 export interface TrackNetJobStatus {
@@ -23,6 +33,15 @@ export interface TrackNetResult {
   frames: number;
   coordinates: TrackNetPoint[];
   video_url: string;
+}
+
+export interface TrackNetHealth {
+  ok: boolean;
+  model_loaded: boolean;
+  engine?: "current" | "v3" | string;
+  backend?: string;
+  device?: string;
+  error?: string | null;
 }
 
 export interface LiveTrackNetDetection {
@@ -85,12 +104,22 @@ function absoluteUrl(path: string) {
   return path.startsWith("http") ? path : `${TRACKNET_URL}${path}`;
 }
 
+export async function getTrackNetHealth(signal?: AbortSignal): Promise<TrackNetHealth> {
+  const response = await fetch(`${TRACKNET_URL}/health`, {
+    signal: requestSignal(signal, 10_000),
+  });
+  if (!response.ok) throw new Error(`TrackNet health check failed (${response.status}).`);
+  return (await response.json()) as TrackNetHealth;
+}
+
 export async function submitTrackNetVideo(
   file: File,
   signal?: AbortSignal,
+  settings?: TrackNetSettings,
 ): Promise<{ jobId: string }> {
   const body = new FormData();
   body.append("video", file, file.name);
+  if (settings) body.append("settings", JSON.stringify(settings));
   const response = await fetch(`${TRACKNET_URL}/analyze`, {
     method: "POST",
     body,
@@ -179,6 +208,18 @@ export async function getTrackNetResult(
   }
   const result = (await response.json()) as TrackNetResult;
   return { ...result, video_url: absoluteUrl(result.video_url) };
+}
+
+export async function cancelTrackNetJob(jobId: string): Promise<void> {
+  // Older services have no cancellation route. Clearing their UI still works.
+  try {
+    await fetch(`${TRACKNET_URL}/jobs/${encodeURIComponent(jobId)}`, {
+      method: "DELETE",
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    // A stopped service must not prevent selecting a new video.
+  }
 }
 
 function requestSignal(signal: AbortSignal | undefined, timeoutMs: number) {

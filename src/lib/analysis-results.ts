@@ -1,4 +1,5 @@
 import type { TrackNetPoint } from "./tracknet-client";
+import { isDirectTrackNetDetection, type TrackNetFrameDiagnostics } from "./tracknet-evidence";
 
 export type ShotType = "unknown" | "smash" | "clear" | "drop" | "drive" | "lift" | "net";
 export type RallyReviewStatus = "needs-review" | "confirmed" | "corrected";
@@ -46,7 +47,7 @@ export function countTrackNetDetections(points: TrackNetPoint[] = []) {
 }
 
 export function averageTrackNetConfidence(points: TrackNetPoint[] = []) {
-  const visible = points.filter((point) => point.visible);
+  const visible = points.filter(isDirectTrackNetDetection);
   if (!visible.length) return 0;
   return Math.round(
     (visible.reduce((total, point) => total + point.confidence, 0) / visible.length) * 100,
@@ -123,6 +124,32 @@ export function rallyCountsTowardScore(rally: Pick<AnalysisRally, "countsTowardS
   return rally.countsTowardScore !== false;
 }
 
+export function scoreFromRallies(rallies: AnalysisRally[]): AnalysisScore {
+  return rallies.reduce(
+    (score, rally) => {
+      if (rallyCountsTowardScore(rally)) score[rally.winner]++;
+      return score;
+    },
+    { p1: 0, p2: 0 },
+  );
+}
+
+export function rallyDiagnostics(rallies: AnalysisRally[]) {
+  const confirmedEndings = rallies.filter(rallyCountsTowardScore).length;
+  return {
+    possibleEndings: rallies.length,
+    confirmedEndings,
+    needsReview: rallies.length - confirmedEndings,
+  };
+}
+
+export function sparseRallyWarning(frames: TrackNetFrameDiagnostics, rallies: AnalysisRally[]) {
+  // A diagnostic hint, not a target rally count or an estimate of match points.
+  return frames.durationSeconds >= 60 && frames.directFrames >= 30 && rallies.length <= 5
+    ? "TrackNet detected the shuttle, but only a few rally endings were clear. Review the processed video or adjust the detection settings. This is not the match's full point count."
+    : null;
+}
+
 export function reviewFilterMatches(
   rally: Pick<AnalysisRally, "reviewStatus" | "needsReview" | "manuallyCorrected">,
   filter: RallyReviewFilter,
@@ -139,5 +166,14 @@ export function setRallyReviewStatus(
   id: number,
   status: RallyReviewStatus,
 ) {
-  return rallies.map((rally) => (rally.id === id ? { ...rally, reviewStatus: status } : rally));
+  return rallies.map((rally) =>
+    rally.id === id
+      ? {
+          ...rally,
+          reviewStatus: status,
+          needsReview: status === "needs-review",
+          countsTowardScore: status !== "needs-review",
+        }
+      : rally,
+  );
 }

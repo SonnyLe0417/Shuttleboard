@@ -1,5 +1,6 @@
 import { Clock3, ListVideo, Sparkles, Target, Trophy } from "lucide-react";
 import type { TrackNetPoint } from "@/lib/tracknet-client";
+import { summarizeTrackNetFrames, type TrackNetFrameDiagnostics } from "@/lib/tracknet-evidence";
 import {
   EMPTY_RALLIES_MESSAGE,
   averageTrackNetConfidence,
@@ -11,6 +12,8 @@ import {
   type AnalysisScore,
   type RallyReviewFilter,
   reviewFilterMatches,
+  rallyDiagnostics,
+  sparseRallyWarning,
 } from "@/lib/analysis-results";
 import { useState } from "react";
 
@@ -18,6 +21,7 @@ interface AnalysisResultsPanelProps {
   rallies: AnalysisRally[];
   score: AnalysisScore;
   tracknetPoints?: TrackNetPoint[];
+  frameDiagnostics?: TrackNetFrameDiagnostics;
   processedVideoUrl?: string | null;
   selectedRally: number | null;
   onSelectRally: (rally: AnalysisRally) => void;
@@ -29,6 +33,7 @@ export function AnalysisResultsPanel({
   rallies,
   score,
   tracknetPoints,
+  frameDiagnostics,
   processedVideoUrl,
   selectedRally,
   onSelectRally,
@@ -51,6 +56,9 @@ export function AnalysisResultsPanel({
   const winner =
     score.p1 === score.p2 ? "Even match" : score.p1 > score.p2 ? "Player 1 led" : "Player 2 led";
   const visibleRallies = rallies.filter((rally) => reviewFilterMatches(rally, reviewFilter));
+  const endings = rallyDiagnostics(rallies);
+  const frames = frameDiagnostics ?? summarizeTrackNetFrames(tracknetPoints ?? []);
+  const warning = isTrackNet ? sparseRallyWarning(frames, rallies) : null;
 
   return (
     <>
@@ -72,7 +80,7 @@ export function AnalysisResultsPanel({
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <SummaryMetric
             icon={<Trophy />}
-            label={isTrackNet && !hasScoredRallies ? "Detector" : "Final score"}
+            label={isTrackNet && !hasScoredRallies ? "Detector" : "Confirmed point score"}
             value={isTrackNet && !hasScoredRallies ? "TrackNet ready" : winner}
             detail={
               isTrackNet && !hasScoredRallies ? "Processed video ready" : `${score.p1}-${score.p2}`
@@ -80,23 +88,64 @@ export function AnalysisResultsPanel({
           />
           <SummaryMetric
             icon={<ListVideo />}
-            label={isTrackNet && !hasScoredRallies ? "Shuttle detections" : "Rally count"}
+            label={isTrackNet && !hasScoredRallies ? "Shuttle positions" : "Possible rally endings"}
             value={`${isTrackNet && !hasScoredRallies ? detections : rallies.length}`}
-            detail={isTrackNet && !hasScoredRallies ? "frames detected" : "rallies detected"}
+            detail={
+              isTrackNet && !hasScoredRallies
+                ? "frames with positions"
+                : "includes moments needing review"
+            }
           />
           <SummaryMetric
             icon={<Clock3 />}
-            label="AI confidence"
+            label={isTrackNet ? "Direct detection score" : "AI confidence"}
             value={`${confidence}%`}
-            detail={`${isTrackNet ? detections : rallies.filter((rally) => rally.aiConfidence > 0).length} AI checks`}
+            detail={
+              isTrackNet
+                ? "Model strength, not scoring accuracy"
+                : `${rallies.filter((rally) => rally.aiConfidence > 0).length} AI checks`
+            }
           />
         </div>
+        {isTrackNet && (
+          <div className="mt-4 rounded-xl border border-primary/15 bg-background/30 p-3">
+            <p className="text-xs font-semibold">Tracking and rally checks</p>
+            <dl className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+              {(
+                [
+                  ["Total frames", frames.totalFrames],
+                  ["Direct detections", frames.directFrames],
+                  ["Repaired positions", frames.repairedFrames],
+                  ["Missing positions", frames.missingFrames],
+                  ["Possible endings", endings.possibleEndings],
+                  ["Confirmed endings", endings.confirmedEndings],
+                  ["Needs review", endings.needsReview],
+                ] as const
+              ).map(([label, count]) => (
+                <div key={label}>
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd>{count}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Possible endings include confirmed and reviewable events. Repaired positions stay in
+              the video trail; only direct detections support rally decisions. Older results without
+              detection labels treat visible positions as direct detections.
+            </p>
+            {warning && (
+              <p role="status" className="mt-2 text-xs text-amber-300">
+                {warning}
+              </p>
+            )}
+          </div>
+        )}
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-primary/15 bg-background/30 p-3">
             <p className="text-xs font-semibold text-primary">What went well</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               {isTrackNet && hasScoredRallies
-                ? `TrackNet found ${rallies.length} visible rally endings and assigned each point automatically. Off-camera clears are not counted.`
+                ? `TrackNet found ${rallies.length} possible rally endings. ${endings.confirmedEndings} count toward the score and ${endings.needsReview} still need review.`
                 : isTrackNet
                   ? "The processed video is ready with TrackNet shuttle markers for review."
                   : "Your strongest moments are now grouped in the timeline so you can revisit successful rallies."}
@@ -123,7 +172,7 @@ export function AnalysisResultsPanel({
           rel="noreferrer"
           className="mt-2 inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
         >
-          Download TrackNet processed video ({detections} detected frames)
+          Download TrackNet processed video ({detections} frames with shuttle positions)
         </a>
       )}
 
@@ -179,7 +228,9 @@ export function AnalysisResultsPanel({
               >
                 <div>
                   <p className="font-medium">
-                    Rally #{rally.id} — Point to {rally.winner === "p1" ? "Player 1" : "Player 2"}
+                    Rally #{rally.id} —{" "}
+                    {rally.countsTowardScore === false ? "Suggested winner: " : "Point to "}
+                    {rally.winner === "p1" ? "Player 1" : "Player 2"}
                   </p>
                   {rally.needsReview &&
                     rally.reviewStatus !== "confirmed" &&
@@ -204,7 +255,9 @@ export function AnalysisResultsPanel({
                     </span>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    {formatAnalysisTime(rally.t)} · Landing {rally.inBounds ? "in" : "out"} ·{" "}
+                    {formatAnalysisTime(rally.t)} ·{" "}
+                    {rally.offCamera ? "Last observed position" : "Landing"}{" "}
+                    {rally.inBounds ? "in" : "out"} ·{" "}
                     {rally.aiConfidence > 0 ? `AI ${Math.round(rally.aiConfidence * 100)}% — ` : ""}
                     {rally.aiNote}
                   </p>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   detectBirdieMotion,
@@ -10,7 +10,12 @@ import {
   type LocalTrack,
   type Point,
 } from "@/lib/birdie-tracker";
-import { createTrackNetPreview, type TrackNetPoint } from "@/lib/tracknet-client";
+import {
+  createTrackNetPreview,
+  getTrackNetHealth,
+  type TrackNetPoint,
+  type TrackNetSettings,
+} from "@/lib/tracknet-client";
 import type { AnalysisRally, ShotType } from "@/lib/analysis-results";
 import {
   acquireAnalyzerLock,
@@ -19,10 +24,16 @@ import {
   showsPlaybackControl,
 } from "@/lib/video-analyzer-flow";
 import {
-  getRallyReviewReasons,
-  rallyCountsTowardScore,
+  scoreFromRallies,
   setRallyReviewStatus,
 } from "@/lib/analysis-results";
+import {
+  createRallyEndState,
+  updateRallyEndState,
+  type RallyEndEvent,
+} from "@/lib/rally-end-detector";
+import { buildTrackNetRallies } from "@/lib/tracknet-rallies";
+import { summarizeTrackNetFrames, trackNetVisualTrail, type TrackNetFrameDiagnostics } from "@/lib/tracknet-evidence";
 import { useTrackNetAnalysis } from "@/components/TrackNetAnalysisProvider";
 import { VideoUploadPanel } from "@/components/video/VideoUploadPanel";
 import { VideoPreviewPanel } from "@/components/video/VideoPreviewPanel";
@@ -39,6 +50,19 @@ import {
   pointFromCanvasClick,
   saveCourtCalibration,
 } from "@/lib/court-calibration";
+import {
+  clearVideoAnalysisSession,
+  createVideoSessionKey,
+  loadVideoAnalysisSession,
+  saveVideoAnalysisSession,
+} from "@/lib/video-analysis-session";
+import {
+  closeCameraSegment,
+  createCameraMotionState,
+  createCameraSegment,
+  updateCameraMotion,
+  type CameraViewType,
+} from "@/lib/video-camera-segments";
 
 export const Route = createFileRoute("/_authenticated/video")({
   head: () => ({
@@ -68,6 +92,13 @@ interface TrailPt {
 }
 
 const TRACKNET_COURT_STORAGE_KEY = "shuttleboard.tracknet-court";
+const DEFAULT_TRACKNET_SETTINGS: TrackNetSettings = {
+  backend: "openvino",
+  device: "CPU",
+  evalMode: "weight",
+  inpaint: false,
+  intraThreads: 8,
+};
 
 function formatEta(seconds: number | null | undefined) {
   if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return null;
@@ -78,120 +109,30 @@ function formatEta(seconds: number | null | undefined) {
   return remainingSeconds ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
 }
 
-type VisibleTrackNetPoint = TrackNetPoint & { x: number; y: number };
-
-function buildTrackNetRallies(points: TrackNetPoint[], homography: number[]): Rally[] {
-  const visiblePoints = points.filter(
-    (point): point is VisibleTrackNetPoint => point.visible && point.x !== null && point.y !== null,
-  );
-  if (visiblePoints.length < 3) return [];
-
-  const chunks: VisibleTrackNetPoint[][] = [];
-  let chunk: VisibleTrackNetPoint[] = [];
-  let previous: VisibleTrackNetPoint | null = null;
-  for (const point of visiblePoints) {
-    if (previous && point.time - previous.time > 0.55) {
-      if (chunk.length) chunks.push(chunk);
-      chunk = [];
-    }
-    chunk.push(point);
-    previous = point;
-  }
-  if (chunk.length) chunks.push(chunk);
-
-  const endsOffCamera = (candidate: VisibleTrackNetPoint[]) => {
-    const last = candidate[candidate.length - 1];
-    const nearTop = last.y < 0.14;
-    const nearSide = last.x < 0.04 || last.x > 0.96;
-    const tail = candidate.slice(-Math.min(8, candidate.length));
-    const firstTail = tail[0];
-    const elapsed = last.time - firstTail.time;
-    const rising = elapsed > 0 && (last.y - firstTail.y) / elapsed < -0.08;
-    return nearTop || nearSide || (last.y < 0.4 && rising);
-  };
-
-  // A clear can leave the camera for a short period and then reappear. Do not
-  // turn that temporary gap into a point; merge it back into the same rally.
-  const mergedChunks: VisibleTrackNetPoint[][] = [];
-  for (const nextChunk of chunks) {
-    const current = mergedChunks[mergedChunks.length - 1];
-    const currentLast = current?.[current.length - 1];
-    const nextFirst = nextChunk[0];
-    if (
-      current &&
-      currentLast &&
-      nextFirst.time - currentLast.time <= 1.8 &&
-      endsOffCamera(current)
-    ) {
-      current.push(...nextChunk);
-    } else {
-      mergedChunks.push([...nextChunk]);
-    }
-  }
-
-  const rallies: Rally[] = [];
-  const finishSegment = (segment: VisibleTrackNetPoint[]) => {
-    if (segment.length < 3) {
-      return;
-    }
-    const first = segment[0];
-    const last = segment[segment.length - 1];
-    const offCamera = endsOffCamera(segment);
-
-    const court = applyHomography(homography, { x: last.x, y: last.y });
-    const inBounds = court.x >= -0.02 && court.x <= 1.02 && court.y >= -0.02 && court.y <= 1.02;
-    // A shuttle landing on the near half gives the point to the far player;
-    // landing on the far half gives it to the near player.
-    const winner: "p1" | "p2" = court.y > 0.5 ? "p2" : "p1";
-    const confidence = segment.reduce((sum, point) => sum + point.confidence, 0) / segment.length;
-    const evidenceFrames = segment.length;
-    const reviewReasons = getRallyReviewReasons({
-      aiConfidence: confidence,
-      evidenceFrames,
-      offCamera,
-      landingCourtX: court.x,
-      landingCourtY: court.y,
-    });
-    if (last.time - first.time < 0.4) reviewReasons.push("The landing evidence is too brief.");
-
-    rallies.push({
-      id: rallies.length + 1,
-      t: last.time,
-      landingImgX: last.x,
-      landingImgY: last.y,
-      landingCourtX: court.x,
-      landingCourtY: court.y,
-      inBounds,
-      winner,
-      aiConfidence: confidence,
-      aiNote: reviewReasons.length
-        ? reviewReasons.join(" ")
-        : "TrackNet auto-scored from visible landing evidence and court side.",
-      evidenceFrames,
-      offCamera,
-      needsReview: reviewReasons.length > 0,
-      reviewReasons,
-      countsTowardScore: !offCamera,
-      reviewStatus: reviewReasons.length ? "needs-review" : undefined,
-    });
-  };
-
-  for (const candidate of mergedChunks) finishSegment(candidate);
-  return rallies;
-}
-
 function VideoAnalyzerPage() {
   const [phase, setPhase] = useState<Phase>("upload");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [tracknetVideoUrl, setTracknetVideoUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [videoSessionKey, setVideoSessionKey] = useState<string | null>(null);
   const [analysisMode, setAnalysisMode] = useState<"browser" | "tracknet">("browser");
+  const [tracknetSettings, setTracknetSettings] =
+    useState<TrackNetSettings>(DEFAULT_TRACKNET_SETTINGS);
+  const [tracknetEngine, setTracknetEngine] = useState<"current" | "v3" | "unknown">("unknown");
   const [tracknetPoints, setTracknetPoints] = useState<TrackNetPoint[]>([]);
+  const [frameDiagnostics, setFrameDiagnostics] = useState<TrackNetFrameDiagnostics | null>(null);
   const [corners, setCorners] = useState<Point[]>([]); // in displayed pixel space of the calibrate canvas
+  const [netCorners, setNetCorners] = useState<Point[]>([]);
+  const [calibrationTarget, setCalibrationTarget] = useState<"court" | "net">("court");
+  const [viewType, setViewType] = useState<CameraViewType>("birds-eye");
+  const [cameraSegments, setCameraSegments] = useState<ReturnType<typeof createCameraSegment>[]>(
+    [],
+  );
+  const [cameraChangePending, setCameraChangePending] = useState(false);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
   const [playing, setPlaying] = useState(false);
-  const [score, setScore] = useState({ p1: 0, p2: 0 });
   const [rallies, setRallies] = useState<Rally[]>([]);
+  const score = useMemo(() => scoreFromRallies(rallies), [rallies]);
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [lastHitter, setLastHitter] = useState<"p1" | "p2">("p1");
@@ -208,15 +149,15 @@ function VideoAnalyzerPage() {
   const localTrackRef = useRef<LocalTrack | null>(null);
   const prevGrayRef = useRef<Uint8ClampedArray | null>(null);
   const trailRef = useRef<TrailPt[]>([]);
-  const rallyActiveRef = useRef(false);
-  const rallyStartTRef = useRef(0);
   const lastVisibleRef = useRef<{ x: number; y: number; t: number } | null>(null);
-  const lastSeenTsRef = useRef(0);
+  const rallyEndStateRef = useRef(createRallyEndState());
   const aiPendingRef = useRef(false);
   const tracknetPointsRef = useRef<TrackNetPoint[]>([]);
   const previewAttemptedRef = useRef(false);
+  const cameraMotionRef = useRef(createCameraMotionState());
   const rafRef = useRef<number>(0);
-  const scoreRef = useRef({ p1: 0, p2: 0 });
+  const processedJobIdRef = useRef<string | null>(null);
+  const reviewedJobIdRef = useRef<string | null>(null);
   const analysisStartLockRef = useRef(false);
   const retryLockRef = useRef(false);
   const {
@@ -229,6 +170,16 @@ function VideoAnalyzerPage() {
     result: tracknetResult,
     error: tracknetError,
   } = useTrackNetAnalysis();
+
+  useEffect(() => {
+    if (analysisMode !== "tracknet") return;
+    void getTrackNetHealth()
+      .then((health) => {
+        if (health.engine === "v3") setTracknetEngine("v3");
+        else if (health.ok) setTracknetEngine("current");
+      })
+      .catch(() => setTracknetEngine("unknown"));
+  }, [analysisMode]);
 
   useEffect(() => {
     return () => {
@@ -245,6 +196,35 @@ function VideoAnalyzerPage() {
       homographyRef.current = calibration.homography;
     }
   }, []);
+
+  useEffect(() => {
+    const saved = loadVideoAnalysisSession(window.sessionStorage);
+    if (!saved) return;
+
+    setVideoSessionKey(saved.videoKey);
+    setAnalysisMode(saved.analysisMode);
+    setRallies(saved.rallies);
+    reviewedJobIdRef.current = saved.tracknetJobId ?? null;
+    setFrameDiagnostics(saved.tracknetFrameDiagnostics ?? null);
+    setTracknetVideoUrl(saved.processedVideoUrl);
+    setVideoUrl(saved.processedVideoUrl);
+    setPhase("done");
+    setStatus("Restored your review choices for this video.");
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "done" || !videoSessionKey) return;
+
+    saveVideoAnalysisSession(window.sessionStorage, {
+      videoKey: videoSessionKey,
+      rallies,
+      score,
+      processedVideoUrl: tracknetVideoUrl,
+      analysisMode,
+      tracknetJobId: reviewedJobIdRef.current ?? undefined,
+      tracknetFrameDiagnostics: frameDiagnostics ?? undefined,
+    });
+  }, [analysisMode, phase, rallies, score, tracknetVideoUrl, videoSessionKey, frameDiagnostics]);
 
   useEffect(() => {
     if (!tracknetJob) return;
@@ -265,30 +245,28 @@ function VideoAnalyzerPage() {
 
     if (tracknetPhase === "completed" && tracknetResult) {
       if (tracknetResult.job_id !== tracknetJob.jobId) return;
+      if (processedJobIdRef.current === tracknetResult.job_id) return;
+      const saved = loadVideoAnalysisSession(window.sessionStorage);
+      processedJobIdRef.current = tracknetResult.job_id;
+      reviewedJobIdRef.current = tracknetResult.job_id;
       analysisStartLockRef.current = false;
       setAnalysisStarting(false);
       retryLockRef.current = false;
       setRetrying(false);
       setTracknetPoints(tracknetResult.coordinates);
       tracknetPointsRef.current = tracknetResult.coordinates;
-      const scoredRallies = homographyRef.current
+      setFrameDiagnostics(summarizeTrackNetFrames(tracknetResult.coordinates));
+      const scoredRallies = saved?.tracknetJobId === tracknetResult.job_id
+        ? saved.rallies
+        : homographyRef.current
         ? buildTrackNetRallies(tracknetResult.coordinates, homographyRef.current)
         : [];
-      const scored = scoredRallies.reduce(
-        (currentScore, rally) => ({
-          p1: currentScore.p1 + (rallyCountsTowardScore(rally) && rally.winner === "p1" ? 1 : 0),
-          p2: currentScore.p2 + (rallyCountsTowardScore(rally) && rally.winner === "p2" ? 1 : 0),
-        }),
-        { p1: 0, p2: 0 },
-      );
-      scoreRef.current = scored;
-      setScore(scored);
       setRallies(scoredRallies);
       setTracknetVideoUrl(tracknetResult.video_url);
       setVideoUrl(tracknetResult.video_url);
       setPhase("done");
       setStatus(
-        `TrackNet complete: ${tracknetResult.frames} frames analyzed and ${scoredRallies.length} rallies scored.`,
+        `TrackNet complete: ${tracknetResult.frames} frames analyzed and ${scoredRallies.length} possible rally endings found.`,
       );
       return;
     }
@@ -320,20 +298,13 @@ function VideoAnalyzerPage() {
     setRallies((current) => {
       const previous = current.find((r) => r.id === id);
       if (!previous) return current;
-      if (patch.winner && patch.winner !== previous.winner && rallyCountsTowardScore(previous)) {
-        scoreRef.current = {
-          p1: scoreRef.current.p1 + (patch.winner === "p1" ? 1 : -1),
-          p2: scoreRef.current.p2 + (patch.winner === "p2" ? 1 : -1),
-        };
-        setScore({ ...scoreRef.current });
-      }
       return current.map((r) =>
         r.id === id
           ? {
               ...r,
               ...patch,
               manuallyCorrected: true,
-              reviewStatus: "corrected",
+              reviewStatus: r.countsTowardScore === false ? "needs-review" : "corrected",
             }
           : r,
       );
@@ -351,6 +322,7 @@ function VideoAnalyzerPage() {
       setError("Please upload a video file.");
       return;
     }
+    clearVideoAnalysisSession(window.sessionStorage);
     const url = URL.createObjectURL(file);
     analysisStartLockRef.current = false;
     retryLockRef.current = false;
@@ -358,12 +330,17 @@ function VideoAnalyzerPage() {
     setRetrying(false);
     clearTrackNet();
     setSelectedFile(file);
+    setVideoSessionKey(createVideoSessionKey(file));
     previewAttemptedRef.current = false;
     setVideoUrl(url);
     setTracknetVideoUrl(null);
     setTracknetPoints([]);
     tracknetPointsRef.current = [];
     setCorners([]);
+    setNetCorners([]);
+    setCameraSegments([]);
+    setCameraChangePending(false);
+    cameraMotionRef.current = createCameraMotionState();
     setPhase("calibrate");
     resetAnalysisState();
   };
@@ -392,16 +369,17 @@ function VideoAnalyzerPage() {
     localTrackRef.current = null;
     prevGrayRef.current = null;
     trailRef.current = [];
-    rallyActiveRef.current = false;
+    rallyEndStateRef.current = createRallyEndState();
     lastVisibleRef.current = null;
-    lastSeenTsRef.current = 0;
-    scoreRef.current = { p1: 0, p2: 0 };
-    setScore({ p1: 0, p2: 0 });
+    processedJobIdRef.current = null;
+    reviewedJobIdRef.current = null;
+    setFrameDiagnostics(null);
     setRallies([]);
     setPlaying(false);
     setStatus("");
     setError(null);
     setSelectedRally(null);
+    clearVideoAnalysisSession(window.sessionStorage);
   };
 
   const runTrackNetAnalysis = async () => {
@@ -415,7 +393,7 @@ function VideoAnalyzerPage() {
     setError(null);
     setStatus("Uploading video to TrackNet…");
     setPhase("analyze");
-    await startTrackNet(selectedFile);
+    await startTrackNet(selectedFile, tracknetSettings);
   };
 
   const retryAnalysis = () => {
@@ -467,7 +445,7 @@ function VideoAnalyzerPage() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.clearRect(0, 0, w, h);
-      drawCornersOverlay(ctx, corners, w, h);
+      drawCornersOverlay(ctx, corners, w, h, netCorners);
     };
 
     const onLoaded = () => {
@@ -485,10 +463,9 @@ function VideoAnalyzerPage() {
       video.removeEventListener("loadeddata", onLoaded);
       video.removeEventListener("seeked", onSeeked);
     };
-  }, [phase, corners]);
+  }, [phase, corners, netCorners]);
 
   const onCalibClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (corners.length >= 4) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const point = pointFromCanvasClick(
       e.clientX,
@@ -497,7 +474,11 @@ function VideoAnalyzerPage() {
       e.currentTarget.width,
       e.currentTarget.height,
     );
-    setCorners((current) => addCourtCorner(current, point));
+    if (calibrationTarget === "net") {
+      setNetCorners((current) => addCourtCorner(current, point));
+    } else {
+      setCorners((current) => addCourtCorner(current, point));
+    }
   };
 
   const startAnalysis = () => {
@@ -528,6 +509,47 @@ function VideoAnalyzerPage() {
     // Map to a normalized court where near baseline is at cy=1, far at cy=0.
     const dst = courtDestinationCorners();
     homographyRef.current = computeHomography(normCorners, dst);
+    const currentTime = video.currentTime;
+    const normalizedNetCorners = netCorners.map((point) => ({
+      x: point.x / displaySize.w,
+      y: point.y / displaySize.h,
+    }));
+
+    if (cameraChangePending && homographyRef.current) {
+      setCameraSegments((current) => [
+        ...closeCameraSegment(current, currentTime),
+        createCameraSegment(
+          current.length + 1,
+          currentTime,
+          viewType,
+          normCorners,
+          normalizedNetCorners,
+          homographyRef.current!,
+        ),
+      ]);
+      cameraMotionRef.current = createCameraMotionState();
+      setCameraChangePending(false);
+      setPhase("analyze");
+      setStatus("Camera view updated. Scoring resumed.");
+      void video.play().then(() => setPlaying(true));
+      analysisStartLockRef.current = false;
+      setAnalysisStarting(false);
+      return;
+    }
+
+    if (homographyRef.current) {
+      setCameraSegments([
+        createCameraSegment(
+          1,
+          currentTime,
+          viewType,
+          normCorners,
+          normalizedNetCorners,
+          homographyRef.current,
+        ),
+      ]);
+    }
+    cameraMotionRef.current = createCameraMotionState();
     if (analysisMode === "tracknet" && homographyRef.current) {
       try {
         const saved = saveCourtCalibration(normCorners, homographyRef.current);
@@ -617,6 +639,19 @@ function VideoAnalyzerPage() {
     localTrackRef.current = detection.track;
 
     const t = video.currentTime;
+    const cameraMotion = updateCameraMotion(cameraMotionRef.current, detection.cameraShift, t);
+    cameraMotionRef.current = cameraMotion.state;
+    if (cameraMotion.needsRecalibration && !cameraChangePending) {
+      video.pause();
+      setPlaying(false);
+      setCameraChangePending(true);
+      setCorners([]);
+      setNetCorners([]);
+      setCalibrationTarget("court");
+      setStatus("Camera movement detected. Mark the four new court corners to continue.");
+      setPhase("calibrate");
+      return;
+    }
     const track = detection.track;
     const visibleNow = Boolean(
       track && track.visible && track.confidence > LOCAL_TRACK_MIN_CONFIDENCE,
@@ -624,7 +659,6 @@ function VideoAnalyzerPage() {
 
     if (visibleNow && track) {
       lastVisibleRef.current = { x: track.x, y: track.y, t };
-      lastSeenTsRef.current = now;
       const last = trailRef.current[trailRef.current.length - 1];
       const jump = last ? Math.hypot(track.x - last.x, track.y - last.y) : 0;
       if (!last || jump < 0.18) {
@@ -635,29 +669,34 @@ function VideoAnalyzerPage() {
         trailRef.current = [{ x: track.x, y: track.y, t: now }];
       }
       trailRef.current = trailRef.current.filter((p) => now - p.t < 1100);
+    }
 
-      if (!aiPendingRef.current && !rallyActiveRef.current && (track.hits ?? 0) >= 4) {
-        rallyActiveRef.current = true;
-        rallyStartTRef.current = t;
-      }
-    } else if (rallyActiveRef.current && lastVisibleRef.current) {
-      // Track lost. If gone for > 500ms and rally lasted > 400ms, treat as landing.
-      const goneMs = now - lastSeenTsRef.current;
-      const rallyDurMs = (t - rallyStartTRef.current) * 1000;
-      if (goneMs > 500 && rallyDurMs > 400 && !aiPendingRef.current) {
-        endRally();
-      }
+    const endResult = updateRallyEndState(rallyEndStateRef.current, {
+      time: t,
+      x: visibleNow && track ? track.x : null,
+      y: visibleNow && track ? track.y : null,
+      visible: visibleNow,
+      confidence: track?.confidence ?? 0,
+      cameraStable: !cameraMotion.needsRecalibration,
+      playerMotion: Math.min(1, (detection.motionPixels / (work.width * work.height)) * 4),
+    });
+    rallyEndStateRef.current = endResult.state;
+    if (endResult.event && !aiPendingRef.current) {
+      void endRally(endResult.event);
     }
 
     drawOverlay();
   }
 
-  const endRally = async () => {
+  const endRally = async (event: RallyEndEvent) => {
     const video = videoRef.current;
-    const last = lastVisibleRef.current;
+    const eventPoint = event.point;
+    const last =
+      eventPoint.x !== null && eventPoint.y !== null
+        ? { x: eventPoint.x, y: eventPoint.y, t: eventPoint.time }
+        : lastVisibleRef.current;
     const H = homographyRef.current;
     if (!video || !last || !H) return;
-    rallyActiveRef.current = false;
     aiPendingRef.current = true;
     const wasPlaying = !video.paused;
     if (wasPlaying) {
@@ -670,11 +709,13 @@ function VideoAnalyzerPage() {
     const inBounds = court.x >= -0.02 && court.x <= 1.02 && court.y >= -0.02 && court.y <= 1.02;
     // Winner = opposite side of landing. cy > 0.5 → near half (P1) → P2 wins.
     let winner: "p1" | "p2" = inBounds ? lastHitter : lastHitter === "p1" ? "p2" : "p1";
-    let aiConf = 0;
-    let aiNote = "Auto-decided from tracker.";
+    const needsReview = event.type === "needs-review";
+    let aiConf = eventPoint.confidence;
+    let aiNote = needsReview ? event.reasons.join(" ") : "Auto-decided from tracker.";
 
     // AI double-check: send a capture of the current frame + last position.
     try {
+      if (needsReview) throw new Error("Review required before scoring.");
       const cap = document.createElement("canvas");
       cap.width = 640;
       cap.height = Math.round((640 * video.videoHeight) / video.videoWidth);
@@ -706,11 +747,6 @@ function VideoAnalyzerPage() {
       // ignore AI failure — fall back to local decision
     }
 
-    scoreRef.current = {
-      p1: scoreRef.current.p1 + (winner === "p1" ? 1 : 0),
-      p2: scoreRef.current.p2 + (winner === "p2" ? 1 : 0),
-    };
-    setScore({ ...scoreRef.current });
     setRallies((r) => [
       ...r,
       {
@@ -724,6 +760,10 @@ function VideoAnalyzerPage() {
         winner,
         aiConfidence: aiConf,
         aiNote,
+        needsReview,
+        reviewReasons: event.reasons,
+        countsTowardScore: !needsReview,
+        reviewStatus: needsReview ? "needs-review" : undefined,
       },
     ]);
 
@@ -806,11 +846,7 @@ function VideoAnalyzerPage() {
     // TrackNet coordinates are normalized to the source video dimensions.
     if (analysisMode === "tracknet" && tracknetPointsRef.current.length > 0) {
       const currentTime = videoRef.current?.currentTime ?? 0;
-      const visiblePoints = tracknetPointsRef.current.filter(
-        (point) =>
-          point.visible && point.x !== null && point.y !== null && point.time <= currentTime,
-      );
-      const recentPoints = visiblePoints.slice(-40);
+      const recentPoints = trackNetVisualTrail(tracknetPointsRef.current, currentTime);
       if (recentPoints.length > 1) {
         ctx.strokeStyle = "rgba(248, 113, 113, 0.7)";
         ctx.lineWidth = 3;
@@ -823,7 +859,7 @@ function VideoAnalyzerPage() {
         });
         ctx.stroke();
       }
-      const currentPoint = visiblePoints[visiblePoints.length - 1];
+      const currentPoint = recentPoints[recentPoints.length - 1];
       if (currentPoint && currentPoint.x !== null && currentPoint.y !== null) {
         ctx.strokeStyle = "#ef4444";
         ctx.lineWidth = 2;
@@ -861,7 +897,9 @@ function VideoAnalyzerPage() {
   const restart = () => {
     const fresh = createFreshAnalyzerState();
     clearTrackNet();
+    clearVideoAnalysisSession(window.sessionStorage);
     setSelectedFile(null);
+    setVideoSessionKey(null);
     setAnalysisMode("browser");
     setPhase(fresh.phase);
     setVideoUrl(fresh.videoUrl);
@@ -869,6 +907,12 @@ function VideoAnalyzerPage() {
     setTracknetPoints(fresh.tracknetPoints);
     tracknetPointsRef.current = fresh.tracknetPoints;
     setCorners(fresh.corners as Point[]);
+    setNetCorners([]);
+    setCameraSegments([]);
+    setCameraChangePending(false);
+    setCalibrationTarget("court");
+    setViewType("birds-eye");
+    cameraMotionRef.current = createCameraMotionState();
     resetAnalysisState();
     setError(fresh.error);
   };
@@ -880,7 +924,7 @@ function VideoAnalyzerPage() {
       overlayRef={overlayRef}
       src={tracknetVideoUrl ?? videoUrl}
       calibrating={phase === "calibrate"}
-      autoPlay={phase === "calibrate"}
+      autoPlay={phase === "calibrate" && !cameraChangePending}
       onError={handleVideoError}
       onCalibrationClick={onCalibClick}
       onLoadedMetadata={syncTrackNetOverlay}
@@ -958,6 +1002,18 @@ function VideoAnalyzerPage() {
           onStart={startAnalysis}
           starting={analysisStarting}
           message={error}
+          viewType={viewType}
+          onViewTypeChange={setViewType}
+          netCorners={netCorners}
+          calibrationTarget={calibrationTarget}
+          onCalibrationTargetChange={setCalibrationTarget}
+          onResetNetCorners={() => setNetCorners([])}
+          cameraSegments={cameraSegments}
+          cameraChangePending={cameraChangePending}
+          currentTime={videoRef.current?.currentTime ?? 0}
+          tracknetSettings={tracknetSettings}
+          onTrackNetSettingsChange={setTracknetSettings}
+          tracknetEngine={tracknetEngine}
         />
       )}
 
@@ -985,19 +1041,23 @@ function VideoAnalyzerPage() {
           />
 
           {phase === "done" && (
-            <AnalysisResultsPanel
-              rallies={rallies}
-              score={score}
-              tracknetPoints={analysisMode === "tracknet" ? tracknetPoints : undefined}
-              processedVideoUrl={tracknetVideoUrl}
-              selectedRally={selectedRally}
-              onSelectRally={(rally) => {
-                setSelectedRally(rally.id);
-                if (videoRef.current) videoRef.current.currentTime = rally.t;
-              }}
-              onCorrectRally={correctRally}
-              onSetReviewStatus={setReviewStatus}
-            />
+            <>
+              <CameraTimeline segments={cameraSegments} />
+              <AnalysisResultsPanel
+                rallies={rallies}
+                score={score}
+                tracknetPoints={analysisMode === "tracknet" ? tracknetPoints : undefined}
+                frameDiagnostics={frameDiagnostics ?? undefined}
+                processedVideoUrl={tracknetVideoUrl}
+                selectedRally={selectedRally}
+                onSelectRally={(rally) => {
+                  setSelectedRally(rally.id);
+                  if (videoRef.current) videoRef.current.currentTime = rally.t;
+                }}
+                onCorrectRally={correctRally}
+                onSetReviewStatus={setReviewStatus}
+              />
+            </>
           )}
         </>
       )}
@@ -1043,7 +1103,33 @@ function ScoreCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function drawCornersOverlay(ctx: CanvasRenderingContext2D, corners: Point[], w: number, h: number) {
+function CameraTimeline({ segments }: { segments: ReturnType<typeof createCameraSegment>[] }) {
+  if (!segments.length) return null;
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-card p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Camera timeline
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+        {segments.map((segment) => (
+          <span key={segment.id} className="rounded-md border border-border px-2 py-1">
+            View {segment.id}: {segment.viewType === "birds-eye" ? "Birds-eye" : "Side-angle"} ·{" "}
+            {segment.startTime.toFixed(1)}s
+            {segment.endTime === null ? "–end" : `–${segment.endTime.toFixed(1)}s`}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function drawCornersOverlay(
+  ctx: CanvasRenderingContext2D,
+  corners: Point[],
+  w: number,
+  h: number,
+  netCorners: Point[] = [],
+) {
   if (corners.length > 0) {
     ctx.strokeStyle = "rgba(250, 204, 21, 0.8)";
     ctx.fillStyle = "rgba(250, 204, 21, 0.25)";
@@ -1066,6 +1152,29 @@ function drawCornersOverlay(ctx: CanvasRenderingContext2D, corners: Point[], w: 
     ctx.font = "bold 11px sans-serif";
     ctx.fillText(String(i + 1), c.x - 3, c.y + 4);
   });
+  if (netCorners.length > 0) {
+    ctx.strokeStyle = "rgba(34, 211, 238, 0.9)";
+    ctx.fillStyle = "rgba(34, 211, 238, 0.15)";
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    netCorners.forEach((c, i) => {
+      if (i === 0) ctx.moveTo(c.x, c.y);
+      else ctx.lineTo(c.x, c.y);
+    });
+    if (netCorners.length === 4) ctx.closePath();
+    ctx.stroke();
+    if (netCorners.length === 4) ctx.fill();
+    ctx.setLineDash([]);
+    netCorners.forEach((c, i) => {
+      ctx.fillStyle = "#22d3ee";
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#000";
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillText(`N${i + 1}`, c.x - 7, c.y + 4);
+    });
+  }
   // Guide crosshairs at frame edges
   ctx.strokeStyle = "rgba(255,255,255,0.08)";
   ctx.lineWidth = 1;

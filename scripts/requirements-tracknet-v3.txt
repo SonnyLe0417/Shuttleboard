@@ -1,0 +1,18 @@
+# Windows/Python 3.11 runtime; original upstream pins target Python 3.8.
+torch==2.5.1
+openvino==2026.2.1
+numpy==1.26.4
+opencv-python==4.10.0.84
+Pillow==10.4.0
+pandas==2.2.3
+parse==1.20.2
+tqdm==4.67.1
+pycocotools==2.0.11
+fastapi==0.115.12
+uvicorn==0.34.3
+python-multipart==0.0.22
+httpx==0.28.1
+websockets==15.0.1
+pytest==8.4.2
+psutil==7.2.2
+gdown==5.2.1

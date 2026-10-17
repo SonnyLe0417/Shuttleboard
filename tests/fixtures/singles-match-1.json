@@ -1,0 +1,323 @@
+{
+  "video": "tests/fixtures/singles-match-1.mp4",
+  "player1": "closer to the camera, bottom of the picture",
+  "player2": "farther from the camera, top of the picture",
+  "sideChanges": [
+    {
+      "fromSecond": "14:22",
+      "player2": "closer to the camera, bottom of the picture",
+      "player1": "farther from the camera, top of the picture"
+    }
+  ],
+  "points": [
+    {
+      "fromSecond": 9,
+      "toSecond": 20,
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": 27
+    },
+    {
+      "fromSecond": 27,
+      "toSecond": 31,
+      "winner": "p2",
+      "how": "out",
+      "nextServeSecond": 38
+    },
+    {
+      "fromSecond": 38,
+      "toSecond": 51,
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": "1:04",
+      "notes": "changed biride after this point"
+    },
+    {
+      "fromSecond": "1:04",
+      "toSecond": "1:08",
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": "1:16"
+    },
+    {
+      "fromSecond": "1:16",
+      "toSecond": "1:28",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "1:39"
+    },
+    {
+      "fromSecond": "1:39",
+      "toSecond": "1:45",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "1:56"
+    },
+    {
+      "fromSecond": "1:56",
+      "toSecond": "2:02",
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": "2:09"
+    },
+    {
+      "fromSecond": "2:09",
+      "toSecond": "2:18",
+      "winner": "p1",
+      "how": "out, p2 smashed it into the net",
+      "nextServeSecond": "2:29"
+    },
+    {
+      "fromSecond": "2:29",
+      "toSecond": "2:30",
+      "winner": "p2",
+      "how": "p1 hit but didn't go over the net",
+      "nextServeSecond": "2:47"
+    },
+    {
+      "fromSecond": "2:47",
+      "toSecond": "2:54",
+      "winner": "p2",
+      "how": "out",
+      "nextServeSecond": "3:02"
+    },
+    {
+      "fromSecond": "3:02",
+      "toSecond": "3:21",
+      "winner": "p1",
+      "how": "in",
+      "nextServeSecond": "3:33"
+    },
+    {
+      "fromSecond": "3:33",
+      "toSecond": "3:43",
+      "winner": "p1",
+      "how": "p2 hit it into the net",
+      "nextServeSecond": "3:55"
+    },
+    {
+      "fromSecond": "3:55",
+      "toSecond": "3:59",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "4:12"
+    },
+    {
+      "fromSecond": "4:12",
+      "toSecond": "4:14",
+      "winner": "p2",
+      "how": "p1 hit it into the net",
+      "nextServeSecond": "4:24"
+    },
+    {
+      "fromSecond": "4:24",
+      "toSecond": "4:30",
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": "4:41"
+    },
+    {
+      "fromSecond": "4:41",
+      "toSecond": "4:43",
+      "winner": "p2",
+      "how": "p1 hit it into the net",
+      "nextServeSecond": "4:54"
+    },
+    {
+      "fromSecond": "4:54",
+      "toSecond": "4:57",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "5:08"
+    },
+    {
+      "fromSecond": "5:08",
+      "toSecond": "5:13",
+      "winner": "p2",
+      "how": "p1 hit it into the net",
+      "nextServeSecond": "5:24"
+    },
+    {
+      "fromSecond": "5:24",
+      "toSecond": "5:29",
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": "5:39"
+    },
+    {
+      "fromSecond": "5:39",
+      "toSecond": "5:41",
+      "winner": "p2",
+      "how": "p1 hit it into the net",
+      "nextServeSecond": "6:04"
+    },
+    {
+      "fromSecond": "6:04",
+      "toSecond": "6:06",
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": "6:13",
+      "description": "p2 hit out but cannot see on video"
+    },
+    {
+      "fromSecond": "6:13",
+      "toSecond": "6:18",
+      "winner": "p1",
+      "how": "p2 hit it into the net",
+      "nextServeSecond": "6:25",
+      "description": "p2 hit the shuttle into the net in net game"
+    },
+    {
+      "fromSecond": "6:25",
+      "toSecond": "6:53",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "7:14",
+      "description": "p2 hit in but cannot see on video"
+    },
+    {
+      "fromSecond": "7:14",
+      "toSecond": "7:18",
+      "winner": "p1",
+      "how": "p2 hit it into the net",
+      "nextServeSecond": "7:26",
+      "description": "swapped shuttles before the rally started"
+    },
+    {
+      "fromSecond": "7:26",
+      "toSecond": "7:35",
+      "winner": "p1",
+      "how": "in",
+      "nextServeSecond": "7:42",
+      "description": "p1 won with a lift"
+    },
+    {
+      "fromSecond": "7:42",
+      "toSecond": "7:58",
+      "winner": "p2",
+      "how": "out",
+      "nextServeSecond": "8:09",
+      "description": "p1 hit it out into the doubles line area"
+    },
+    {
+      "fromSecond": "8:09",
+      "toSecond": "8:13",
+      "winner": "p2",
+      "how": "out",
+      "nextServeSecond": "8:22",
+      "description": "p1 hit it out into the doubles line area"
+    },
+    {
+      "fromSecond": "8:22",
+      "toSecond": "8:24",
+      "winner": "p2",
+      "how": "p1 hit it into the net",
+      "nextServeSecond": "8:37",
+      "description": "p2 won with a smash"
+    },
+    {
+      "fromSecond": "8:37",
+      "toSecond": "8:50",
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": "9:11",
+      "description": "p2 hit out but cannot see on video, swapped shuttles after this point"
+    },
+    {
+      "fromSecond": "9:11",
+      "toSecond": "9:21",
+      "winner": "p2",
+      "how": "out",
+      "nextServeSecond": "9:32",
+      "description": "p1 hit it out into the doubles line area"
+    },
+    {
+      "fromSecond": "9:32",
+      "toSecond": "9:35",
+      "winner": "p1",
+      "how": "p2 hit it into the net",
+      "nextServeSecond": "9:44",
+      "description": "p2 hit it into the net when doing a net"
+    },
+    {
+      "fromSecond": "9:44",
+      "toSecond": "10:27",
+      "winner": "p1",
+      "how": "out",
+      "nextServeSecond": "10:43",
+      "description": "p2 hit it out but cannot see on video"
+    },
+    {
+      "fromSecond": "10:43",
+      "toSecond": "10:45",
+      "winner": "p1",
+      "how": "in",
+      "nextServeSecond": "10:56",
+      "description": "p1 won with a lift"
+    },
+    {
+      "fromSecond": "10:56",
+      "toSecond": "11:13",
+      "winner": "p2",
+      "how": "out",
+      "nextServeSecond": "11:35",
+      "description": "p2 hit out but cannot see on video"
+    },
+    {
+      "fromSecond": "11:35",
+      "toSecond": "12:09",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "12:30",
+      "description": "p2 hit in but cannot see on video"
+    },
+    {
+      "fromSecond": "12:30",
+      "toSecond": "12:34",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "12:47",
+      "description": "p2 hit a net and won the point"
+    },
+    {
+      "fromSecond": "12:47",
+      "toSecond": "12:50",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "13:02",
+      "description": "p2 hit a drop and won the point"
+    },
+    {
+      "fromSecond": "13:02",
+      "toSecond": "13:26",
+      "winner": "p1",
+      "how": "p2 hit it into the net",
+      "nextServeSecond": "13:47",
+      "description": "p2 hit the shuttle into the net while smashing"
+    },
+    {
+      "fromSecond": "13:47",
+      "toSecond": "13:52",
+      "winner": "p2",
+      "how": "in",
+      "nextServeSecond": "14:22",
+      "description": "p2 hit a smash and won the point, players swapped sides and are on the next set."
+    },
+    {
+      "fromSecond": "14:22",
+      "toSecond": "14:27",
+      "winner": "p1",
+      "how": "p2 hit it into the net",
+      "nextServeSecond": "14:36",
+      "description": "swapped shuttles before the rally started"
+    },
+    {
+      "fromSecond": "14:36",
+      "toSecond": "14:37",
+      "winner": "p1",
+      "how": "in",
+      "nextServeSecond": "14:45",
+      "description": "won with net game"
+    }
+  ]
+}

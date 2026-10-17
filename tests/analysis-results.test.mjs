@@ -12,6 +12,13 @@ import {
   reviewFilterMatches,
   setRallyReviewStatus,
 } from "../src/lib/analysis-results.ts";
+import {
+  VIDEO_ANALYSIS_SESSION_KEY,
+  clearVideoAnalysisSession,
+  createVideoSessionKey,
+  loadVideoAnalysisSession,
+  saveVideoAnalysisSession,
+} from "../src/lib/video-analysis-session.ts";
 
 function rally(id, winner = "p1", inBounds = true) {
   return {
@@ -25,6 +32,15 @@ function rally(id, winner = "p1", inBounds = true) {
     winner,
     aiConfidence: 0.9,
     aiNote: "Detected landing",
+  };
+}
+
+function storage() {
+  const values = new Map();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
   };
 }
 
@@ -119,10 +135,12 @@ test("a review-only rally does not change the score", () => {
   assert.deepEqual(result.score, { p1: 0, p2: 0 });
 });
 
-test("confirming a rally changes only its review label", () => {
-  const result = setRallyReviewStatus([rally(1)], 1, "confirmed");
+test("confirming a review rally makes it count without changing the chosen winner", () => {
+  const result = setRallyReviewStatus([{ ...rally(1), countsTowardScore: false, needsReview: true }], 1, "confirmed");
   assert.equal(result[0].reviewStatus, "confirmed");
   assert.equal(result[0].winner, "p1");
+  assert.equal(result[0].countsTowardScore, true);
+  assert.equal(result[0].needsReview, false);
 });
 
 test("review filters select the correct rallies", () => {
@@ -136,9 +154,61 @@ test("review filters select the correct rallies", () => {
   assert.equal(reviewFilterMatches(needsReview, "all"), true);
 });
 
-test("setting a review status does not change score data", () => {
+test("confirming a rally preserves winner and court decision", () => {
   const original = rally(1, "p2");
   const updated = setRallyReviewStatus([original], 1, "confirmed")[0];
   assert.equal(updated.winner, original.winner);
   assert.equal(updated.inBounds, original.inBounds);
+});
+
+test("saves and restores review statuses and corrections", () => {
+  const store = storage();
+  const videoKey = createVideoSessionKey({ name: "match.mp4", size: 42, lastModified: 7 });
+  const needsReview = { ...rally(1), needsReview: true, reviewStatus: "needs-review" };
+  const confirmed = { ...rally(2, "p1"), reviewStatus: "confirmed" };
+  const corrected = {
+    ...rally(3, "p2", false),
+    reviewStatus: "corrected",
+    manuallyCorrected: true,
+    shotType: "smash",
+  };
+
+  saveVideoAnalysisSession(store, {
+    videoKey,
+    rallies: [needsReview, confirmed, corrected],
+    score: { p1: 0, p2: 1 },
+    processedVideoUrl: "/processed.mp4",
+    analysisMode: "tracknet",
+  });
+
+  const restored = loadVideoAnalysisSession(store, videoKey);
+  assert.equal(restored.rallies[0].reviewStatus, "needs-review");
+  assert.equal(restored.rallies[1].reviewStatus, "confirmed");
+  assert.equal(restored.rallies[2].reviewStatus, "corrected");
+  assert.equal(restored.rallies[2].winner, "p2");
+  assert.equal(restored.rallies[2].inBounds, false);
+  assert.equal(restored.rallies[2].shotType, "smash");
+  assert.deepEqual(restored.score, { p1: 0, p2: 1 });
+});
+
+test("does not restore saved data for a different video", () => {
+  const store = storage();
+  const savedKey = createVideoSessionKey({ name: "first.mp4", size: 1, lastModified: 2 });
+  const otherKey = createVideoSessionKey({ name: "second.mp4", size: 1, lastModified: 2 });
+  saveVideoAnalysisSession(store, {
+    videoKey: savedKey,
+    rallies: [rally(1)],
+    score: { p1: 1, p2: 0 },
+    processedVideoUrl: null,
+    analysisMode: "browser",
+  });
+
+  assert.equal(loadVideoAnalysisSession(store, otherKey), null);
+});
+
+test("clearing a new video removes the saved review session", () => {
+  const store = storage();
+  store.setItem(VIDEO_ANALYSIS_SESSION_KEY, "saved review data");
+  clearVideoAnalysisSession(store);
+  assert.equal(store.getItem(VIDEO_ANALYSIS_SESSION_KEY), null);
 });

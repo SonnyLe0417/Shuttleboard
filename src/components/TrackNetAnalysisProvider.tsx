@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { TrackNetResult } from "@/lib/tracknet-client";
+import type { TrackNetResult, TrackNetSettings } from "@/lib/tracknet-client";
 
 const STORAGE_KEY = "shuttleboard.tracknet-analysis";
 
@@ -27,7 +27,7 @@ interface TrackNetAnalysisContextValue {
   etaSeconds: number | null;
   result: TrackNetResult | null;
   error: string | null;
-  start: (file: File) => Promise<void>;
+  start: (file: File, settings?: TrackNetSettings) => Promise<void>;
   clear: () => void;
 }
 
@@ -69,6 +69,17 @@ export function TrackNetAnalysisProvider({ children }: { children: ReactNode }) 
   const [error, setError] = useState<string | null>(null);
   const runTokenRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  const jobRef = useRef<TrackNetAnalysisJob | null>(null);
+
+  const cancelActiveJob = useCallback(() => {
+    const activeJob = jobRef.current;
+    jobRef.current = null;
+    if (activeJob) {
+      void import("@/lib/tracknet-client")
+        .then(({ cancelTrackNetJob }) => cancelTrackNetJob(activeJob.jobId))
+        .catch(() => undefined);
+    }
+  }, []);
 
   const pollJob = useCallback(
     (nextJob: TrackNetAnalysisJob, options?: { clearMissingJob?: boolean }) => {
@@ -105,6 +116,7 @@ export function TrackNetAnalysisProvider({ children }: { children: ReactNode }) 
             pollError instanceof Error &&
             pollError.message.includes("404");
           if (missingJob) {
+            jobRef.current = null;
             setJob(null);
             setPhase("idle");
             setProgress(0);
@@ -126,6 +138,7 @@ export function TrackNetAnalysisProvider({ children }: { children: ReactNode }) 
   useEffect(() => {
     const storedJob = readStoredJob();
     if (!storedJob) return;
+    jobRef.current = storedJob;
     setJob(storedJob);
     pollJob(storedJob, { clearMissingJob: true });
   }, [pollJob]);
@@ -139,7 +152,8 @@ export function TrackNetAnalysisProvider({ children }: { children: ReactNode }) 
   );
 
   const start = useCallback(
-    async (file: File) => {
+    async (file: File, settings?: TrackNetSettings) => {
+      cancelActiveJob();
       const token = ++runTokenRef.current;
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -150,10 +164,14 @@ export function TrackNetAnalysisProvider({ children }: { children: ReactNode }) 
       setResult(null);
       setError(null);
       try {
-        const { submitTrackNetVideo } = await import("@/lib/tracknet-client");
-        const { jobId } = await submitTrackNetVideo(file, controller.signal);
-        if (runTokenRef.current !== token) return;
+        const { submitTrackNetVideo, cancelTrackNetJob } = await import("@/lib/tracknet-client");
+        const { jobId } = await submitTrackNetVideo(file, controller.signal, settings);
+        if (runTokenRef.current !== token) {
+          void cancelTrackNetJob(jobId);
+          return;
+        }
         const nextJob = { jobId, fileName: file.name, startedAt: Date.now() };
+        jobRef.current = nextJob;
         setJob(nextJob);
         storeJob(nextJob);
         setPhase("queued");
@@ -164,10 +182,11 @@ export function TrackNetAnalysisProvider({ children }: { children: ReactNode }) 
         setError(startError instanceof Error ? startError.message : "TrackNet upload failed.");
       }
     },
-    [pollJob],
+    [pollJob, cancelActiveJob],
   );
 
   const clear = useCallback(() => {
+    cancelActiveJob();
     ++runTokenRef.current;
     abortRef.current?.abort();
     setJob(null);
@@ -177,7 +196,7 @@ export function TrackNetAnalysisProvider({ children }: { children: ReactNode }) 
     setResult(null);
     setError(null);
     storeJob(null);
-  }, []);
+  }, [cancelActiveJob]);
 
   return (
     <TrackNetAnalysisContext.Provider
