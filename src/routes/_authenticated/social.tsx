@@ -38,7 +38,7 @@ import { createMatchInvite, listMatchInvites, respondToMatchInvite } from "@/lib
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/social")({
-  head: () => ({ meta: [{ title: "Social · ShuttleBoard" }] }),
+  head: () => ({ meta: [{ title: "Community · ShuttleBoard" }] }),
   component: SocialPage,
 });
 
@@ -105,7 +105,7 @@ function SocialPage() {
           <Users className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="font-display text-2xl font-bold">Social</h1>
+          <h1 className="font-display text-2xl font-bold">Community</h1>
           <p className="text-sm text-muted-foreground">Find players, connect, and chat.</p>
         </div>
       </header>
@@ -881,7 +881,7 @@ function ChatPanel({ other }: { other: Profile }) {
       const el = scrollRef.current;
       if (el) el.scrollTop = el.scrollHeight;
     });
-  }, [messagesQ.data, other.id]);
+  }, [messagesQ.data, other.id, markRead, qc]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

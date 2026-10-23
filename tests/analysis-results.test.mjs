@@ -136,7 +136,11 @@ test("a review-only rally does not change the score", () => {
 });
 
 test("confirming a review rally makes it count without changing the chosen winner", () => {
-  const result = setRallyReviewStatus([{ ...rally(1), countsTowardScore: false, needsReview: true }], 1, "confirmed");
+  const result = setRallyReviewStatus(
+    [{ ...rally(1), countsTowardScore: false, needsReview: true }],
+    1,
+    "confirmed",
+  );
   assert.equal(result[0].reviewStatus, "confirmed");
   assert.equal(result[0].winner, "p1");
   assert.equal(result[0].countsTowardScore, true);

@@ -16,24 +16,26 @@ import {
   type TrackNetPoint,
   type TrackNetSettings,
 } from "@/lib/tracknet-client";
-import type { AnalysisRally, ShotType } from "@/lib/analysis-results";
+import { isSupportedVideo } from "@/lib/video-upload";
+import type { AnalysisRally } from "@/lib/analysis-results";
 import {
   acquireAnalyzerLock,
   cancellationMessage,
   createFreshAnalyzerState,
   showsPlaybackControl,
 } from "@/lib/video-analyzer-flow";
-import {
-  scoreFromRallies,
-  setRallyReviewStatus,
-} from "@/lib/analysis-results";
+import { scoreFromRallies, setRallyReviewStatus } from "@/lib/analysis-results";
 import {
   createRallyEndState,
   updateRallyEndState,
   type RallyEndEvent,
 } from "@/lib/rally-end-detector";
 import { buildTrackNetRallies } from "@/lib/tracknet-rallies";
-import { summarizeTrackNetFrames, trackNetVisualTrail, type TrackNetFrameDiagnostics } from "@/lib/tracknet-evidence";
+import {
+  summarizeTrackNetFrames,
+  trackNetVisualTrail,
+  type TrackNetFrameDiagnostics,
+} from "@/lib/tracknet-evidence";
 import { useTrackNetAnalysis } from "@/components/TrackNetAnalysisProvider";
 import { VideoUploadPanel } from "@/components/video/VideoUploadPanel";
 import { VideoPreviewPanel } from "@/components/video/VideoPreviewPanel";
@@ -67,12 +69,12 @@ import {
 export const Route = createFileRoute("/_authenticated/video")({
   head: () => ({
     meta: [
-      { title: "Video Analyzer — Badminton Game Tracker" },
+      { title: "Video analysis · ShuttleBoard" },
       {
         name: "description",
         content: "Upload a match video, mark the court, and auto-track the shuttle and score.",
       },
-      { property: "og:title", content: "Video Analyzer — Badminton Game Tracker" },
+      { property: "og:title", content: "Video analysis · ShuttleBoard" },
       {
         property: "og:description",
         content: "Upload a match video, mark the court, and auto-track the shuttle and score.",
@@ -256,11 +258,12 @@ function VideoAnalyzerPage() {
       setTracknetPoints(tracknetResult.coordinates);
       tracknetPointsRef.current = tracknetResult.coordinates;
       setFrameDiagnostics(summarizeTrackNetFrames(tracknetResult.coordinates));
-      const scoredRallies = saved?.tracknetJobId === tracknetResult.job_id
-        ? saved.rallies
-        : homographyRef.current
-        ? buildTrackNetRallies(tracknetResult.coordinates, homographyRef.current)
-        : [];
+      const scoredRallies =
+        saved?.tracknetJobId === tracknetResult.job_id
+          ? saved.rallies
+          : homographyRef.current
+            ? buildTrackNetRallies(tracknetResult.coordinates, homographyRef.current)
+            : [];
       setRallies(scoredRallies);
       setTracknetVideoUrl(tracknetResult.video_url);
       setVideoUrl(tracknetResult.video_url);
@@ -318,7 +321,7 @@ function VideoAnalyzerPage() {
   };
   const onFile = (file: File) => {
     setError(null);
-    if (!file.type.startsWith("video/")) {
+    if (!isSupportedVideo(file)) {
       setError("Please upload a video file.");
       return;
     }
@@ -935,36 +938,36 @@ function VideoAnalyzerPage() {
   ) : null;
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="club-video-page">
       <div className="mb-4">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Badminton Game Tracker
+          A fresh look at your game
         </p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">Video Analyzer</h1>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight">There’s a story in every rally.</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Upload a match clip, tap the four court corners, and the tracker follows the shuttle to
-          score rallies automatically.
+          Upload a match, set the court, then review the rallies. You make the final call.
         </p>
-        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+        <nav className="club-video-steps" aria-label="Analysis workflow">
           <WorkflowStep
-            active={phase === "upload" || phase === "calibrate"}
-            done={phase === "analyze" || phase === "done"}
+            active={phase === "upload"}
+            done={phase !== "upload"}
             number="01"
-            label="Set the court"
+            label="Upload"
+          />
+          <WorkflowStep
+            active={phase === "calibrate"}
+            done={phase === "analyze" || phase === "done"}
+            number="02"
+            label="Set court"
           />
           <WorkflowStep
             active={phase === "analyze"}
             done={phase === "done"}
-            number="02"
-            label="Track the match"
-          />
-          <WorkflowStep
-            active={phase === "done"}
-            done={false}
             number="03"
-            label="Review your plan"
+            label="Analyze"
           />
-        </div>
+          <WorkflowStep active={phase === "done"} done={false} number="04" label="Review" />
+        </nav>
       </div>
 
       {error && phase !== "calibrate" && phase !== "analyze" && phase !== "done" && (
@@ -985,82 +988,87 @@ function VideoAnalyzerPage() {
 
       {phase === "upload" && <VideoUploadPanel onFile={onFile} />}
 
-      {phase !== "upload" && videoUrl && (
-        <>
-          {phase !== "calibrate" && videoPreview}
-          <canvas ref={workRef} className="hidden" />
-        </>
-      )}
-
-      {phase === "calibrate" && (
-        <CourtCalibrationPanel
-          corners={corners}
-          analysisMode={analysisMode}
-          preview={videoPreview}
-          onReset={() => setCorners([])}
-          onModeChange={setAnalysisMode}
-          onStart={startAnalysis}
-          starting={analysisStarting}
-          message={error}
-          viewType={viewType}
-          onViewTypeChange={setViewType}
-          netCorners={netCorners}
-          calibrationTarget={calibrationTarget}
-          onCalibrationTargetChange={setCalibrationTarget}
-          onResetNetCorners={() => setNetCorners([])}
-          cameraSegments={cameraSegments}
-          cameraChangePending={cameraChangePending}
-          currentTime={videoRef.current?.currentTime ?? 0}
-          tracknetSettings={tracknetSettings}
-          onTrackNetSettingsChange={setTracknetSettings}
-          tracknetEngine={tracknetEngine}
-        />
-      )}
-
-      {(phase === "analyze" || phase === "done") && (
-        <>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <ScoreCard label="Player 1 (near)" value={score.p1} />
-            <ScoreCard label="Player 2 (far)" value={score.p2} />
-          </div>
-
-          <AnalysisControlsPanel
-            mode={analysisMode}
-            showPlayback={showsPlaybackControl(analysisMode, phase)}
-            playing={playing}
-            status={analysisMode === "browser" ? status : ""}
-            error={error}
-            lastHitter={lastHitter}
-            onTogglePlay={togglePlay}
-            onRestart={restart}
-            onLastHitterChange={setLastHitter}
-            onRetry={retryAnalysis}
-            retrying={retrying}
-            canCancel={phase === "analyze" && analysisMode === "browser"}
-            onCancel={cancelAnalysis}
-          />
-
-          {phase === "done" && (
+      <div className={phase === "analyze" || phase === "done" ? "club-analysis-layout" : ""}>
+        <div className="club-analysis-video">
+          {phase !== "upload" && videoUrl && (
             <>
-              <CameraTimeline segments={cameraSegments} />
-              <AnalysisResultsPanel
-                rallies={rallies}
-                score={score}
-                tracknetPoints={analysisMode === "tracknet" ? tracknetPoints : undefined}
-                frameDiagnostics={frameDiagnostics ?? undefined}
-                processedVideoUrl={tracknetVideoUrl}
-                selectedRally={selectedRally}
-                onSelectRally={(rally) => {
-                  setSelectedRally(rally.id);
-                  if (videoRef.current) videoRef.current.currentTime = rally.t;
-                }}
-                onCorrectRally={correctRally}
-                onSetReviewStatus={setReviewStatus}
-              />
+              {phase !== "calibrate" && videoPreview}
+              <canvas ref={workRef} className="hidden" />
             </>
           )}
-        </>
-      )}
+
+          {phase === "calibrate" && (
+            <CourtCalibrationPanel
+              corners={corners}
+              analysisMode={analysisMode}
+              preview={videoPreview}
+              onReset={() => setCorners([])}
+              onModeChange={setAnalysisMode}
+              onStart={startAnalysis}
+              starting={analysisStarting}
+              message={error}
+              viewType={viewType}
+              onViewTypeChange={setViewType}
+              netCorners={netCorners}
+              calibrationTarget={calibrationTarget}
+              onCalibrationTargetChange={setCalibrationTarget}
+              onResetNetCorners={() => setNetCorners([])}
+              cameraSegments={cameraSegments}
+              cameraChangePending={cameraChangePending}
+              currentTime={videoRef.current?.currentTime ?? 0}
+              tracknetSettings={tracknetSettings}
+              onTrackNetSettingsChange={setTracknetSettings}
+              tracknetEngine={tracknetEngine}
+            />
+          )}
+          {phase === "done" && <CameraTimeline segments={cameraSegments} />}
+        </div>
+        <div className="club-analysis-review">
+          {(phase === "analyze" || phase === "done") && (
+            <>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <ScoreCard label="Player 1 (near)" value={score.p1} />
+                <ScoreCard label="Player 2 (far)" value={score.p2} />
+              </div>
+
+              <AnalysisControlsPanel
+                mode={analysisMode}
+                showPlayback={showsPlaybackControl(analysisMode, phase)}
+                playing={playing}
+                status={analysisMode === "browser" ? status : ""}
+                error={error}
+                lastHitter={lastHitter}
+                onTogglePlay={togglePlay}
+                onRestart={restart}
+                onLastHitterChange={setLastHitter}
+                onRetry={retryAnalysis}
+                retrying={retrying}
+                canCancel={phase === "analyze" && analysisMode === "browser"}
+                onCancel={cancelAnalysis}
+              />
+
+              {phase === "done" && (
+                <>
+                  <AnalysisResultsPanel
+                    rallies={rallies}
+                    score={score}
+                    tracknetPoints={analysisMode === "tracknet" ? tracknetPoints : undefined}
+                    frameDiagnostics={frameDiagnostics ?? undefined}
+                    processedVideoUrl={tracknetVideoUrl}
+                    selectedRally={selectedRally}
+                    onSelectRally={(rally) => {
+                      setSelectedRally(rally.id);
+                      if (videoRef.current) videoRef.current.currentTime = rally.t;
+                    }}
+                    onCorrectRally={correctRally}
+                    onSetReviewStatus={setReviewStatus}
+                  />
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1078,6 +1086,7 @@ function WorkflowStep({
 }) {
   return (
     <div
+      aria-current={active ? "step" : undefined}
       className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${active ? "border-primary/40 bg-primary/10" : "border-border bg-card/60"}`}
     >
       <span

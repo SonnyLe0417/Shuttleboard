@@ -1,0 +1,1537 @@
+{
+  "version": "optimized",
+  "capturedAt": "2026-10-20T06:55:54.718Z",
+  "browser": "155.0.4283.62",
+  "runs": 10,
+  "protocol": "cold=fresh context; returns/details=reused warm context; one discarded warm-up per group",
+  "network": {
+    "mobile": {
+      "latencyMs": 150,
+      "downloadMbps": 1.6,
+      "cpuSlowdown": 4
+    },
+    "desktop": "unthrottled"
+  },
+  "results": [
+    {
+      "profile": "mobile",
+      "count": 0,
+      "scenario": "cold",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 7129.5943,
+          "summaryReadyMs": 7155.203199999999,
+          "completeMs": 7155.203199999999,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 4801.220099999999,
+          "summaryReadyMs": 4822.503399999998,
+          "completeMs": 4822.503399999998,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 4907.215500000002,
+          "summaryReadyMs": 4927.024000000001,
+          "completeMs": 4927.024000000001,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 5399.4468000000015,
+          "summaryReadyMs": 5418.587299999999,
+          "completeMs": 5418.587299999999,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6245.117600000001,
+          "summaryReadyMs": 6266.019299999996,
+          "completeMs": 6266.019299999996,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 4018.6287999999986,
+          "summaryReadyMs": 4026.0394000000015,
+          "completeMs": 4026.0394000000015,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 4144.537599999996,
+          "summaryReadyMs": 4170.225999999995,
+          "completeMs": 4170.225999999995,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 3592.9005000000034,
+          "summaryReadyMs": 3599.142399999997,
+          "completeMs": 3599.142399999997,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 5301.3606,
+          "summaryReadyMs": 5318.986399999994,
+          "completeMs": 5318.986399999994,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 5472.262000000002,
+          "summaryReadyMs": 5493.5098,
+          "completeMs": 5493.5098,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        }
+      ],
+      "medianReadyMs": 4907.215500000002,
+      "p90ReadyMs": 6245.117600000001,
+      "medianSummaryReadyMs": 4927.024000000001,
+      "medianCompleteMs": 4927.024000000001,
+      "medianRequests": 2,
+      "medianResponseBytes": 515,
+      "medianJavascriptBytes": 341510
+    },
+    {
+      "profile": "mobile",
+      "count": 0,
+      "scenario": "cached",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 364.7335000000021,
+          "summaryReadyMs": 383.613400000002,
+          "completeMs": 383.613400000002,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 859.6225999999879,
+          "summaryReadyMs": 948.2494999999908,
+          "completeMs": 948.2494999999908,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 829.8817999999883,
+          "summaryReadyMs": 869.9335999999894,
+          "completeMs": 869.9335999999894,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 514.7985999999946,
+          "summaryReadyMs": 534.5587999999989,
+          "completeMs": 534.5587999999989,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 436.1064000000042,
+          "summaryReadyMs": 457.3295000000071,
+          "completeMs": 457.3295000000071,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 348.6573999999964,
+          "summaryReadyMs": 370.4340000000084,
+          "completeMs": 370.4340000000084,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 327.1707000000024,
+          "summaryReadyMs": 347.2700999999943,
+          "completeMs": 347.2700999999943,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 293.25779999999213,
+          "summaryReadyMs": 306.0552000000025,
+          "completeMs": 306.0552000000025,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 370.2346000000107,
+          "summaryReadyMs": 387.5254000000132,
+          "completeMs": 387.5254000000132,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 788.1836999999941,
+          "summaryReadyMs": 801.9997999999905,
+          "completeMs": 801.9997999999905,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 370.2346000000107,
+      "p90ReadyMs": 829.8817999999883,
+      "medianSummaryReadyMs": 387.5254000000132,
+      "medianCompleteMs": 387.5254000000132,
+      "medianRequests": 0,
+      "medianResponseBytes": 0,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "mobile",
+      "count": 0,
+      "scenario": "stale",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 337.09300000000803,
+          "summaryReadyMs": 356.1822000000102,
+          "completeMs": 356.1822000000102,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 473.6328999999969,
+          "summaryReadyMs": 493.5592999999935,
+          "completeMs": 493.5592999999935,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 376.17970000000787,
+          "summaryReadyMs": 397.2931000000099,
+          "completeMs": 415.77820000000065,
+          "requests": 1,
+          "responseBytes": 244,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 424.4683999999979,
+          "summaryReadyMs": 449.6454000000085,
+          "completeMs": 449.6454000000085,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 368.99349999999686,
+          "summaryReadyMs": 387.1100999999908,
+          "completeMs": 387.1100999999908,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 294.39910000000964,
+          "summaryReadyMs": 307.59090000001015,
+          "completeMs": 307.59090000001015,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 298.87880000000587,
+          "summaryReadyMs": 315.98540000000503,
+          "completeMs": 315.98540000000503,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 376.3828000000067,
+          "summaryReadyMs": 414.6024000000034,
+          "completeMs": 417.64860000000044,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 273.5619000000006,
+          "summaryReadyMs": 287.148199999996,
+          "completeMs": 287.148199999996,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 356.9005000000034,
+          "summaryReadyMs": 384.86380000000645,
+          "completeMs": 384.86380000000645,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 356.9005000000034,
+      "p90ReadyMs": 424.4683999999979,
+      "medianSummaryReadyMs": 384.86380000000645,
+      "medianCompleteMs": 384.86380000000645,
+      "medianRequests": 1,
+      "medianResponseBytes": 244,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "mobile",
+      "count": 0,
+      "scenario": "details",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 417.5948999999964,
+          "summaryReadyMs": 582.6546999999991,
+          "completeMs": 582.6546999999991,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 426.64250000000175,
+          "summaryReadyMs": 525.1391000000003,
+          "completeMs": 525.1391000000003,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 286.5932999999932,
+          "summaryReadyMs": 496.86679999998887,
+          "completeMs": 496.86679999998887,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 1004.8064000000013,
+          "summaryReadyMs": 1051.3083000000042,
+          "completeMs": 1051.3083000000042,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 591.2486999999965,
+          "summaryReadyMs": 613.8885000000009,
+          "completeMs": 613.8885000000009,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 497.5008999999991,
+          "summaryReadyMs": 572.7483999999968,
+          "completeMs": 572.7483999999968,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 402.60800000000745,
+          "summaryReadyMs": 519.1052000000054,
+          "completeMs": 519.1052000000054,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 395.9692000000068,
+          "summaryReadyMs": 514.1448000000091,
+          "completeMs": 514.1448000000091,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 551.142399999997,
+          "summaryReadyMs": 614.5393999999942,
+          "completeMs": 614.5393999999942,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 470.1409999999887,
+          "summaryReadyMs": 647.1977999999945,
+          "completeMs": 647.1977999999945,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 426.64250000000175,
+      "p90ReadyMs": 591.2486999999965,
+      "medianSummaryReadyMs": 572.7483999999968,
+      "medianCompleteMs": 572.7483999999968,
+      "medianRequests": 1,
+      "medianResponseBytes": 127,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "mobile",
+      "count": 20,
+      "scenario": "cold",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 6469.168000000005,
+          "summaryReadyMs": 6508.621400000004,
+          "completeMs": 6508.621400000004,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 5215.613200000007,
+          "summaryReadyMs": 5270.1682,
+          "completeMs": 5270.1682,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 5598.117499999993,
+          "summaryReadyMs": 5622.128999999986,
+          "completeMs": 5622.128999999986,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6052.807899999985,
+          "summaryReadyMs": 6076.145599999989,
+          "completeMs": 6076.145599999989,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 5852.526200000022,
+          "summaryReadyMs": 5866.143500000006,
+          "completeMs": 5866.143500000006,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 5677.828299999994,
+          "summaryReadyMs": 5718.556599999982,
+          "completeMs": 5718.556599999982,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 7310.97649999999,
+          "summaryReadyMs": 7386.952500000014,
+          "completeMs": 7386.952500000014,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6678.214600000007,
+          "summaryReadyMs": 6727.136100000003,
+          "completeMs": 6727.136100000003,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 8068.142300000007,
+          "summaryReadyMs": 8163.627800000017,
+          "completeMs": 8163.627800000017,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 7266.366799999989,
+          "summaryReadyMs": 7286.200099999987,
+          "completeMs": 7286.200099999987,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 341510
+        }
+      ],
+      "medianReadyMs": 6052.807899999985,
+      "p90ReadyMs": 7310.97649999999,
+      "medianSummaryReadyMs": 6076.145599999989,
+      "medianCompleteMs": 6076.145599999989,
+      "medianRequests": 2,
+      "medianResponseBytes": 1943,
+      "medianJavascriptBytes": 341510
+    },
+    {
+      "profile": "mobile",
+      "count": 20,
+      "scenario": "cached",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 340.6802000000025,
+          "summaryReadyMs": 357.5576000000001,
+          "completeMs": 357.5576000000001,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 385.7136000000173,
+          "summaryReadyMs": 399.6588000000047,
+          "completeMs": 399.6588000000047,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 728.7053000000014,
+          "summaryReadyMs": 760.0394999999844,
+          "completeMs": 760.0394999999844,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 734.131400000013,
+          "summaryReadyMs": 765.528100000025,
+          "completeMs": 765.528100000025,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 935.6674999999814,
+          "summaryReadyMs": 954.0815999999759,
+          "completeMs": 954.0815999999759,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 345.940499999997,
+          "summaryReadyMs": 362.67699999999604,
+          "completeMs": 362.67699999999604,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 359.62369999999646,
+          "summaryReadyMs": 380.17949999999837,
+          "completeMs": 380.17949999999837,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 341.1454000000085,
+          "summaryReadyMs": 358.3387999999977,
+          "completeMs": 358.3387999999977,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 322.5260000000126,
+          "summaryReadyMs": 339.8491999999969,
+          "completeMs": 339.8491999999969,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 380.17989999998827,
+          "summaryReadyMs": 403.5366999999969,
+          "completeMs": 403.5366999999969,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 359.62369999999646,
+      "p90ReadyMs": 734.131400000013,
+      "medianSummaryReadyMs": 380.17949999999837,
+      "medianCompleteMs": 380.17949999999837,
+      "medianRequests": 0,
+      "medianResponseBytes": 0,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "mobile",
+      "count": 20,
+      "scenario": "stale",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 126.784799999994,
+          "summaryReadyMs": 134.0860999999859,
+          "completeMs": 134.0860999999859,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 140.84640000000945,
+          "summaryReadyMs": 147.3466999999946,
+          "completeMs": 147.3466999999946,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 154.2151999999769,
+          "summaryReadyMs": 162.1646999999939,
+          "completeMs": 162.1646999999939,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 223.55479999998352,
+          "summaryReadyMs": 235.77079999999842,
+          "completeMs": 235.77079999999842,
+          "requests": 1,
+          "responseBytes": 273,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 317.3489000000118,
+          "summaryReadyMs": 333.9435999999987,
+          "completeMs": 333.9435999999987,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 267.394100000005,
+          "summaryReadyMs": 286.5883000000031,
+          "completeMs": 286.5883000000031,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 518.6005000000005,
+          "summaryReadyMs": 552.9808000000194,
+          "completeMs": 552.9808000000194,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 423.5402999999933,
+          "summaryReadyMs": 456.3555000000051,
+          "completeMs": 456.3555000000051,
+          "requests": 2,
+          "responseBytes": 1943,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 310.83679999999003,
+          "summaryReadyMs": 317.612999999983,
+          "completeMs": 317.612999999983,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 147.85999999998603,
+          "summaryReadyMs": 156.3524000000034,
+          "completeMs": 156.3524000000034,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 223.55479999998352,
+      "p90ReadyMs": 423.5402999999933,
+      "medianSummaryReadyMs": 235.77079999999842,
+      "medianCompleteMs": 235.77079999999842,
+      "medianRequests": 0,
+      "medianResponseBytes": 0,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "mobile",
+      "count": 20,
+      "scenario": "details",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 430.08130000001984,
+          "summaryReadyMs": 523.7464000000036,
+          "completeMs": 523.7464000000036,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 711.895600000018,
+          "summaryReadyMs": 812.6269000000029,
+          "completeMs": 812.6269000000029,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 624.8125,
+          "summaryReadyMs": 659.7365999999747,
+          "completeMs": 659.7365999999747,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 1335.1438999999955,
+          "summaryReadyMs": 1457.6302000000142,
+          "completeMs": 1457.6302000000142,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 592.325199999992,
+          "summaryReadyMs": 615.1665999999968,
+          "completeMs": 615.1665999999968,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 640.6650000000081,
+          "summaryReadyMs": 677.5638000000035,
+          "completeMs": 677.5638000000035,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 476.34210000000894,
+          "summaryReadyMs": 600.434500000003,
+          "completeMs": 600.434500000003,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 558.3575999999885,
+          "summaryReadyMs": 620.1276000000071,
+          "completeMs": 620.1276000000071,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 771.590200000006,
+          "summaryReadyMs": 885.6536999999953,
+          "completeMs": 885.6536999999953,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 444.75820000001113,
+          "summaryReadyMs": 560.3220999999903,
+          "completeMs": 560.3220999999903,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 592.325199999992,
+      "p90ReadyMs": 771.590200000006,
+      "medianSummaryReadyMs": 620.1276000000071,
+      "medianCompleteMs": 620.1276000000071,
+      "medianRequests": 1,
+      "medianResponseBytes": 127,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "mobile",
+      "count": 100,
+      "scenario": "cold",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 6854.783200000005,
+          "summaryReadyMs": 6881.433100000024,
+          "completeMs": 6881.433100000024,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 5455.174999999988,
+          "summaryReadyMs": 5476.0625,
+          "completeMs": 5476.0625,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6884.592499999999,
+          "summaryReadyMs": 6907.881499999989,
+          "completeMs": 6907.881499999989,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6877.615300000005,
+          "summaryReadyMs": 6900.363799999992,
+          "completeMs": 6900.363799999992,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 7006.300400000007,
+          "summaryReadyMs": 7025.454299999983,
+          "completeMs": 7025.454299999983,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6804.372499999998,
+          "summaryReadyMs": 6842.706999999995,
+          "completeMs": 6842.706999999995,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6674.973100000003,
+          "summaryReadyMs": 6697.586699999985,
+          "completeMs": 6697.586699999985,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6831.426200000045,
+          "summaryReadyMs": 6851.697600000014,
+          "completeMs": 6851.697600000014,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 6614.212999999989,
+          "summaryReadyMs": 6644.24099999998,
+          "completeMs": 6644.24099999998,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 4933.694699999993,
+          "summaryReadyMs": 4957.066700000025,
+          "completeMs": 4957.066700000025,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 341510
+        }
+      ],
+      "medianReadyMs": 6804.372499999998,
+      "p90ReadyMs": 6884.592499999999,
+      "medianSummaryReadyMs": 6842.706999999995,
+      "medianCompleteMs": 6842.706999999995,
+      "medianRequests": 2,
+      "medianResponseBytes": 1945,
+      "medianJavascriptBytes": 341510
+    },
+    {
+      "profile": "mobile",
+      "count": 100,
+      "scenario": "cached",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 455.2089000000269,
+          "summaryReadyMs": 471.07770000002347,
+          "completeMs": 471.07770000002347,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 357.42050000000745,
+          "summaryReadyMs": 374.8029000000097,
+          "completeMs": 374.8029000000097,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 398.6301000000094,
+          "summaryReadyMs": 413.8316000000341,
+          "completeMs": 413.8316000000341,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 340.2841999999946,
+          "summaryReadyMs": 362.05749999999534,
+          "completeMs": 362.05749999999534,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 331.0478000000003,
+          "summaryReadyMs": 348.070000000007,
+          "completeMs": 348.070000000007,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 752.2329000000027,
+          "summaryReadyMs": 796.419899999979,
+          "completeMs": 796.419899999979,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 329.61899999994785,
+          "summaryReadyMs": 345.5940999999875,
+          "completeMs": 345.5940999999875,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 443.82119999994757,
+          "summaryReadyMs": 477.38059999997495,
+          "completeMs": 477.38059999997495,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 1029.330799999996,
+          "summaryReadyMs": 1052.3938000000198,
+          "completeMs": 1052.3938000000198,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 466.16499999997905,
+          "summaryReadyMs": 479.2713999999687,
+          "completeMs": 479.2713999999687,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 398.6301000000094,
+      "p90ReadyMs": 752.2329000000027,
+      "medianSummaryReadyMs": 413.8316000000341,
+      "medianCompleteMs": 413.8316000000341,
+      "medianRequests": 0,
+      "medianResponseBytes": 0,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "mobile",
+      "count": 100,
+      "scenario": "stale",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 566.4054999999935,
+          "summaryReadyMs": 582.9557999999961,
+          "completeMs": 582.9557999999961,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 438.09230000001844,
+          "summaryReadyMs": 455.39909999998054,
+          "completeMs": 455.39909999998054,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 383.6826000000001,
+          "summaryReadyMs": 412.77389999997104,
+          "completeMs": 421.1243999999715,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 364.6618000000017,
+          "summaryReadyMs": 387.48080000001937,
+          "completeMs": 387.48080000001937,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 437.6629000000539,
+          "summaryReadyMs": 457.2872000000207,
+          "completeMs": 457.2872000000207,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 445.8552999999956,
+          "summaryReadyMs": 465.88260000001173,
+          "completeMs": 465.88260000001173,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 361.9075999999768,
+          "summaryReadyMs": 388.170999999973,
+          "completeMs": 391.01860000001034,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 395.60069999995176,
+          "summaryReadyMs": 421.70279999997,
+          "completeMs": 421.70279999997,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 420.6457000000519,
+          "summaryReadyMs": 438.9491000000271,
+          "completeMs": 438.9491000000271,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 431.2650999999605,
+          "summaryReadyMs": 453.44329999998445,
+          "completeMs": 453.44329999998445,
+          "requests": 2,
+          "responseBytes": 1945,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 420.6457000000519,
+      "p90ReadyMs": 445.8552999999956,
+      "medianSummaryReadyMs": 438.9491000000271,
+      "medianCompleteMs": 438.9491000000271,
+      "medianRequests": 2,
+      "medianResponseBytes": 1945,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "mobile",
+      "count": 100,
+      "scenario": "details",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 698.0719999999856,
+          "summaryReadyMs": 728.6640999999945,
+          "completeMs": 728.6640999999945,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 666.1135999999824,
+          "summaryReadyMs": 698.3901999999653,
+          "completeMs": 698.3901999999653,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 617.6195999999763,
+          "summaryReadyMs": 648.0476999999955,
+          "completeMs": 648.0476999999955,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 556.6454999999842,
+          "summaryReadyMs": 587.7539000000106,
+          "completeMs": 587.7539000000106,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 594.0464999999967,
+          "summaryReadyMs": 631.4513999999617,
+          "completeMs": 631.4513999999617,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 619.9482999999891,
+          "summaryReadyMs": 659.203199999989,
+          "completeMs": 659.203199999989,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 594.515699999989,
+          "summaryReadyMs": 623.8300999999628,
+          "completeMs": 623.8300999999628,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 608.9539000000223,
+          "summaryReadyMs": 651.0256999999983,
+          "completeMs": 651.0256999999983,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 571.50900000002,
+          "summaryReadyMs": 601.2256000000052,
+          "completeMs": 601.2256000000052,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 666.0424000000348,
+          "summaryReadyMs": 722.0043000000296,
+          "completeMs": 722.0043000000296,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 608.9539000000223,
+      "p90ReadyMs": 666.1135999999824,
+      "medianSummaryReadyMs": 648.0476999999955,
+      "medianCompleteMs": 648.0476999999955,
+      "medianRequests": 1,
+      "medianResponseBytes": 127,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "desktop",
+      "count": 0,
+      "scenario": "cold",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 192.4326000000001,
+          "summaryReadyMs": 197.21929999999702,
+          "completeMs": 197.21929999999702,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 235.88250000000698,
+          "summaryReadyMs": 239.69880000001285,
+          "completeMs": 239.69880000001285,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 175.5113999999594,
+          "summaryReadyMs": 179.10519999999087,
+          "completeMs": 179.10519999999087,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 471.02350000001024,
+          "summaryReadyMs": 481.187900000019,
+          "completeMs": 481.187900000019,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 454.80649999994785,
+          "summaryReadyMs": 463.95960000000196,
+          "completeMs": 463.95960000000196,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 177.4194000000134,
+          "summaryReadyMs": 181.06849999999395,
+          "completeMs": 181.06849999999395,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 194.37569999997504,
+          "summaryReadyMs": 199.29269999999087,
+          "completeMs": 199.29269999999087,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 196.71409999998286,
+          "summaryReadyMs": 202.4155000000028,
+          "completeMs": 202.4155000000028,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 194.88290000002598,
+          "summaryReadyMs": 198.9021000000066,
+          "completeMs": 198.9021000000066,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        },
+        {
+          "readyMs": 189.79360000003362,
+          "summaryReadyMs": 193.41820000001462,
+          "completeMs": 193.41820000001462,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 341510
+        }
+      ],
+      "medianReadyMs": 194.37569999997504,
+      "p90ReadyMs": 454.80649999994785,
+      "medianSummaryReadyMs": 198.9021000000066,
+      "medianCompleteMs": 198.9021000000066,
+      "medianRequests": 2,
+      "medianResponseBytes": 515,
+      "medianJavascriptBytes": 341510
+    },
+    {
+      "profile": "desktop",
+      "count": 0,
+      "scenario": "cached",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 109.42099999997299,
+          "summaryReadyMs": 116.26419999997597,
+          "completeMs": 116.26419999997597,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 111.39059999998426,
+          "summaryReadyMs": 117.93839999998454,
+          "completeMs": 117.93839999998454,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 105.977600000042,
+          "summaryReadyMs": 113.43410000001313,
+          "completeMs": 113.43410000001313,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 73.53160000004573,
+          "summaryReadyMs": 77.86660000000848,
+          "completeMs": 77.86660000000848,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 60.67319999996107,
+          "summaryReadyMs": 64.47430000000168,
+          "completeMs": 64.47430000000168,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 69.4947000000393,
+          "summaryReadyMs": 73.41779999999562,
+          "completeMs": 73.41779999999562,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 72.31609999999637,
+          "summaryReadyMs": 76.07769999996526,
+          "completeMs": 76.07769999996526,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 76.62710000004154,
+          "summaryReadyMs": 82.31890000001295,
+          "completeMs": 82.31890000001295,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 63.95049999997718,
+          "summaryReadyMs": 69.34130000002915,
+          "completeMs": 69.34130000002915,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 64.88870000001043,
+          "summaryReadyMs": 71.32660000002943,
+          "completeMs": 71.32660000002943,
+          "requests": 0,
+          "responseBytes": 0,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 72.31609999999637,
+      "p90ReadyMs": 109.42099999997299,
+      "medianSummaryReadyMs": 76.07769999996526,
+      "medianCompleteMs": 76.07769999996526,
+      "medianRequests": 0,
+      "medianResponseBytes": 0,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "desktop",
+      "count": 0,
+      "scenario": "stale",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 62.04689999995753,
+          "summaryReadyMs": 65.73369999998249,
+          "completeMs": 65.73369999998249,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 66.89670000004116,
+          "summaryReadyMs": 70.33910000004107,
+          "completeMs": 70.33910000004107,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 63.852799999993294,
+          "summaryReadyMs": 67.17240000003949,
+          "completeMs": 67.17240000003949,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 65.92280000000028,
+          "summaryReadyMs": 69.89789999998175,
+          "completeMs": 69.89789999998175,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 63.85730000003241,
+          "summaryReadyMs": 69.50740000000224,
+          "completeMs": 69.50740000000224,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 80.1938000000082,
+          "summaryReadyMs": 85.1760999999824,
+          "completeMs": 85.1760999999824,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 65.37030000000959,
+          "summaryReadyMs": 69.2277999999933,
+          "completeMs": 69.2277999999933,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 106.64830000000075,
+          "summaryReadyMs": 115.54629999998724,
+          "completeMs": 115.54629999998724,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 121.374199999962,
+          "summaryReadyMs": 129.87369999999646,
+          "completeMs": 129.87369999999646,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 104.12489999999525,
+          "summaryReadyMs": 115.30819999997038,
+          "completeMs": 115.30819999997038,
+          "requests": 2,
+          "responseBytes": 515,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 65.92280000000028,
+      "p90ReadyMs": 106.64830000000075,
+      "medianSummaryReadyMs": 69.89789999998175,
+      "medianCompleteMs": 69.89789999998175,
+      "medianRequests": 2,
+      "medianResponseBytes": 515,
+      "medianJavascriptBytes": 0
+    },
+    {
+      "profile": "desktop",
+      "count": 0,
+      "scenario": "details",
+      "runs": 10,
+      "samples": [
+        {
+          "readyMs": 90.4833000000217,
+          "summaryReadyMs": 99.03389999998035,
+          "completeMs": 99.03389999998035,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 110.7265999999945,
+          "summaryReadyMs": 121.17969999997877,
+          "completeMs": 121.17969999997877,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 70.15239999996265,
+          "summaryReadyMs": 76.76659999997355,
+          "completeMs": 76.76659999997355,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 42.07880000001751,
+          "summaryReadyMs": 46.65929999999935,
+          "completeMs": 46.65929999999935,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 38.474500000011176,
+          "summaryReadyMs": 44.49940000002971,
+          "completeMs": 44.49940000002971,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 39.6359999999986,
+          "summaryReadyMs": 46.007600000011735,
+          "completeMs": 46.007600000011735,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 57.16089999995893,
+          "summaryReadyMs": 63.17389999999432,
+          "completeMs": 63.17389999999432,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 91.72590000001946,
+          "summaryReadyMs": 102.42160000000149,
+          "completeMs": 102.42160000000149,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 65.0737000000081,
+          "summaryReadyMs": 73.64150000002701,
+          "completeMs": 73.64150000002701,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        },
+        {
+          "readyMs": 83.24420000001555,
+          "summaryReadyMs": 92.08699999999953,
+          "completeMs": 92.08699999999953,
+          "requests": 1,
+          "responseBytes": 127,
+          "javascriptBytes": 0
+        }
+      ],
+      "medianReadyMs": 65.0737000000081,
+      "p90ReadyMs": 91.72590000001946,
+      "medianSummaryReadyMs": 73.64150000002701,
+      "medianCompleteMs": 73.64150000002701,
+      "medianRequests": 1,
+      "medianResponseBytes": 127,
+      "medianJavascriptBytes": 0
+    }
+  ]
+}

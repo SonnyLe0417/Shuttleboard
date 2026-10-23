@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -198,12 +199,13 @@ export function TrackNetAnalysisProvider({ children }: { children: ReactNode }) 
     storeJob(null);
   }, [cancelActiveJob]);
 
+  const value = useMemo(
+    () => ({ job, phase, progress, etaSeconds, result, error, start, clear }),
+    [job, phase, progress, etaSeconds, result, error, start, clear],
+  );
+
   return (
-    <TrackNetAnalysisContext.Provider
-      value={{ job, phase, progress, etaSeconds, result, error, start, clear }}
-    >
-      {children}
-    </TrackNetAnalysisContext.Provider>
+    <TrackNetAnalysisContext.Provider value={value}>{children}</TrackNetAnalysisContext.Provider>
   );
 }
 

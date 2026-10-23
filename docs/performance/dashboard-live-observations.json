@@ -1,0 +1,24 @@
+{
+  "status": "partial; not a production benchmark",
+  "environment": "localhost:8080 development server, real signed-in Chrome session, unthrottled",
+  "viewport": { "width": 1440, "height": 900 },
+  "protocol": "Initial animation-frame DOM probe; browser visibility was not recorded. Rendering durations are preliminary and excluded from performance acceptance.",
+  "documentReloadPrimaryMs": [
+    1651.4, 1637.4, 1693.2, 1628.3, 1735.5, 1619.4, 1916.4, 1574.1, 1598.8, 1641.6
+  ],
+  "cachedReturnPrimaryMs": [26.4, 925.1, 940.5, 943.3, 983.5, 936.5, 934.4, 945.8, 956.7, 92.3],
+  "cachedReturnDashboardRequestCounts": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  "representativeReloadRequests": [
+    { "name": "getOnboardingStatus", "durationMs": 89.3, "decodedBytes": 185, "startMs": 359.8 },
+    { "name": "getDashboardCore", "durationMs": 145.0, "decodedBytes": 3460, "startMs": 500.3 },
+    { "name": "getDashboardSummary", "durationMs": 151.7, "decodedBytes": 880, "startMs": 501.0 }
+  ],
+  "limitations": [
+    "Warm HTTP-cache document reloads are not cold browser-context loads.",
+    "No isolated authentication or database timing was collected.",
+    "Representative request timings are individual observations, not median or p90 estimates.",
+    "Browser rendering samples may be affected by background animation-frame throttling.",
+    "The session was interrupted before phone, stale-return and details scenarios.",
+    "After resumption the local server was restarted, but browser navigation repeatedly timed out."
+  ]
+}

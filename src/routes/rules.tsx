@@ -178,7 +178,7 @@ function RulesPage() {
 
   return (
     <div className="space-y-6">
-      <header className="relative overflow-hidden rounded-3xl border border-primary/20 bg-card/70 p-6 shadow-[0_20px_80px_oklch(0.16_0.04_190/0.3)] sm:p-8">
+      <header className="club-page-heading relative overflow-hidden rounded-3xl border border-primary/20 bg-card/70 p-6 shadow-[0_20px_80px_oklch(0.16_0.04_190/0.3)] sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary/15 blur-3xl" />
         <div className="relative flex flex-wrap items-end justify-between gap-5">
           <div>
@@ -263,7 +263,7 @@ function RulesPage() {
           </div>
           {scenarioAnswer !== null && (
             <div
-              className={`mt-4 rounded-xl border p-3 text-xs leading-5 ${scenarioAnswer === scenario.answer ? "border-primary/20 bg-primary/5 text-primary" : "border-amber-400/20 bg-amber-400/5 text-amber-100"}`}
+              className={`mt-4 rounded-xl border p-3 text-xs leading-5 ${scenarioAnswer === scenario.answer ? "border-primary/20 bg-primary/5 text-primary" : "border-amber-400/20 bg-amber-400/5 text-foreground"}`}
             >
               <strong>{scenarioAnswer === scenario.answer ? "Correct. " : "Not quite. "}</strong>
               {scenario.explanation}

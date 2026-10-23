@@ -13,7 +13,7 @@ import { getStoredPrefs } from "@/lib/themes";
 import { createVoiceController, voiceSupported } from "@/lib/voice";
 import { saveMatch } from "@/lib/matches.functions";
 import { createMatchInvite } from "@/lib/growth.functions";
-import { DASHBOARD_CORE_QUERY_KEY, MATCHES_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
+import { invalidateDashboard, MATCHES_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
 import { useSession } from "@/hooks/useSession";
 import { toast } from "sonner";
 import {
@@ -315,7 +315,7 @@ function ScoreboardPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: MATCHES_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY }),
-        queryClient.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY }),
+        invalidateDashboard(queryClient),
       ]);
       toast.success("Match saved to History");
       if (saved.progressPending)
@@ -359,7 +359,7 @@ function ScoreboardPage() {
   }
 
   return (
-    <div ref={containerRef} className="space-y-6">
+    <div ref={containerRef} className="club-scoreboard space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -473,9 +473,11 @@ function ScoreboardPage() {
       </div>
 
       {/* Bento grid */}
-      <div className="grid gap-4 lg:grid-cols-6 lg:grid-rows-[auto_auto_1fr]">
+      <div className="club-score-grid grid gap-4">
         <TeamCard
-          className="lg:col-span-2"
+          className="club-team-card"
+          onPoint={() => addPoint(0)}
+          disabled={state.matchOver}
           active={state.server === 0}
           name={state.names[0]}
           onNameChange={(name) => setName(0, name)}
@@ -486,7 +488,9 @@ function ScoreboardPage() {
           isMatchWinner={state.matchWinnerTeam === 0}
         />
         <TeamCard
-          className="lg:col-span-2"
+          className="club-team-card"
+          onPoint={() => addPoint(1)}
+          disabled={state.matchOver}
           active={state.server === 1}
           name={state.names[1]}
           onNameChange={(name) => setName(1, name)}
@@ -498,7 +502,7 @@ function ScoreboardPage() {
         />
 
         {/* Court */}
-        <section className="bento-tile lg:col-span-2 lg:row-span-3">
+        <section className="club-scoring-court bento-tile lg:col-span-2 lg:row-span-3">
           <div className="flex items-start justify-between gap-3 border-b border-white/5 px-4 py-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
@@ -686,20 +690,6 @@ function ScoreboardPage() {
                 </div>
               </fieldset>
             )}
-
-            <fieldset className="space-y-2 sm:col-span-2">
-              <legend className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Rally Winner
-              </legend>
-              <div className="flex gap-2">
-                <ActionButton onClick={() => addPoint(0)} className="flex-1">
-                  {teamName(0)} +1
-                </ActionButton>
-                <ActionButton onClick={() => addPoint(1)} className="flex-1">
-                  {teamName(1)} +1
-                </ActionButton>
-              </div>
-            </fieldset>
 
             <FaultControls teamName={teamName} onFault={addFault} />
           </div>
@@ -892,6 +882,8 @@ function TeamCard({
   className = "",
   matchPoint,
   isMatchWinner,
+  onPoint,
+  disabled,
 }: {
   active: boolean;
   name: string;
@@ -902,6 +894,8 @@ function TeamCard({
   className?: string;
   matchPoint?: boolean;
   isMatchWinner?: boolean;
+  onPoint: () => void;
+  disabled: boolean;
 }) {
   return (
     <div
@@ -946,6 +940,14 @@ function TeamCard({
           <div className="font-display text-2xl font-semibold text-foreground">{games}</div>
         </div>
       </div>
+      <button
+        className="club-point-button"
+        disabled={disabled}
+        onClick={onPoint}
+        aria-label={`Point to ${name}`}
+      >
+        + Point
+      </button>
     </div>
   );
 }
@@ -964,25 +966,6 @@ function ToggleButton({
       type="button"
       onClick={onClick}
       className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${selected ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]" : "text-muted-foreground hover:text-foreground"}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ActionButton({
-  children,
-  onClick,
-  className = "",
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`btn-primary-glow rounded-xl px-4 py-2.5 text-sm font-semibold ${className}`}
     >
       {children}
     </button>

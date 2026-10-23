@@ -1,0 +1,12 @@
+{
+  "passed": 7,
+  "checks": [
+    "Essentials survive a pending summary; saved goal loads; background refresh and failed save preserve the draft; save sends a goal-only patch.",
+    "compact: cached return makes no duplicate requests; stale failures retain values; each section retries independently.",
+    "balanced: cached return makes no duplicate requests; stale failures retain values; each section retries independently.",
+    "stats-heavy: cached return makes no duplicate requests; stale failures retain values; each section retries independently.",
+    "core: first-load failure is explicit, retry recovers, and the 360px layout fits.",
+    "summary: first-load failure is explicit, retry recovers, and the 360px layout fits.",
+    "An empty account renders its real empty state with no fabricated recent matches."
+  ]
+}

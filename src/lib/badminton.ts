@@ -8,52 +8,12 @@ export const COURT = {
 export type GameMode = "singles" | "doubles";
 export type Side = "left" | "right";
 
-export interface MatchState {
-  score: [number, number];
-  server: 0 | 1;
-  mode: GameMode;
-  declaredSide: Side;
-  serveCheck: boolean;
-  nearSide: boolean;
-  names: [string, string];
-  log: string[];
-  history: MatchSnapshot[];
-}
-
-export interface MatchSnapshot {
-  score: [number, number];
-  server: 0 | 1;
-  mode: GameMode;
-  declaredSide: Side;
-  serveCheck: boolean;
-  nearSide: boolean;
-  names: [string, string];
-  log: string[];
-}
-
 export function correctServeSide(score: number): Side {
   return score % 2 === 0 ? "right" : "left";
 }
 
 export function receiverSide(serverScore: number): Side {
   return correctServeSide(serverScore) === "right" ? "left" : "right";
-}
-
-export function isGameOver(score: [number, number]): boolean {
-  const high = Math.max(score[0], score[1]);
-  const low = Math.min(score[0], score[1]);
-  return high >= 21 && (high - low >= 2 || high === 30);
-}
-
-export function winnerText(score: [number, number], names: [string, string]): string {
-  if (!isGameOver(score)) return "";
-  return score[0] > score[1] ? names[0] : names[1];
-}
-
-export function isMatchPoint(score: [number, number]): boolean {
-  const high = Math.max(score[0], score[1]);
-  const low = Math.min(score[0], score[1]);
-  return high >= 20 && !isGameOver(score) && high - low >= 1;
 }
 
 export function inNormalCourt(x: number, y: number, mode: GameMode): boolean {
@@ -195,7 +155,9 @@ export function landingVerdict(
 
   const xResult = signedBoundaryDistance(x, box.xMin, box.xMax);
   const yResult = signedBoundaryDistance(y, box.yMin, box.yMax);
-  const nearestAxis = Math.abs(xResult.distance) <= Math.abs(yResult.distance) ? "x" : "y";
+  // Outside the court, measure the violated boundary. A nearby line on the
+  // other axis cannot make a clearly out landing a close call.
+  const nearestAxis = xResult.distance <= yResult.distance ? "x" : "y";
   const nearest = nearestAxis === "x" ? xResult : yResult;
   const labelKey = `${nearestAxis}${nearest.edge === "min" ? "Min" : "Max"}`;
   const lineMargin = nearest.distance;
@@ -224,14 +186,4 @@ function signedBoundaryDistance(value: number, min: number, max: number) {
   return minDistance <= maxDistance
     ? { distance: minDistance, edge: "min" as const }
     : { distance: maxDistance, edge: "max" as const };
-}
-
-export function formatCall(x: number, y: number, verdict: LandingVerdict): string {
-  const xText = `${Math.round(x * 100)}%`;
-  const yText = `${Math.round(y * 100)}%`;
-  const marginText =
-    verdict.lineMarginPercent <= 6
-      ? ` Nearest line: ${verdict.nearestLine}, ${verdict.lineMarginPercent}% court margin.`
-      : "";
-  return `${verdict.isIn ? "In" : "Out"} — ${verdict.modeText} Marked at ${xText} width and ${yText} length.${marginText}`;
 }

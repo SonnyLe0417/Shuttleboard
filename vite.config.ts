@@ -10,6 +10,20 @@ import type { ConfigEnv } from "vite";
 const createConfig = defineConfig({
   vite: {
     resolve: { tsconfigPaths: true },
+    server: {
+      watch: {
+        // The local Python environment, models and analysis outputs are not frontend inputs.
+        // Watching these trees on Windows can starve SSR module loading.
+        ignored: [
+          "**/.tracknet-v3/**",
+          "**/.output/**",
+          "**/dist/**",
+          "**/.wrangler/**",
+          "**/.pytest_cache/**",
+          "**/__pycache__/**",
+        ],
+      },
+    },
     environments: {
       client: {
         build: {

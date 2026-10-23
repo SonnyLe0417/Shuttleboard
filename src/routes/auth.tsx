@@ -172,6 +172,8 @@ function AuthPage() {
             <input
               type="text"
               placeholder="Display name"
+              aria-label="Display name"
+              autoComplete="name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
@@ -181,6 +183,8 @@ function AuthPage() {
             type="email"
             required
             placeholder="you@example.com"
+            aria-label="Email address"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
@@ -191,6 +195,8 @@ function AuthPage() {
               required
               minLength={6}
               placeholder="Password"
+              aria-label="Password"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
@@ -212,7 +218,7 @@ function AuthPage() {
 
         {confirmationSent && (
           <div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm">
-            <p className="text-amber-100">
+            <p className="text-foreground">
               Your email is not confirmed yet. Open the confirmation link in your email before
               signing in.
             </p>

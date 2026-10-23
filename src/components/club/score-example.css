@@ -1,0 +1,85 @@
+.club-score-example {
+  background: var(--card, #fff);
+  color: var(--foreground, #18221d);
+  border: 1px solid var(--border, #d9ded6);
+  border-radius: 12px;
+  padding: 30px;
+  font-size: 14px;
+}
+.club-score-example header,
+.club-score-example footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.club-score-example header strong {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+.club-score-example header span,
+.club-score-example p {
+  color: var(--muted-foreground, #626c65);
+}
+.club-score-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  text-align: center;
+  padding: 36px 0;
+}
+.club-score-teams > div + div {
+  border-left: 1px solid var(--border, #d9ded6);
+}
+.club-score-teams output {
+  display: block;
+  font-size: clamp(64px, 7vw, 96px);
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+}
+.club-score-teams > div:first-child output {
+  color: var(--primary, #176348);
+}
+.club-score-example button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: transparent;
+  font-weight: 600;
+}
+.club-score-teams button {
+  border: 1px solid var(--border, #d9ded6);
+}
+.club-score-example footer {
+  border-top: 1px solid var(--border, #d9ded6);
+  padding-top: 18px;
+}
+.club-score-example footer p {
+  text-align: center;
+  font-size: 12px;
+}
+.club-score-example button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+@media (max-width: 600px) {
+  .club-score-example {
+    padding: 18px;
+  }
+  .club-score-example header {
+    flex-wrap: wrap;
+  }
+  .club-score-example footer {
+    flex-wrap: wrap;
+  }
+  .club-score-example footer p {
+    order: 3;
+    width: 100%;
+  }
+}

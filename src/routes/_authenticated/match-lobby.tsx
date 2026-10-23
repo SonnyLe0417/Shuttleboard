@@ -1,16 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Clock3,
-  MapPin,
-  Palette,
-  Play,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock3, MapPin, Palette, Play, Users } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/match-lobby")({
   ssr: false,
@@ -75,20 +65,19 @@ function MatchLobbyPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="flex items-start gap-3">
+      <header className="club-page-heading flex items-start gap-3">
         <Link
           to="/dashboard"
-          className="mt-1 rounded-full border border-white/10 p-2 text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+          aria-label="Back to dashboard"
+          className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <p className="eyebrow">
-            <Sparkles className="h-3.5 w-3.5" /> Pre-match ritual
-          </p>
-          <h1 className="mt-2 font-display text-3xl font-bold">Set the court.</h1>
+          <p className="eyebrow">Play / Match setup</p>
+          <h1 className="mt-2 font-display text-3xl font-bold">Ready for a game?</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            A focused lobby for the players, the place, and the match ahead.
+            Pick your format, add the players, and take the court.
           </p>
         </div>
       </header>

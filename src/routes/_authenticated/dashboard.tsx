@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -20,45 +20,43 @@ import {
   Trophy,
   Users,
   WandSparkles,
+  Video,
 } from "lucide-react";
-import { getMyPreferences, listMyMatches, updateMyPreferences } from "@/lib/matches.functions";
+import { updateMyPreferences } from "@/lib/matches.functions";
 import { getProgressSummary } from "@/lib/progress.functions";
-import { getDashboardCore, type DashboardCoreData } from "@/lib/dashboard.functions";
+import { getDashboardCore, getDashboardSummary } from "@/lib/dashboard.functions";
+import { dashboardCoreOptions, dashboardSummaryOptions } from "@/lib/dashboard-queries";
 import {
-  DASHBOARD_CORE_QUERY_KEY,
-  MATCHES_QUERY_KEY,
-  PREFERENCES_QUERY_KEY,
-  PROGRESS_QUERY_KEY,
-} from "@/lib/query-keys";
+  localWeekStart,
+  type DashboardMatch as Match,
+  type DashboardGoal as GoalState,
+  type DashboardPreferences as DashboardPrefs,
+  type DashboardCoreData,
+  type DashboardSummaryData,
+} from "@/lib/dashboard-model";
+import { invalidateDashboard, PREFERENCES_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
+  onLeave: () => {
+    if (import.meta.env.DEV && typeof window !== "undefined")
+      performance.mark("dashboard-route-leave");
+  },
+  loader: ({ context }) => {
+    if (import.meta.env.DEV && typeof window !== "undefined") {
+      const startedAt = performance.now();
+      void import("@/lib/dashboard-live-metrics").then((module) =>
+        module.startDashboardLiveMetrics(startedAt, context.queryClient),
+      );
+    }
+    void context.queryClient.prefetchQuery(dashboardCoreOptions(getDashboardCore));
+    void context.queryClient.prefetchQuery(
+      dashboardSummaryOptions(getDashboardSummary, localWeekStart()),
+    );
+  },
   head: () => ({ meta: [{ title: "Dashboard · ShuttleBoard" }] }),
   component: DashboardPage,
 });
-
-type Match = {
-  id: string;
-  mode: "singles" | "doubles";
-  format?: string;
-  winner: "A" | "B" | null;
-  team_a_names: string[];
-  team_b_names: string[];
-  team_a_user_ids?: string[];
-  team_b_user_ids?: string[];
-  games: Array<{ a: number; b: number }>;
-  started_at: string;
-  finished_at?: string | null;
-  duration_seconds?: number;
-  tags?: string[];
-};
-
-type GoalState = { title: string; target: number; progress: number; unit: string };
-type DashboardPrefs = {
-  layout?: "compact" | "balanced" | "stats-heavy";
-  coaching_tone?: "friendly" | "competitive" | "technical" | "blunt";
-  terminology?: { game?: string; set?: string; rally?: string; match?: string };
-};
 
 const DEFAULT_GOAL: GoalState = {
   title: "Play twice this week",
@@ -70,61 +68,44 @@ const DEFAULT_GOAL: GoalState = {
 function DashboardPage() {
   const queryClient = useQueryClient();
   const fetchCore = useServerFn(getDashboardCore);
-  const fetchMatches = useServerFn(listMyMatches);
-  const fetchPrefs = useServerFn(getMyPreferences);
+  const fetchSummary = useServerFn(getDashboardSummary);
   const fetchProgress = useServerFn(getProgressSummary);
   const savePrefs = useServerFn(updateMyPreferences);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const coreQ = useQuery<DashboardCoreData>({
-    queryKey: DASHBOARD_CORE_QUERY_KEY,
-    queryFn: () => fetchCore(),
-    staleTime: 60_000,
-    gcTime: 300_000,
-    refetchOnMount: false,
-  });
-  const matchesQ = useQuery({
-    queryKey: MATCHES_QUERY_KEY,
-    queryFn: () => fetchMatches(),
-    enabled: detailsOpen,
-    staleTime: 60_000,
-    gcTime: 300_000,
-    refetchOnMount: false,
-  });
-  const prefsQ = useQuery({
-    queryKey: PREFERENCES_QUERY_KEY,
-    queryFn: () => fetchPrefs(),
-    enabled: detailsOpen,
-    staleTime: 60_000,
-    gcTime: 300_000,
-    refetchOnMount: false,
-  });
+  const coreQ = useQuery(dashboardCoreOptions(fetchCore));
+  const summaryQ = useQuery(dashboardSummaryOptions(fetchSummary, localWeekStart()));
   const progressQ = useQuery({
     queryKey: PROGRESS_QUERY_KEY,
     queryFn: () => fetchProgress(),
     enabled: detailsOpen,
     staleTime: 60_000,
     gcTime: 300_000,
-    refetchOnMount: false,
   });
-  const [goal, setGoal] = useState<GoalState>(DEFAULT_GOAL);
+  const [savingGoal, setSavingGoal] = useState(false);
+  const [goalError, setGoalError] = useState<string | null>(null);
+  const [hasActiveMatch, setHasActiveMatch] = useState(false);
+  useEffect(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem("shuttleboard.match-draft.v1") ?? "null");
+      setHasActiveMatch(Boolean(draft?.matchStartedAt && !draft.matchOver));
+    } catch {
+      setHasActiveMatch(false);
+    }
+  }, []);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalDraft, setGoalDraft] = useState(DEFAULT_GOAL);
 
+  const goal = coreQ.data?.dashboard.goal ?? DEFAULT_GOAL;
   useEffect(() => {
-    const stored = (prefsQ.data?.dashboard as unknown as { goal?: GoalState } | undefined)?.goal;
-    if (stored?.title) {
-      setGoal({ ...DEFAULT_GOAL, ...stored });
-      setGoalDraft({ ...DEFAULT_GOAL, ...stored });
-    }
-  }, [prefsQ.data]);
-
-  const rawMatches = matchesQ.data;
-  const matches = useMemo(() => (rawMatches ?? []) as unknown as Match[], [rawMatches]);
+    if (!editingGoal) setGoalDraft(goal);
+  }, [goal, editingGoal]);
+  const matches = coreQ.data?.recentMatches ?? [];
   const profile = coreQ.data?.profile;
-  const dashboardPrefs = ((prefsQ.data?.dashboard as unknown as DashboardPrefs | undefined) ??
-    coreQ.data?.dashboard ??
-    {}) as DashboardPrefs;
-  const layout = dashboardPrefs.layout ?? "balanced";
+  const dashboardPrefs = coreQ.data?.dashboard ?? {};
+  const layout = dashboardPrefs.layout ?? "compact";
+  useEffect(() => {
+    if (dashboardPrefs.layout === "stats-heavy") setDetailsOpen(true);
+  }, [dashboardPrefs.layout]);
   const coachingTone = dashboardPrefs.coaching_tone ?? "friendly";
   const terminology = {
     game: "Game",
@@ -143,43 +124,65 @@ function DashboardPage() {
       : null;
   const name = profile?.display_name || profile?.handle || "player";
   const firstName = name.split(" ")[0];
-  const stats = useMemo(() => getStats(matches), [matches]);
-  const weekMatches = useMemo(() => matches.filter((m) => isThisWeek(m.started_at)), [matches]);
-  const recent = matches.slice(0, 5);
-  const lastMatch = matches[0] ?? (coreQ.data?.latestMatch as Match | null) ?? undefined;
+  const stats = summaryQ.data?.stats;
+  const weekMatchCount = summaryQ.data?.weekMatchCount;
+  const recent = matches;
+  const lastMatch = matches[0];
   const usual = getUsualMatch(matches, profile);
   const greeting = getGreeting();
-  const goalProgress = goal.title.toLowerCase().includes("win") ? stats.wins : weekMatches.length;
-  const progress = Math.min(goal.target, Math.max(goal.progress, goalProgress));
-  const activeQuest = progressQ.data?.activeQuest ?? coreQ.data?.activeQuest;
-  const hasMatches = coreQ.data?.hasMatches ?? matches.length > 0;
+  const goalProgress = goal.title.toLowerCase().includes("win") ? stats?.wins : weekMatchCount;
+  const progress =
+    goalProgress === undefined
+      ? undefined
+      : Math.min(goal.target, Math.max(goal.progress, goalProgress));
+  const activeQuest = progressQ.data?.activeQuest ?? summaryQ.data?.activeQuest;
+  const hasMatches = summaryQ.data?.hasMatches;
   const questTarget = activeQuest?.target_value ?? (hasMatches ? goal.target : 1);
   const questCurrent = activeQuest?.progress ?? (hasMatches ? progress : 0);
-  const questPercent = Math.min(100, Math.max(0, (questCurrent / Math.max(1, questTarget)) * 100));
+  const questPercent =
+    questCurrent === undefined
+      ? undefined
+      : Math.min(100, Math.max(0, (questCurrent / Math.max(1, questTarget)) * 100));
 
   if (coreQ.isPending) return <DashboardSkeleton />;
-  if (coreQ.isError) {
-    return <DashboardError onRetry={() => void coreQ.refetch()} />;
-  }
+  if (!coreQ.data) return <DashboardError onRetry={() => void coreQ.refetch()} />;
 
   async function saveGoal() {
-    const next = { ...goalDraft, target: Math.max(1, Number(goalDraft.target) || 1), progress: 0 };
-    setGoal(next);
-    setEditingGoal(false);
-    await savePrefs({
-      data: {
-        ...(prefsQ.data as any),
-        dashboard: { ...(prefsQ.data?.dashboard ?? {}), goal: next },
-      } as any,
-    });
-    await queryClient.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
-    await queryClient.invalidateQueries({ queryKey: PREFERENCES_QUERY_KEY });
+    const next = {
+      ...goalDraft,
+      target: Math.min(1000, Math.max(1, Math.trunc(Number(goalDraft.target) || 1))),
+      progress: 0,
+    };
+    setSavingGoal(true);
+    setGoalError(null);
+    try {
+      await savePrefs({ data: { dashboard: { goal: next } } });
+      queryClient.setQueryData<DashboardCoreData>(
+        dashboardCoreOptions(fetchCore).queryKey,
+        (current) =>
+          current ? { ...current, dashboard: { ...current.dashboard, goal: next } } : current,
+      );
+      setEditingGoal(false);
+      await Promise.all([
+        invalidateDashboard(queryClient),
+        queryClient.invalidateQueries({ queryKey: PREFERENCES_QUERY_KEY }),
+      ]);
+    } catch (error) {
+      setGoalError(
+        error instanceof Error ? error.message : "Your goal could not be saved. Try again.",
+      );
+    } finally {
+      setSavingGoal(false);
+    }
   }
 
   return (
-    <div className={layout === "compact" ? "space-y-4" : "space-y-6"}>
+    <div
+      data-dashboard-ready="true"
+      className={`club-dashboard-layout ${layout === "compact" ? "space-y-5" : "space-y-7"}`}
+    >
       <header
-        className="relative overflow-hidden rounded-3xl border border-primary/20 bg-card/70 p-6 shadow-[0_20px_80px_oklch(0.16_0.04_190/0.3)] backdrop-blur-xl sm:p-8"
+        className={bannerImage ? "club-dashboard-banner p-6 rounded-xl" : "club-dashboard-header"}
         style={
           bannerImage
             ? {
@@ -194,7 +197,7 @@ function DashboardPage() {
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">
-              <Sparkles className="h-3.5 w-3.5" /> Player dashboard
+              <Sparkles className="h-3.5 w-3.5" /> Your clubhouse
             </div>
             <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-5xl">
               {greeting}, {firstName}.
@@ -204,14 +207,77 @@ function DashboardPage() {
               need before the next {terminology.match.toLowerCase()} is here.
             </p>
           </div>
-          <Link
-            to="/match-lobby"
-            className="btn-primary-glow inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold"
-          >
-            <Play className="h-4 w-4 fill-current" /> Start a match
-          </Link>
         </div>
       </header>
+
+      {coreQ.isError && (
+        <SectionStatus
+          error
+          label="Your dashboard could not refresh. Showing saved data."
+          onRetry={() => void coreQ.refetch()}
+        />
+      )}
+      <div className="club-dashboard-actions">
+        <section className="club-play-action">
+          <p className="eyebrow">On court</p>
+          <h2>{hasActiveMatch ? "Your match is waiting." : "Who’s up for a game?"}</h2>
+          <p>
+            {hasActiveMatch
+              ? "Pick up exactly where you left off."
+              : "Singles or doubles. Friendly or fiercely competitive."}
+          </p>
+          <Link to={hasActiveMatch ? "/scoreboard" : "/match-lobby"}>
+            {hasActiveMatch ? "Resume match" : "Start a match"}
+            <ArrowRight size={18} />
+          </Link>
+        </section>
+        <section className="club-analyze-action">
+          <Video size={24} className="text-primary" />
+          <p className="eyebrow mt-4">Off court</p>
+          <h2>Watch. Notice. Improve.</h2>
+          <p>Give your last match a second look.</p>
+          <Link to="/video">
+            Analyze a video <ArrowRight size={18} />
+          </Link>
+        </section>
+      </div>
+      <section className="club-recent-matches">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-xl font-semibold">Recent matches</h2>
+          <Link to="/history" className="text-sm font-semibold">
+            All matches <ArrowRight size={16} className="inline" />
+          </Link>
+        </div>
+        {recent.length ? (
+          recent.slice(0, 3).map((match) => (
+            <Link key={match.id} to="/history" className="club-match-row">
+              <span className="club-match-result">
+                {match.winner === "A" ? "W" : match.winner === "B" ? "L" : "—"}
+              </span>
+              <span className="min-w-0">
+                <strong>
+                  {match.team_a_names.join(" & ")} vs. {match.team_b_names.join(" & ")}
+                </strong>
+                <small>
+                  {match.mode === "singles" ? "Singles" : "Doubles"} ·{" "}
+                  {formatDate(match.started_at)}
+                </small>
+              </span>
+              <span className="club-match-score">
+                {match.games.map((g) => `${g.a}–${g.b}`).join(", ")}
+              </span>
+              <ChevronRight size={16} />
+            </Link>
+          ))
+        ) : (
+          <div className="py-6">
+            <h3 className="font-semibold">Your first game starts here.</h3>
+            <p className="mt-2 text-muted-foreground">
+              Save a match to start your badminton story.
+            </p>
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="bento-tile p-5 sm:p-6">
@@ -221,31 +287,38 @@ function DashboardPage() {
                 <Goal className="h-3.5 w-3.5" /> Coach&apos;s Corner
               </p>
               <h2 className="mt-2 font-display text-xl font-semibold">
-                {activeQuest?.title ?? (hasMatches ? goal.title : "Play your first match")}
+                {activeQuest?.title ??
+                  (hasMatches === false ? "Play your first match" : goal.title)}
               </h2>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {activeQuest
-                  ? `${activeQuest.progress ?? 0} / ${activeQuest.target_value ?? 1} complete`
-                  : hasMatches
-                    ? "A small target keeps your next session focused."
-                    : "Start with one completed match to build your player profile."}
+                {!summaryQ.data
+                  ? summaryQ.isError
+                    ? "Your progress could not load."
+                    : "Loading your progress…"
+                  : activeQuest
+                    ? `${activeQuest.progress ?? 0} / ${activeQuest.target_value ?? 1} complete`
+                    : hasMatches
+                      ? "A small target keeps your next session focused."
+                      : "Start with one completed match to build your player profile."}
               </p>
             </div>
             <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary">
               Next step
             </span>
           </div>
-          <div className="mt-5 h-2 overflow-hidden rounded-full bg-background">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-500"
-              style={{ width: `${questPercent}%` }}
-            />
-          </div>
+          {summaryQ.data && questPercent !== undefined && (
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-background">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${questPercent}%` }}
+              />
+            </div>
+          )}
           <Link
-            to={hasMatches ? "/progress" : "/match-lobby"}
+            to={hasMatches === false ? "/match-lobby" : "/progress"}
             className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
           >
-            {hasMatches ? "Open progress" : "Start your first match"}
+            {hasMatches === false ? "Start your first match" : "Open progress"}
             <ChevronRight className="h-3.5 w-3.5" />
           </Link>
         </section>
@@ -294,37 +367,60 @@ function DashboardPage() {
         </section>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <CompactStat label="Level" value={coreQ.data.progress.level_name} />
-        <CompactStat label="XP" value={`${coreQ.data.progress.total_xp}`} />
-        <CompactStat label="Win streak" value={`${coreQ.data.progress.current_streak}`} />
-      </div>
+      <div
+        data-dashboard-summary={summaryQ.data ? "ready" : "pending"}
+        className={layout === "compact" ? "space-y-5" : "space-y-7"}
+      >
+        {!summaryQ.data ? (
+          <SectionStatus
+            error={summaryQ.isError}
+            label={summaryQ.isError ? "Your progress could not load." : "Loading your progress…"}
+            onRetry={() => void summaryQ.refetch()}
+          />
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <CompactStat label="Level" value={summaryQ.data!.progress.level_name} />
+              <CompactStat label="XP" value={`${summaryQ.data!.progress.total_xp}`} />
+              <CompactStat label="Win streak" value={`${summaryQ.data!.progress.current_streak}`} />
+            </div>
 
-      <section className="bento-tile p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="eyebrow">
-              <Sparkles className="h-3.5 w-3.5" /> One useful insight
-            </p>
-            <h2 className="mt-2 font-display text-xl font-semibold">
-              {coreQ.data.insight?.label ?? "Your first pattern is forming"}
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {coreQ.data.insight?.description ??
-                "Save a match to unlock personalized insights based on your real results."}
-            </p>
-          </div>
-          <Link
-            to="/progress"
-            className="shrink-0 text-xs font-semibold text-primary hover:underline"
-          >
-            View progress <ChevronRight className="inline h-3.5 w-3.5" />
-          </Link>
-        </div>
-      </section>
+            <section className="bento-tile p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="eyebrow">
+                    <Sparkles className="h-3.5 w-3.5" /> One useful insight
+                  </p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">
+                    {summaryQ.data!.insight?.label ?? "Your first pattern is forming"}
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    {summaryQ.data!.insight?.description ??
+                      "Save a match to unlock personalized insights based on your real results."}
+                  </p>
+                </div>
+                <Link
+                  to="/progress"
+                  className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                >
+                  View progress <ChevronRight className="inline h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </section>
+          </>
+        )}
+        {summaryQ.isError && summaryQ.data && (
+          <SectionStatus
+            error
+            label="Progress could not refresh. Showing saved data."
+            onRetry={() => void summaryQ.refetch()}
+          />
+        )}
+      </div>
 
       <details
         className="group rounded-2xl border border-white/10 bg-card/30 p-1"
+        open={detailsOpen}
         onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
       >
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-background/40 [&::-webkit-details-marker]:hidden">
@@ -333,317 +429,371 @@ function DashboardPage() {
           </span>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
-        <div className="space-y-6 p-3 pt-4 sm:p-4">
-          <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-            <section className="bento-tile p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="eyebrow">
-                    <Goal className="h-3.5 w-3.5" /> Your next goal
-                  </p>
-                  <h2 className="mt-2 font-display text-xl font-semibold">{goal.title}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Small, consistent sessions build serious court time.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setEditingGoal((v) => !v)}
-                  className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-                >
-                  Edit goal
-                </button>
-              </div>
-              {editingGoal ? (
-                <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_100px_auto]">
-                  <input
-                    value={goalDraft.title}
-                    onChange={(e) => setGoalDraft({ ...goalDraft, title: e.target.value })}
-                    className="rounded-lg border border-white/10 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                    maxLength={60}
-                  />
-                  <input
-                    type="number"
-                    min={1}
-                    value={goalDraft.target}
-                    onChange={(e) => setGoalDraft({ ...goalDraft, target: Number(e.target.value) })}
-                    className="rounded-lg border border-white/10 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                  />
+        {detailsOpen && (
+          <div
+            data-dashboard-details={progressQ.data ? "ready" : "pending"}
+            className="space-y-6 p-3 pt-4 sm:p-4"
+          >
+            <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+              <section className="bento-tile p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="eyebrow">
+                      <Goal className="h-3.5 w-3.5" /> Your next goal
+                    </p>
+                    <h2 className="mt-2 font-display text-xl font-semibold">{goal.title}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Small, consistent sessions build serious court time.
+                    </p>
+                  </div>
                   <button
-                    onClick={saveGoal}
-                    className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                    onClick={() => setEditingGoal((v) => !v)}
+                    className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
                   >
-                    <Check className="mr-1 inline h-3.5 w-3.5" />
-                    Save
+                    Edit goal
                   </button>
                 </div>
-              ) : (
-                <div className="mt-5">
-                  <div className="flex items-end justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      {progress} of {goal.target} {goal.unit}
-                    </span>
-                    <strong className="text-primary">
-                      {Math.round((progress / goal.target) * 100)}%
-                    </strong>
-                  </div>
-                  <div className="mt-2 h-3 overflow-hidden rounded-full bg-background">
-                    <div
-                      className="h-full rounded-full shadow-[var(--shadow-glow)] transition-all duration-700"
-                      style={{
-                        width: `${Math.min(100, (progress / goal.target) * 100)}%`,
-                        background: "var(--gradient-primary)",
-                      }}
-                    />
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                    <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1">
-                      <CalendarDays className="mr-1 inline h-3 w-3 text-primary" />
-                      {weekMatches.length} this week
-                    </span>
-                    <span className="rounded-full border border-white/10 px-2.5 py-1">
-                      <Flame className="mr-1 inline h-3 w-3 text-primary" />
-                      {stats.streak}-match streak
-                    </span>
-                  </div>
-                </div>
-              )}
-            </section>
-            <section className="bento-tile p-5 sm:p-6">
-              <p className="eyebrow">
-                <WandSparkles className="h-3.5 w-3.5" /> Usual match
-              </p>
-              <h2 className="mt-2 font-display text-xl font-semibold">{usual.title}</h2>
-              <p className="mt-1 text-xs text-muted-foreground">{usual.subtitle}</p>
-              <Link
-                to="/match-lobby"
-                className="mt-5 inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3.5 py-2.5 text-xs font-semibold text-primary transition hover:bg-primary/20"
-              >
-                <Play className="h-3.5 w-3.5 fill-current" /> Launch setup{" "}
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-              <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-background/30">
-                {courtImage ? (
-                  <div
-                    className="h-20 bg-cover bg-center"
-                    style={{
-                      backgroundImage: `linear-gradient(180deg, transparent, rgba(3, 15, 25, .9)), url(${courtImage})`,
-                    }}
-                  >
-                    <span className="inline-block px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-white">
-                      Home court
-                    </span>
-                  </div>
-                ) : (
-                  <p className="px-3 py-2 text-[10px] text-muted-foreground">
-                    Add a home-court photo from your profile.
+                {goalError && (
+                  <p role="alert" className="mt-3 text-sm text-destructive">
+                    {goalError}
                   </p>
                 )}
-              </div>
-            </section>
-          </div>
-
-          <div
-            className={
-              layout === "compact"
-                ? "grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
-                : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-            }
-          >
-            <StatCard
-              icon={<Trophy />}
-              label="Win rate"
-              value={`${stats.winRate}%`}
-              detail={`${stats.wins} wins · ${stats.losses} losses`}
-            />
-            <StatCard
-              icon={<Flame />}
-              label="Current streak"
-              value={`${stats.streak}`}
-              detail={stats.streak ? "wins in a row" : "start a new streak"}
-            />
-            <StatCard
-              icon={<Gauge />}
-              label="Average margin"
-              value={`${stats.avgMargin}`}
-              detail="points per game"
-            />
-            <StatCard
-              icon={<Swords />}
-              label="Deciders"
-              value={`${stats.deciderWins}/${stats.decisiveGames}`}
-              detail="deciding games won"
-            />
-          </div>
-
-          <section className="bento-tile p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
+                {editingGoal ? (
+                  <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_100px_auto]">
+                    <input
+                      aria-label="Goal title"
+                      disabled={savingGoal}
+                      value={goalDraft.title}
+                      onChange={(e) => setGoalDraft({ ...goalDraft, title: e.target.value })}
+                      className="rounded-lg border border-white/10 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                      maxLength={60}
+                    />
+                    <input
+                      aria-label="Goal target"
+                      disabled={savingGoal}
+                      type="number"
+                      min={1}
+                      value={goalDraft.target}
+                      onChange={(e) =>
+                        setGoalDraft({ ...goalDraft, target: Number(e.target.value) })
+                      }
+                      className="rounded-lg border border-white/10 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    />
+                    <button
+                      onClick={saveGoal}
+                      disabled={savingGoal}
+                      className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                    >
+                      <Check className="mr-1 inline h-3.5 w-3.5" />
+                      {savingGoal ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                ) : progress === undefined || !stats ? (
+                  <SectionStatus
+                    error={summaryQ.isError}
+                    label={
+                      summaryQ.isError ? "Goal progress could not load." : "Loading goal progress…"
+                    }
+                    onRetry={() => void summaryQ.refetch()}
+                  />
+                ) : (
+                  <div className="mt-5">
+                    <div className="flex items-end justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {progress} of {goal.target} {goal.unit}
+                      </span>
+                      <strong className="text-primary">
+                        {Math.round((progress / goal.target) * 100)}%
+                      </strong>
+                    </div>
+                    <div className="mt-2 h-3 overflow-hidden rounded-full bg-background">
+                      <div
+                        className="h-full rounded-full shadow-[var(--shadow-glow)] transition-all duration-700"
+                        style={{
+                          width: `${Math.min(100, (progress / goal.target) * 100)}%`,
+                          background: "var(--gradient-primary)",
+                        }}
+                      />
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                      <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1">
+                        <CalendarDays className="mr-1 inline h-3 w-3 text-primary" />
+                        {weekMatchCount} this week
+                      </span>
+                      <span className="rounded-full border border-white/10 px-2.5 py-1">
+                        <Flame className="mr-1 inline h-3 w-3 text-primary" />
+                        {stats.streak}-match streak
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </section>
+              <section className="bento-tile p-5 sm:p-6">
                 <p className="eyebrow">
-                  <Trophy className="h-3.5 w-3.5" /> Player badges
+                  <WandSparkles className="h-3.5 w-3.5" /> Usual match
                 </p>
-                <h2 className="mt-1 font-display text-lg font-semibold">Your court identity</h2>
-              </div>
-              <span className="text-[10px] text-muted-foreground">Earned automatically</span>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {getBadges(stats).map((badge) => (
-                <span
-                  key={badge.label}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary"
+                <h2 className="mt-2 font-display text-xl font-semibold">{usual.title}</h2>
+                <p className="mt-1 text-xs text-muted-foreground">{usual.subtitle}</p>
+                <Link
+                  to="/match-lobby"
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3.5 py-2.5 text-xs font-semibold text-primary transition hover:bg-primary/20"
                 >
-                  <Trophy className="h-3 w-3" />
-                  {badge.label}
-                </span>
-              ))}
-            </div>
-          </section>
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-            <section className="bento-tile p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="eyebrow">
-                    <History className="h-3.5 w-3.5" /> Recent form
-                  </p>
-                  <h2 className="mt-1 font-display text-lg font-semibold">Your last five</h2>
-                </div>
-                <Link to="/history" className="text-xs font-semibold text-primary hover:underline">
-                  Full history <ChevronRight className="inline h-3.5 w-3.5" />
+                  <Play className="h-3.5 w-3.5 fill-current" /> Launch setup{" "}
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
-              </div>
-              {recent.length ? (
-                <div className="space-y-2">
-                  {recent.map((m) => (
-                    <FormRow key={m.id} match={m} />
-                  ))}
+                <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-background/30">
+                  {courtImage ? (
+                    <div
+                      className="h-20 bg-cover bg-center"
+                      style={{
+                        backgroundImage: `linear-gradient(180deg, transparent, rgba(3, 15, 25, .9)), url(${courtImage})`,
+                      }}
+                    >
+                      <span className="inline-block px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-white">
+                        Home court
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="px-3 py-2 text-[10px] text-muted-foreground">
+                      Add a home-court photo from your profile.
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <EmptyState text="Your match story starts with the first saved result." />
-              )}
-            </section>
+              </section>
+            </div>
+
+            {stats && (
+              <>
+                <div
+                  className={
+                    layout === "compact"
+                      ? "grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                      : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                  }
+                >
+                  <StatCard
+                    icon={<Trophy />}
+                    label="Win rate"
+                    value={`${stats.winRate}%`}
+                    detail={`${stats.wins} wins · ${stats.losses} losses`}
+                  />
+                  <StatCard
+                    icon={<Flame />}
+                    label="Current streak"
+                    value={`${stats.streak}`}
+                    detail={stats.streak ? "wins in a row" : "start a new streak"}
+                  />
+                  <StatCard
+                    icon={<Gauge />}
+                    label="Average margin"
+                    value={`${stats.avgMargin}`}
+                    detail="points per game"
+                  />
+                  <StatCard
+                    icon={<Swords />}
+                    label="Deciders"
+                    value={`${stats.deciderWins}/${stats.decisiveGames}`}
+                    detail="deciding games won"
+                  />
+                </div>
+
+                <section className="bento-tile p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="eyebrow">
+                        <Trophy className="h-3.5 w-3.5" /> Player badges
+                      </p>
+                      <h2 className="mt-1 font-display text-lg font-semibold">
+                        Your court identity
+                      </h2>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Earned automatically</span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {getBadges(stats).map((badge) => (
+                      <span
+                        key={badge.label}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary"
+                      >
+                        <Trophy className="h-3 w-3" />
+                        {badge.label}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
+            <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+              <section className="bento-tile p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="eyebrow">
+                      <History className="h-3.5 w-3.5" /> Recent form
+                    </p>
+                    <h2 className="mt-1 font-display text-lg font-semibold">Your last five</h2>
+                  </div>
+                  <Link
+                    to="/history"
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Full history <ChevronRight className="inline h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                {recent.length ? (
+                  <div className="space-y-2">
+                    {recent.map((m) => (
+                      <FormRow key={m.id} match={m} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState text="Your match story starts with the first saved result." />
+                )}
+              </section>
+              <section className="bento-tile p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="eyebrow">
+                      <Sparkles className="h-3.5 w-3.5" /> Coach's corner
+                    </p>
+                    <h2 className="mt-1 font-display text-lg font-semibold">
+                      A note for your next session
+                    </h2>
+                  </div>
+                  <Link to="/ai" className="text-xs font-semibold text-primary hover:underline">
+                    Open AI <ChevronRight className="inline h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-sm leading-6 text-foreground">
+                    {stats
+                      ? getCoachNote(stats, lastMatch, coachingTone, terminology)
+                      : "Your coaching note will appear when progress loads."}
+                  </p>
+                  <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <Clock3 className="h-3.5 w-3.5 text-primary" />
+                    {lastMatch
+                      ? `Based on ${formatDate(lastMatch.started_at)}`
+                      : "Ready when you are"}
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Link
+                    to="/video"
+                    className="rounded-xl border border-white/10 bg-background/40 px-3 py-2.5 text-xs font-semibold transition hover:border-primary/30"
+                  >
+                    <Play className="mr-1.5 inline h-3.5 w-3.5 text-primary" />
+                    Analyze a rally
+                  </Link>
+                  <Link
+                    to="/history"
+                    className="rounded-xl border border-white/10 bg-background/40 px-3 py-2.5 text-xs font-semibold transition hover:border-primary/30"
+                  >
+                    <History className="mr-1.5 inline h-3.5 w-3.5 text-primary" />
+                    Review patterns
+                  </Link>
+                </div>
+              </section>
+            </div>
+
+            {!progressQ.data ? (
+              <SectionStatus
+                error={progressQ.isError}
+                label={
+                  progressQ.isError
+                    ? "Detailed progress could not load."
+                    : "Loading detailed progress…"
+                }
+                onRetry={() => void progressQ.refetch()}
+              />
+            ) : (
+              <>
+                <section className="bento-tile p-5 sm:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="eyebrow">
+                        <Trophy className="h-3.5 w-3.5" /> Your progress
+                      </p>
+                      <h2 className="mt-1 font-display text-lg font-semibold">
+                        {progressQ.data?.progress.level_name ?? "New Player"}
+                      </h2>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {progressQ.data?.progress.total_xp ?? 0} XP earned through matches,
+                        reflection, and focus.
+                      </p>
+                    </div>
+                    <Link
+                      to="/progress"
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Open progress <ChevronRight className="inline h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                        Coach quest
+                      </p>
+                      <p className="mt-1 text-sm font-semibold">
+                        {progressQ.data?.activeQuest?.title ?? "Build your baseline"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {progressQ.data?.activeQuest?.progress ?? 0} /{" "}
+                        {progressQ.data?.activeQuest?.target_value ?? 1} complete
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-background/30 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                        Player identity
+                      </p>
+                      <p className="mt-1 text-sm font-semibold">
+                        {progressQ.data?.insights?.[0]?.label ?? "Your first pattern is forming"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {progressQ.data?.insights?.[0]?.description ??
+                          "Save a match to unlock personalized insights."}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
             <section className="bento-tile p-5">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <p className="eyebrow">
-                    <Sparkles className="h-3.5 w-3.5" /> Coach's corner
+                    <Plus className="h-3.5 w-3.5" /> Your shortcuts
                   </p>
                   <h2 className="mt-1 font-display text-lg font-semibold">
-                    A note for your next session
+                    Built around your game
                   </h2>
                 </div>
-                <Link to="/ai" className="text-xs font-semibold text-primary hover:underline">
-                  Open AI <ChevronRight className="inline h-3.5 w-3.5" />
+                <Link to="/profile" className="text-xs font-semibold text-primary hover:underline">
+                  Customize <ChevronRight className="inline h-3.5 w-3.5" />
                 </Link>
               </div>
-              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                <p className="text-sm leading-6 text-foreground">
-                  {getCoachNote(stats, lastMatch, coachingTone, terminology)}
-                </p>
-                <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <Clock3 className="h-3.5 w-3.5 text-primary" />
-                  {lastMatch
-                    ? `Based on ${formatDate(lastMatch.started_at)}`
-                    : "Ready when you are"}
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Link
-                  to="/video"
-                  className="rounded-xl border border-white/10 bg-background/40 px-3 py-2.5 text-xs font-semibold transition hover:border-primary/30"
-                >
-                  <Play className="mr-1.5 inline h-3.5 w-3.5 text-primary" />
-                  Analyze a rally
-                </Link>
-                <Link
-                  to="/history"
-                  className="rounded-xl border border-white/10 bg-background/40 px-3 py-2.5 text-xs font-semibold transition hover:border-primary/30"
-                >
-                  <History className="mr-1.5 inline h-3.5 w-3.5 text-primary" />
-                  Review patterns
-                </Link>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { to: "/scoreboard", label: "Live scoreboard", icon: <Trophy /> },
+                  { to: "/ai", label: "AI Referee", icon: <Sparkles /> },
+                  { to: "/history", label: "Match history", icon: <History /> },
+                  { to: "/social", label: "Find a partner", icon: <Users /> },
+                ].map((s) => (
+                  <Link
+                    key={s.to}
+                    to={s.to}
+                    className="group flex items-center gap-3 rounded-xl border border-white/10 bg-background/30 px-3 py-3 transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/5"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      {s.icon}
+                    </span>
+                    <span className="flex-1 text-xs font-semibold">{s.label}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </Link>
+                ))}
               </div>
             </section>
           </div>
-
-          <section className="bento-tile p-5 sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="eyebrow">
-                  <Trophy className="h-3.5 w-3.5" /> Your progress
-                </p>
-                <h2 className="mt-1 font-display text-lg font-semibold">
-                  {progressQ.data?.progress.level_name ?? "New Player"}
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {progressQ.data?.progress.total_xp ?? 0} XP earned through matches, reflection,
-                  and focus.
-                </p>
-              </div>
-              <Link to="/progress" className="text-xs font-semibold text-primary hover:underline">
-                Open progress <ChevronRight className="inline h-3.5 w-3.5" />
-              </Link>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-                  Coach quest
-                </p>
-                <p className="mt-1 text-sm font-semibold">
-                  {progressQ.data?.activeQuest?.title ?? "Build your baseline"}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {progressQ.data?.activeQuest?.progress ?? 0} /{" "}
-                  {progressQ.data?.activeQuest?.target_value ?? 1} complete
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-background/30 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-                  Player identity
-                </p>
-                <p className="mt-1 text-sm font-semibold">
-                  {progressQ.data?.insights?.[0]?.label ?? "Your first pattern is forming"}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {progressQ.data?.insights?.[0]?.description ??
-                    "Save a match to unlock personalized insights."}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="bento-tile p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="eyebrow">
-                  <Plus className="h-3.5 w-3.5" /> Your shortcuts
-                </p>
-                <h2 className="mt-1 font-display text-lg font-semibold">Built around your game</h2>
-              </div>
-              <Link to="/profile" className="text-xs font-semibold text-primary hover:underline">
-                Customize <ChevronRight className="inline h-3.5 w-3.5" />
-              </Link>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { to: "/scoreboard", label: "Live scoreboard", icon: <Trophy /> },
-                { to: "/ai", label: "AI Referee", icon: <Sparkles /> },
-                { to: "/history", label: "Match history", icon: <History /> },
-                { to: "/social", label: "Find a partner", icon: <Users /> },
-              ].map((s) => (
-                <Link
-                  key={s.to}
-                  to={s.to}
-                  className="group flex items-center gap-3 rounded-xl border border-white/10 bg-background/30 px-3 py-3 transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/5"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    {s.icon}
-                  </span>
-                  <span className="flex-1 text-xs font-semibold">{s.label}</span>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
-                </Link>
-              ))}
-            </div>
-          </section>
-        </div>
+        )}
       </details>
     </div>
   );
@@ -687,51 +837,8 @@ function DashboardError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function isThisWeek(date: string) {
-  const d = new Date(date);
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  start.setHours(0, 0, 0, 0);
-  return d >= start;
-}
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-function getStats(matches: Match[]) {
-  const finished = matches.filter((m) => m.winner);
-  let wins = 0,
-    margin = 0,
-    games = 0,
-    decisiveGames = 0,
-    deciderWins = 0;
-  for (const m of finished) {
-    const won = m.winner === "A";
-    wins += won ? 1 : 0;
-    const isDecider = m.games.length >= 3;
-    if (isDecider) {
-      decisiveGames++;
-      if (m.games[m.games.length - 1]?.a > m.games[m.games.length - 1]?.b === won) deciderWins++;
-    }
-    for (const g of m.games) {
-      margin += Math.abs(g.a - g.b);
-      games++;
-    }
-  }
-  let streak = 0;
-  for (const m of finished) {
-    if (m.winner === "A") streak++;
-    else break;
-  }
-  return {
-    wins,
-    losses: Math.max(0, finished.length - wins),
-    winRate: finished.length ? Math.round((wins / finished.length) * 100) : 0,
-    streak,
-    avgMargin: games ? (margin / games).toFixed(1) : "0.0",
-    decisiveGames,
-    deciderWins,
-  };
 }
 function getUsualMatch(matches: Match[], profile: any) {
   const last = matches[0];
@@ -753,7 +860,7 @@ function getUsualMatch(matches: Match[], profile: any) {
   };
 }
 function getCoachNote(
-  stats: ReturnType<typeof getStats>,
+  stats: DashboardSummaryData["stats"],
   last: Match | undefined,
   tone: DashboardPrefs["coaching_tone"],
   terms: { rally: string; match: string },
@@ -779,7 +886,7 @@ function getCoachNote(
       : `Your average margin is ${stats.avgMargin} points. Find one repeatable way to protect the lead when ${rally}s get tight.`;
   return `Your next ${match} is a chance to establish a baseline. Add a note after you play and your coaching feed will get sharper.`;
 }
-function getBadges(stats: ReturnType<typeof getStats>) {
+function getBadges(stats: DashboardSummaryData["stats"]) {
   const badges: Array<{ label: string }> = [];
   if (stats.wins >= 1) badges.push({ label: "First win" });
   if (stats.streak >= 3) badges.push({ label: "On a streak" });
@@ -848,6 +955,27 @@ function EmptyState({ text }: { text: string }) {
   return (
     <div className="rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-muted-foreground">
       {text}
+    </div>
+  );
+}
+
+function SectionStatus({
+  error,
+  label,
+  onRetry,
+}: {
+  error?: boolean;
+  label: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div role={error ? "alert" : "status"} className="bento-tile p-5">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      {error && (
+        <button className="button-secondary mt-3" onClick={onRetry}>
+          Try again
+        </button>
+      )}
     </div>
   );
 }

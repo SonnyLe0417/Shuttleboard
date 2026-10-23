@@ -1,0 +1,118 @@
+{
+  "protocol": "Real expiry in two independent signed-in tabs. One paired warm-up discarded; ten measured returns per viewport. No query timestamps changed. Resources follow query starts after route onLeave, including intent prefetch before loader entry. DOM readiness starts at loader entry. One measurement wait timed out; the same delayed response was retained without another request.",
+  "status": "Complete development-server expiry observations; not the controlled production matrix",
+  "groups": [
+    {
+      "profile": "phone",
+      "test": "stale-return",
+      "samples": 10,
+      "viewport": {
+        "width": 390,
+        "height": 900
+      },
+      "primaryMs": [85.7, 9.5, 2.7, 3.5, 40.3, 21.9, 11.1, 17.7, 32.6, 5.6],
+      "summaryMs": [85.7, 9.5, 2.7, 3.5, 40.3, 21.9, 11.1, 17.7, 32.6, 5.7],
+      "waitMs": [100390, 69492, 70506, 72886, 76652, 79800, 68566, 72138, 86439, 130275],
+      "requestCounts": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+      "decodedApiBytes": [4340, 4340, 4340, 4340, 4340, 4340, 4340, 4340, 4340, 4340],
+      "coreRequestMs": [
+        [241.9],
+        [376.9],
+        [284.4],
+        [414.7],
+        [192.5],
+        [691.7],
+        [455.4],
+        [598.9],
+        [206.6],
+        [519.6]
+      ],
+      "summaryRequestMs": [
+        [266.3],
+        [335.1],
+        [240.4],
+        [322.6],
+        [262.2],
+        [530.1],
+        [323.1],
+        [479.9],
+        [282.8],
+        [431.1]
+      ],
+      "resourcesWithoutResponseTiming": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "allVisible": true,
+      "allRefreshesSuccessful": true,
+      "measurementWaitTimeouts": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "requestWindowStartMs": [
+        -160.4, -143.8, -222.7, -182.4, -90.9, -285.3, -298.3, -218.5, -82.8, -180.8
+      ]
+    },
+    {
+      "profile": "desktop",
+      "test": "stale-return",
+      "samples": 10,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "primaryMs": [40.3, 14.8, 43.1, 9.7, 13.3, 48.9, 75.6, 16.2, 15.7, 40.5],
+      "summaryMs": [40.4, 14.8, 43.1, 9.7, 13.4, 48.9, 75.6, 16.2, 15.7, 40.5],
+      "waitMs": [100390, 69492, 70506, 72886, 76652, 79800, 68566, 72138, 86439, 130275],
+      "requestCounts": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+      "decodedApiBytes": [4340, 4340, 4340, 4340, 4340, 4340, 4340, 4340, 4340, 4340],
+      "coreRequestMs": [
+        [246.9],
+        [161.5],
+        [208.8],
+        [179.5],
+        [178.4],
+        [308],
+        [170.5],
+        [264.9],
+        [160.1],
+        [119.9]
+      ],
+      "summaryRequestMs": [
+        [199.2],
+        [170.6],
+        [137],
+        [665.5],
+        [171.4],
+        [166.8],
+        [156.2],
+        [217.6],
+        [119.9],
+        [28643.9]
+      ],
+      "resourcesWithoutResponseTiming": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "allVisible": true,
+      "allRefreshesSuccessful": true,
+      "measurementWaitTimeouts": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "requestWindowStartMs": [
+        -244.4, -109.1, -83.6, -115.7, -135.6, -246.1, -121.2, -169, -106.5, -95.3
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-10-20T06:19:51.787Z",
+  "revision": "8471736ca76be6a85c800ba7944662f381138714",
+  "workingTreeSha256": "c7f690d43557f68287fa62f6929cbef1983687521e878c89329fc82f30df257e",
+  "entryAsset": "index-B6TwLXUu.js",
+  "entryBytes": 192272,
+  "staticInitialJavascriptBytes": 612295,
+  "staticInitialAssetCount": 10,
+  "contract": "legacy"
+}

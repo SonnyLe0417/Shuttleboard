@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 import importlib
 import json
@@ -29,7 +30,7 @@ import uuid
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from python_multipart import MultipartParser
 from python_multipart.multipart import parse_options_header
 from starlette.background import BackgroundTask
@@ -73,7 +74,7 @@ class Service:
         self.root = data_root.resolve()
         self.engine_factory = engine_factory
         self.engine = None
-        self.engine_variants: dict[str, Any] = {}
+        self.engine_variants: OrderedDict[str, Any] = OrderedDict()
         self.model_error: str | None = None
         self.model_attempted = False
         self.model_lock = threading.Lock()
@@ -144,15 +145,24 @@ class Service:
         key = json.dumps(settings, sort_keys=True, separators=(",", ":"))
         with self.lock:
             if key in self.engine_variants:
+                self.engine_variants.move_to_end(key)
                 return self.engine_variants[key]
+            candidates = [self.engine, *reversed(self.engine_variants.values())]
         try:
-            engine = self.engine_factory(settings)
+            reusable = next((candidate for candidate in candidates
+                             if callable(getattr(candidate, "can_reuse_models", None))
+                             and candidate.can_reuse_models(settings)), None)
+            engine = reusable.with_settings(settings) if reusable is not None else self.engine_factory(settings)
         except TypeError as exc:
             raise ValueError(
                 "This TrackNet service cannot apply per-video settings; restart it with environment variables."
             ) from exc
         with self.lock:
             self.engine_variants[key] = engine
+            # Model variants can consume hundreds of MB each. Keep recent choices
+            # warm without retaining every settings combination for the service's lifetime.
+            while len(self.engine_variants) > 3:
+                self.engine_variants.popitem(last=False)
         return engine
 
     def snapshot(self, job_id: str) -> dict[str, Any]:
@@ -196,7 +206,7 @@ class Service:
                 fraction = max(job["progress"], fraction)
                 job.update(progress=fraction, frames=max(0, int(frames)), total_frames=max(0, int(total)),
                            eta_seconds=(now - started) * (1 - fraction) / fraction if fraction else None)
-                if now - last_saved >= 0.5:
+                if now - last_saved >= 2.0:
                     self.persist(job_id)
                     last_saved = now
 
@@ -366,8 +376,8 @@ async def _receive_video(request: Request, directory: Path, limit: int) -> tuple
             received += len(chunk)
             if received > body_limit:
                 raise HTTPException(413, "Video upload is too large.")
-            for offset in range(0, len(chunk), 65536):
-                await asyncio.to_thread(parser.write, chunk[offset:offset + 65536])
+            for offset in range(0, len(chunk), 1024 * 1024):
+                await asyncio.to_thread(parser.write, chunk[offset:offset + 1024 * 1024])
         parser.finalize()
         if not upload.ended or not upload.part_ended or upload.path is None or not upload.size:
             raise HTTPException(400, "Video upload is empty or incomplete.")
@@ -537,7 +547,11 @@ def create_app(
             raise HTTPException(409, job.get("error", "Job is not complete."))
         try:
             path = _contained_file(state.root / job_id, "result.json")
-            return json.loads(path.read_text(encoding="utf-8"))
+            content = path.read_bytes()
+            json.loads(content)  # Preserve the damaged-result check for restored jobs.
+            # Already serialized by the worker. Avoid FastAPI walking and
+            # re-encoding every coordinate on each browser visit.
+            return Response(content=content, media_type="application/json")
         except (OSError, ValueError):
             raise HTTPException(404, "Stored job result is missing or damaged.") from None
 

@@ -43,10 +43,7 @@ function occlusionHole() {
 test("a 0.80s visibility hole with motion on both sides does not score", () => {
   const rallies = buildTrackNetRallies(occlusionHole(), IDENTITY_H);
   assert.deepEqual(rallies, []);
-  assert.equal(
-    rallies.filter((rally) => rallyCountsTowardScore(rally)).length,
-    0,
-  );
+  assert.equal(rallies.filter((rally) => rallyCountsTowardScore(rally)).length, 0);
 
   const scored = buildTrackNetRallies(floorRest(), IDENTITY_H);
   assert.equal(scored.length, 1);

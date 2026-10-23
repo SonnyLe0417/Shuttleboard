@@ -22,19 +22,19 @@ export function matchToCsv(state: MatchState): string {
 
 function escape(v: string) {
   const s = String(v).replace(/"/g, '""');
-  return /[,"\n]/.test(s) ? `"${s}"` : s;
+  return /[,"\r\n]/.test(s) ? `"${s}"` : s;
 }
 
 export function downloadText(filename: string, mime: string, contents: string) {
-  const blob = new Blob([contents], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(filename, new Blob([contents], { type: mime }));
+}
+
+export function totalMatchPoints(
+  state: Pick<MatchState, "completedGames" | "score" | "matchOver">,
+) {
+  const completed = state.completedGames.reduce((total, game) => total + game.a + game.b, 0);
+  // The final game's score is retained on screen and already in completedGames.
+  return completed + (state.matchOver ? 0 : state.score[0] + state.score[1]);
 }
 
 export function downloadBlob(filename: string, blob: Blob) {
@@ -112,7 +112,7 @@ export async function renderShareCard(state: MatchState): Promise<Blob> {
   ctx.fillText(`Games won: ${state.games[0]} — ${state.games[1]}`, 60, 400);
 
   // Stats grid
-  const totalPoints = state.score[0] + state.score[1];
+  const totalPoints = totalMatchPoints(state);
   const rallies = state.rallyHistory.length;
   const avgSec =
     rallies > 0 ? state.rallyHistory.reduce((s, r) => s + r.ms, 0) / rallies / 1000 : 0;

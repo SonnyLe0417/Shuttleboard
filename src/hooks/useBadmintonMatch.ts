@@ -189,7 +189,11 @@ export function useBadmintonMatch() {
         setState(restored);
       }
     } catch {
-      window.localStorage.removeItem(MATCH_DRAFT_KEY);
+      try {
+        window.localStorage.removeItem(MATCH_DRAFT_KEY);
+      } catch {
+        // Storage may be disabled; active scoring still works in memory.
+      }
     } finally {
       setDraftReady(true);
     }
@@ -197,7 +201,11 @@ export function useBadmintonMatch() {
 
   useEffect(() => {
     if (!draftReady) return;
-    window.localStorage.setItem(MATCH_DRAFT_KEY, JSON.stringify(state));
+    try {
+      window.localStorage.setItem(MATCH_DRAFT_KEY, JSON.stringify(state));
+    } catch {
+      // Quota or privacy settings must not interrupt an active match.
+    }
   }, [draftReady, state]);
 
   const teamName = useCallback(

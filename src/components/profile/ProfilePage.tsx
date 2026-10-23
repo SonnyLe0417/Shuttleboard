@@ -40,11 +40,7 @@ import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { sendTestPush } from "@/lib/push.functions";
 import { AvatarCropper } from "@/components/AvatarCropper";
 import { Palette as PaletteIcon } from "lucide-react";
-import {
-  DASHBOARD_CORE_QUERY_KEY,
-  PREFERENCES_QUERY_KEY,
-  PROFILE_QUERY_KEY,
-} from "@/lib/query-keys";
+import { invalidateDashboard, PREFERENCES_QUERY_KEY, PROFILE_QUERY_KEY } from "@/lib/query-keys";
 
 const PROFILE_GENDER_KEY = "shuttleboard.profile-gender.v1";
 const PROFILE_BIRTHDAY_KEY = "shuttleboard.profile-birthday.v1";
@@ -178,7 +174,7 @@ export function ProfilePage({ forceEditing = false }: { forceEditing?: boolean }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: PREFERENCES_QUERY_KEY }),
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY }),
+      invalidateDashboard(queryClient),
     ]);
   }
 

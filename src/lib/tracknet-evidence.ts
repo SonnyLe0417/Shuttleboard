@@ -42,9 +42,24 @@ export function summarizeTrackNetFrames(points: TrackNetPoint[]): TrackNetFrameD
   return result;
 }
 
+// Result arrays are immutable and chronological. Cache only visible points;
+// WeakMap lets a previous video's index be collected when it is discarded.
+const trailIndexes = new WeakMap<TrackNetPoint[], TrackNetPoint[]>();
+
 /** Used only by playback; retains both observed and repaired positions. */
 export function trackNetVisualTrail(points: TrackNetPoint[], time: number, limit = 40) {
-  return points
-    .filter((point) => hasVisibleTrackNetPosition(point) && point.time <= time)
-    .slice(-limit);
+  if (limit <= 0 || Number.isNaN(time)) return [];
+  let visible = trailIndexes.get(points);
+  if (!visible) {
+    visible = points.filter(hasVisibleTrackNetPosition);
+    trailIndexes.set(points, visible);
+  }
+  let low = 0;
+  let high = visible.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (visible[middle].time <= time) low = middle + 1;
+    else high = middle;
+  }
+  return visible.slice(Math.max(0, low - limit), low);
 }

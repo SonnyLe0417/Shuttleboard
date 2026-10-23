@@ -1,6 +1,8 @@
 @import "tailwindcss" source(none);
 @source "../src";
+@source not "./design-preview";
 @import "tw-animate-css";
+@import "./club.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -13,7 +15,7 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
 
-  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);

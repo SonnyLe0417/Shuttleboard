@@ -64,11 +64,7 @@ import { sendTestPush } from "@/lib/push.functions";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useSession } from "@/hooks/useSession";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  DASHBOARD_CORE_QUERY_KEY,
-  PREFERENCES_QUERY_KEY,
-  PROGRESS_QUERY_KEY,
-} from "@/lib/query-keys";
+import { invalidateDashboard, PREFERENCES_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -165,7 +161,7 @@ function SettingsPage() {
   const sendTestPushFn = useServerFn(sendTestPush);
   const push = usePushSubscription();
 
-  const [active, setActive] = useState<ThemeId>("court-neon");
+  const [active, setActive] = useState<ThemeId>("club");
   const [mode, setModeState] = useState<ColorMode>("dark");
   const [accent, setAccentState] = useState<string | null>(null);
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>({});
@@ -207,7 +203,7 @@ function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "preferences"] });
       queryClient.invalidateQueries({ queryKey: PREFERENCES_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      invalidateDashboard(queryClient);
       toast.success("Settings saved");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -224,7 +220,7 @@ function SettingsPage() {
     mutationFn: (data: { celebration_enabled: boolean }) => saveProgress({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      invalidateDashboard(queryClient);
     },
     onError: (error: Error) => toast.error(error.message),
   });

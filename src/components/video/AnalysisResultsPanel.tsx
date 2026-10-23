@@ -15,7 +15,7 @@ import {
   rallyDiagnostics,
   sparseRallyWarning,
 } from "@/lib/analysis-results";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface AnalysisResultsPanelProps {
   rallies: AnalysisRally[];
@@ -42,10 +42,14 @@ export function AnalysisResultsPanel({
 }: AnalysisResultsPanelProps) {
   const [reviewFilter, setReviewFilter] = useState<RallyReviewFilter>("all");
   const isTrackNet = tracknetPoints !== undefined;
-  const detections = countTrackNetDetections(tracknetPoints);
+  const detections = useMemo(() => countTrackNetDetections(tracknetPoints), [tracknetPoints]);
+  const tracknetConfidence = useMemo(
+    () => averageTrackNetConfidence(tracknetPoints),
+    [tracknetPoints],
+  );
   const hasScoredRallies = rallies.length > 0;
   const confidence = isTrackNet
-    ? averageTrackNetConfidence(tracknetPoints)
+    ? tracknetConfidence
     : rallies.length
       ? Math.round(
           (rallies.reduce((total, rally) => total + (rally.aiConfidence || 0.7), 0) /
@@ -57,7 +61,10 @@ export function AnalysisResultsPanel({
     score.p1 === score.p2 ? "Even match" : score.p1 > score.p2 ? "Player 1 led" : "Player 2 led";
   const visibleRallies = rallies.filter((rally) => reviewFilterMatches(rally, reviewFilter));
   const endings = rallyDiagnostics(rallies);
-  const frames = frameDiagnostics ?? summarizeTrackNetFrames(tracknetPoints ?? []);
+  const frames = useMemo(
+    () => frameDiagnostics ?? summarizeTrackNetFrames(tracknetPoints ?? []),
+    [frameDiagnostics, tracknetPoints],
+  );
   const warning = isTrackNet ? sparseRallyWarning(frames, rallies) : null;
 
   return (

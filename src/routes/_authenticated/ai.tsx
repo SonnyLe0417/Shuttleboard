@@ -119,29 +119,6 @@ function expandFlightZone(corners: CourtPoint[]): CourtPoint[] {
   }));
 }
 
-function pointInPolygon(point: CourtPoint, polygon: CourtPoint[]) {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const a = polygon[i];
-    const b = polygon[j];
-    const crosses = a.y > point.y !== b.y > point.y;
-    if (crosses && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-function landingTeam(point: CourtPoint, corners: CourtPoint[], p1Side: "left" | "right") {
-  if (corners.length !== 4 || !pointInPolygon(point, corners)) return null;
-  const p1Center = { x: (corners[0].x + corners[1].x) / 2, y: (corners[0].y + corners[1].y) / 2 };
-  const p2Center = { x: (corners[2].x + corners[3].x) / 2, y: (corners[2].y + corners[3].y) / 2 };
-  const p1Distance = Math.hypot(point.x - p1Center.x, point.y - p1Center.y);
-  const p2Distance = Math.hypot(point.x - p2Center.x, point.y - p2Center.y);
-  const onP1Side = p1Distance <= p2Distance;
-  return (p1Side === "left" ? onP1Side : !onP1Side) ? (2 as const) : (1 as const);
-}
-
 function chooseTrackingRoi(track: LocalTrack | null, videoAspect: number): TrackingRoi {
   if (!track) return { x: 0, y: 0, width: 1, height: 1 };
   // A confident lock gets a tight crop; uncertainty automatically widens the
@@ -216,7 +193,6 @@ function AiVisionPage() {
   const localFpsWindowRef = useRef({ frames: 0, startedAt: 0 });
   const localStatusRef = useRef(0);
   const liveConnectionRef = useRef<LiveTrackNetConnection | null>(null);
-  const liveFrameRef = useRef(0);
   const liveAwaitingRef = useRef(false);
   const liveReadyRef = useRef(false);
   const liveVisibleHistoryRef = useRef<Array<{ x: number; y: number; confidence: number }>>([]);
@@ -232,7 +208,6 @@ function AiVisionPage() {
   const rallyRef = useRef(new LiveRally());
   const reviewRef = useRef(false);
   const [pointReview, setPointReview] = useState<string | null>(null);
-  const [fps, setFps] = useState(0);
   const [localFps, setLocalFps] = useState(0);
   const [localConfidence, setLocalConfidence] = useState(0);
   const [tracknetFps, setTracknetFps] = useState(0);
@@ -475,7 +450,6 @@ function AiVisionPage() {
     const image = captureFrame();
     if (!image) return;
     const sequence = ++analysisSequenceRef.current;
-    const started = performance.now();
     // Attach the current motion track as temporal context so the model
     // can sanity-check its localization against recent movement.
     const local = localTrackRef.current;
@@ -514,9 +488,6 @@ function AiVisionPage() {
       }
       setError(null);
       const aiData = data as TrackResult;
-
-      const elapsed = performance.now() - started;
-      setFps(Math.round((1000 / Math.max(elapsed, 1)) * 10) / 10);
 
       // AI is a recovery sensor as well as a line judge. If it sees a strong
       // position that disagrees with a stale/coasting local track, hand the

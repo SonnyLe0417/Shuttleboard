@@ -41,6 +41,7 @@ export function loadCourtCalibration(raw: string | null) {
       !hasFourCourtCorners(value.corners as Point[]) ||
       !Array.isArray(value.homography) ||
       value.homography.length !== 9 ||
+      !value.homography.every(Number.isFinite) ||
       !value.corners.every(
         (point) =>
           Boolean(point) &&
@@ -58,6 +59,12 @@ export function loadCourtCalibration(raw: string | null) {
 }
 
 export function saveCourtCalibration(corners: Point[], homography: number[]) {
-  if (!hasFourCourtCorners(corners) || homography.length !== 9) return null;
+  if (
+    !hasFourCourtCorners(corners) ||
+    !corners.every((point) => point && Number.isFinite(point.x) && Number.isFinite(point.y)) ||
+    homography.length !== 9 ||
+    !homography.every(Number.isFinite)
+  )
+    return null;
   return JSON.stringify({ corners, homography });
 }

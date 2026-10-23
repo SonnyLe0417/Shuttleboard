@@ -1,4 +1,4 @@
-export type ThemeId = "court-neon" | "ember" | "paper" | "emerald" | "indigo";
+export type ThemeId = "club" | "court-neon" | "ember" | "paper" | "emerald" | "indigo";
 export type ColorMode = "light" | "dark";
 export type TextScale = "normal" | "large" | "xlarge";
 
@@ -9,6 +9,13 @@ export const THEMES: {
   swatches: string[];
   mode: "dark" | "light";
 }[] = [
+  {
+    id: "club",
+    name: "Sports Club",
+    tagline: "Warm white · court green",
+    swatches: ["#F7F7F2", "#18221D", "#176348"],
+    mode: "light",
+  },
   {
     id: "court-neon",
     name: "Court Neon",
@@ -56,7 +63,7 @@ const HAPTICS_KEY = "shuttleboard-haptics";
 const VOICE_KEY = "shuttleboard-voice";
 const TEXT_SCALE_KEY = "shuttleboard-text-scale";
 const COLOR_BLIND_KEY = "shuttleboard-color-blind";
-const DEFAULT: ThemeId = "court-neon";
+const DEFAULT: ThemeId = "club";
 
 export type A11yPrefs = {
   mode: ColorMode;
@@ -79,7 +86,7 @@ export function getStoredTheme(): ThemeId {
 export function getStoredPrefs(): A11yPrefs {
   if (typeof window === "undefined") {
     return {
-      mode: "dark",
+      mode: "light",
       highContrast: false,
       reducedMotion: false,
       accent: null,
@@ -90,7 +97,9 @@ export function getStoredPrefs(): A11yPrefs {
       colorBlindPalette: false,
     };
   }
-  const mode = (window.localStorage.getItem(MODE_KEY) as ColorMode | null) ?? "dark";
+  const mode =
+    (window.localStorage.getItem(MODE_KEY) as ColorMode | null) ??
+    (window.localStorage.getItem(STORAGE_KEY) ? "dark" : "light");
   const accent = window.localStorage.getItem(ACCENT_KEY);
   const readBool = (k: string, def: boolean) => {
     const v = window.localStorage.getItem(k);
@@ -219,11 +228,12 @@ export function syncAccessibilityPrefs(prefs: Partial<A11yPrefs>) {
 export function applyTheme(id: ThemeId, prefs?: A11yPrefs) {
   if (typeof document === "undefined") return;
   const p = prefs ?? getStoredPrefs();
-  const effective: ThemeId = p.mode === "light" ? "paper" : id;
+  const effective: ThemeId = id === "club" ? "club" : p.mode === "light" ? "paper" : id;
   const root = document.documentElement;
   root.dataset.theme = effective;
+  root.dataset.mode = p.mode;
   const meta = THEMES.find((t) => t.id === effective);
-  if (meta?.mode === "light") root.classList.remove("dark");
+  if (id === "club" ? p.mode === "light" : meta?.mode === "light") root.classList.remove("dark");
   else root.classList.add("dark");
   applyPrefs(p);
 }

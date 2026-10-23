@@ -1,3 +1,4 @@
+import { mergePreferencePatch } from "./preferences-patch";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -417,7 +418,7 @@ const preferencesSchema = z.object({
       voice: z.boolean().optional(),
     })
     .default({}),
-  public_profile_enabled: z.boolean().default(false),
+  public_profile_enabled: z.boolean().optional(),
 });
 
 export const getMyPreferences = createServerFn({ method: "GET" })
@@ -460,15 +461,7 @@ export const updateMyPreferences = createServerFn({ method: "POST" })
     }
     if (existingError) throw new Error(existingError.message);
     const current = (existing ?? {}) as Record<string, any>;
-    const payload = {
-      id: context.userId,
-      match_defaults: { ...(current.match_defaults ?? {}), ...data.match_defaults },
-      dashboard: { ...(current.dashboard ?? {}), ...data.dashboard },
-      notifications: { ...(current.notifications ?? {}), ...data.notifications },
-      accessibility: { ...(current.accessibility ?? {}), ...data.accessibility },
-      public_profile_enabled:
-        data.public_profile_enabled ?? current.public_profile_enabled ?? false,
-    } as any;
+    const payload = mergePreferencePatch(current, data, context.userId);
     let { error } = await context.supabase.from("user_preferences").upsert(payload);
     if (error && isMissingPreferenceColumn(error, "accessibility")) {
       const { accessibility: _accessibility, ...legacyPayload } = payload;

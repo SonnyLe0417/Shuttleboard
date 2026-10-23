@@ -1,0 +1,247 @@
+.club-landing {
+  max-width: 1440px;
+  margin: auto;
+}
+.club-public-header {
+  padding: 30px 7.5%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.club-public-header nav {
+  display: flex;
+  gap: 32px;
+}
+.club-public-header a,
+.club-hero-actions a,
+.club-landing-story a {
+  display: inline-flex;
+  gap: 16px;
+  align-items: center;
+  min-height: 44px;
+}
+.club-menu-button {
+  display: none;
+}
+.club-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  padding: 30px 7.5% 48px;
+}
+.club-hero > div {
+  padding-top: 30px;
+}
+.club-hero h1 {
+  font-size: clamp(52px, 5.5vw, 80px);
+  font-weight: 700;
+  letter-spacing: -0.065em;
+  line-height: 1.08;
+  margin: 32px 0;
+}
+.club-hero h1 em {
+  color: var(--primary);
+  font-style: normal;
+}
+.club-hero-copy {
+  color: var(--muted-foreground);
+  line-height: 1.8;
+}
+.club-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 30px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.club-fine-print {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.7;
+  margin-top: 16px;
+}
+.club-hero-signoff {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 50px;
+}
+.club-hero figure {
+  height: 588px;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.club-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 65%;
+}
+.club-hero figcaption {
+  position: absolute;
+  inset: auto 24px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  text-shadow: 0 1px 4px #18221d;
+  font-size: 21px;
+  font-weight: 600;
+}
+.club-hero figcaption span + span {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+.club-landing-strip {
+  margin: 0 4%;
+  padding: 24px 4%;
+  border-block: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 12px;
+}
+.club-landing-strip span {
+  color: var(--muted-foreground);
+}
+.club-landing-story {
+  padding: 90px 7.5%;
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 64px;
+  align-items: center;
+  scroll-margin-top: 24px;
+}
+.club-landing h2 {
+  font-size: clamp(30px, 3.2vw, 46px);
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+.club-landing-story h2 {
+  margin: 24px 0;
+}
+.club-landing-story > div > p:not(.eyebrow) {
+  color: var(--muted-foreground);
+  line-height: 1.8;
+}
+.club-landing-story > div > a {
+  margin-top: 24px;
+  font-weight: 700;
+}
+.club-landing-story > img {
+  width: 100%;
+  height: 430px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.club-landing-close {
+  padding: 70px 7.5%;
+  background: var(--secondary);
+  text-align: center;
+}
+.club-landing-close h2 {
+  margin: 25px 0;
+}
+.club-landing-close p {
+  color: var(--muted-foreground);
+}
+.club-landing-close a {
+  display: inline-flex;
+  margin-top: 28px;
+  gap: 18px;
+}
+.club-public-footer {
+  padding: 36px 7.5%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 12px;
+}
+.club-public-menu {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.club-public-menu a {
+  padding: 14px 0;
+}
+@media (max-width: 1023px) {
+  .club-hero {
+    gap: 30px;
+    padding-inline: 5%;
+  }
+  .club-public-header {
+    padding-inline: 5%;
+  }
+  .club-landing-story {
+    padding-inline: 5%;
+    gap: 30px;
+  }
+  .club-hero h1 {
+    font-size: 58px;
+  }
+  .club-hero figure {
+    height: 540px;
+  }
+}
+@media (max-width: 700px) {
+  .club-public-header {
+    padding: 24px;
+  }
+  .club-public-header nav {
+    display: none;
+  }
+  .club-menu-button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+  }
+  .club-hero {
+    display: block;
+    padding: 0 24px 30px;
+  }
+  .club-hero > div {
+    padding: 18px 0 30px;
+  }
+  .club-hero h1 {
+    font-size: clamp(48px, 12vw, 72px);
+  }
+  .club-hero-signoff {
+    display: none;
+  }
+  .club-hero figure {
+    height: 390px;
+  }
+  .club-hero figcaption {
+    font-size: 19px;
+  }
+  .club-landing-strip {
+    flex-direction: column;
+    font-size: 11px;
+  }
+  .club-landing-story {
+    grid-template-columns: 1fr;
+    padding: 52px 24px;
+    gap: 32px;
+  }
+  .club-landing-story > img {
+    height: 300px;
+  }
+  .club-landing-close {
+    padding: 48px 24px;
+  }
+  .club-public-footer {
+    padding: 30px 24px;
+  }
+  .club-hero-copy {
+    font-size: 15px;
+  }
+}

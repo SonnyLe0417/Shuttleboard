@@ -107,8 +107,10 @@ export function CourtCalibrationPanel({
         </div>
 
         {analysisMode === "tracknet" && (
-          <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3">
-            <p className="text-xs font-semibold text-foreground">TrackNet processing</p>
+          <details className="mt-3 rounded-md border border-border p-3">
+            <summary className="text-sm font-semibold cursor-pointer">
+              TrackNet engine settings
+            </summary>
             <p className="mt-1 text-[11px] text-muted-foreground">
               Running: {tracknetEngine === "unknown" ? "check the server" : tracknetEngine}. V3
               choices apply when the app was started with TRACKNET_ENGINE=v3.
@@ -197,7 +199,7 @@ export function CourtCalibrationPanel({
                 />
               </label>
             </div>
-          </div>
+          </details>
         )}
 
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">

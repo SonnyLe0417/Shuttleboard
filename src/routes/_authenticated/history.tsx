@@ -29,7 +29,7 @@ import {
 import { Share2 } from "lucide-react";
 import { getMyProfile } from "@/lib/matches.functions";
 import { renderProgressShareCard, renderHeadToHeadShareCard } from "@/lib/match-export";
-import { DASHBOARD_CORE_QUERY_KEY, MATCHES_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
+import { invalidateDashboard, MATCHES_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({
@@ -60,14 +60,14 @@ function HistoryPage() {
       toast.success("Match deleted");
       qc.invalidateQueries({ queryKey: MATCHES_QUERY_KEY });
       qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
-      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      invalidateDashboard(qc);
     },
     onError: (e: any) => toast.error(e.message ?? "Delete failed"),
   });
 
   return (
     <div className="space-y-8">
-      <header>
+      <header className="club-page-heading">
         <h1 className="font-display text-3xl font-bold">Match history</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Saved games, rivalries, and quick manual entry.
@@ -76,7 +76,7 @@ function HistoryPage() {
 
       {matches && matches.length > 0 && <PerformanceSnapshot matches={matches as any[]} />}
 
-      <div className="grid gap-6 md:grid-cols-[1fr,320px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="rounded-2xl border border-white/10 bg-card/60 p-5 backdrop-blur">
           <div className="mb-4 flex items-center gap-2">
             <Trophy className="h-4 w-4 text-primary" />
@@ -97,7 +97,7 @@ function HistoryPage() {
             </div>
           ) : !matches || matches.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No matches yet. Log one with the form on the right.
+              No matches yet. Add your first result using the match form.
             </p>
           ) : (
             <ul className="space-y-2">
@@ -280,7 +280,7 @@ function MatchRow({ match, onDelete }: { match: any; onDelete: () => void }) {
       });
       toast.success("Saved");
       qc.invalidateQueries({ queryKey: MATCHES_QUERY_KEY });
-      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      invalidateDashboard(qc);
       setEditing(false);
     } catch (err: any) {
       toast.error(err.message ?? "Save failed");
@@ -295,7 +295,7 @@ function MatchRow({ match, onDelete }: { match: any; onDelete: () => void }) {
       await saveReflection({ data: { match_id: match.id, ...reflection } });
       toast.success("Reflection saved");
       qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
-      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      invalidateDashboard(qc);
       setReflectionOpen(false);
     } catch (err: any) {
       toast.error(err.message ?? "Reflection failed");
@@ -319,7 +319,7 @@ function MatchRow({ match, onDelete }: { match: any; onDelete: () => void }) {
       });
       toast.success("Opponent strategy saved privately");
       qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
-      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      invalidateDashboard(qc);
       setMemoryOpen(false);
     } catch (err: any) {
       toast.error(err.message ?? "Strategy note failed");
@@ -770,7 +770,7 @@ function LogMatchCard() {
         );
       qc.invalidateQueries({ queryKey: MATCHES_QUERY_KEY });
       qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
-      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      invalidateDashboard(qc);
       setAName(defaults.starting_a ?? "");
       setBName(defaults.starting_b ?? "");
       setBHandle("");

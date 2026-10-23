@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/junior-rankings")({
 function JuniorRankingsPage() {
   return (
     <div className="space-y-6">
-      <header className="relative overflow-hidden rounded-3xl border border-primary/20 bg-card/70 p-6 shadow-[0_20px_80px_oklch(0.16_0.04_190/0.3)] sm:p-8">
+      <header className="club-page-heading relative overflow-hidden rounded-3xl border border-primary/20 bg-card/70 p-6 shadow-[0_20px_80px_oklch(0.16_0.04_190/0.3)] sm:p-8">
         <div className="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />
         <div className="relative flex flex-wrap items-end justify-between gap-5">
           <div>

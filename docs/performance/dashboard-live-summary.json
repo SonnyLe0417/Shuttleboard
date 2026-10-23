@@ -1,0 +1,294 @@
+{
+  "environment": "localhost:5173 development server; real signed-in Chrome; unthrottled",
+  "metric": "DOM availability, not paint or interaction latency",
+  "results": [
+    {
+      "profile": "desktop",
+      "test": "warm-reload",
+      "samples": 10,
+      "medianMs": 1381.55,
+      "p90Ms": 1746.6,
+      "summaryMedianMs": 1397.05,
+      "minimumRequestCount": 3,
+      "maximumRequestCount": 4,
+      "medianDecodedApiBytes": 4525,
+      "allVisible": true,
+      "resourcesWithoutResponseTiming": 1,
+      "measurementWaitTimeouts": 0,
+      "requestTiming": {
+        "core": {
+          "medianMs": 151.6,
+          "p90Ms": 223.2,
+          "maximumMs": 236.7
+        },
+        "summary": {
+          "medianMs": 194.45,
+          "p90Ms": 267.5,
+          "maximumMs": 289
+        },
+        "details": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "onboarding": {
+          "medianMs": 100.94999999999999,
+          "p90Ms": 270.2,
+          "maximumMs": 943
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "test": "cached-return",
+      "samples": 10,
+      "medianMs": 5.65,
+      "p90Ms": 9.2,
+      "summaryMedianMs": 5.65,
+      "minimumRequestCount": 0,
+      "maximumRequestCount": 0,
+      "medianDecodedApiBytes": 0,
+      "allVisible": true,
+      "resourcesWithoutResponseTiming": 0,
+      "measurementWaitTimeouts": 0,
+      "requestTiming": {
+        "core": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "summary": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "details": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "onboarding": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "test": "open-details",
+      "samples": 10,
+      "medianMs": 392.6,
+      "p90Ms": 449.5,
+      "summaryMedianMs": 880.9000000000001,
+      "minimumRequestCount": 4,
+      "maximumRequestCount": 4,
+      "medianDecodedApiBytes": 10637,
+      "allVisible": true,
+      "resourcesWithoutResponseTiming": 0,
+      "measurementWaitTimeouts": 0,
+      "requestTiming": {
+        "core": {
+          "medianMs": 131,
+          "p90Ms": 187.2,
+          "maximumMs": 286.4
+        },
+        "summary": {
+          "medianMs": 143.1,
+          "p90Ms": 170,
+          "maximumMs": 223.8
+        },
+        "details": {
+          "medianMs": 156.5,
+          "p90Ms": 189.2,
+          "maximumMs": 668.7
+        },
+        "onboarding": {
+          "medianMs": 93.65,
+          "p90Ms": 124.4,
+          "maximumMs": 254
+        }
+      }
+    },
+    {
+      "profile": "phone",
+      "test": "warm-reload",
+      "samples": 10,
+      "medianMs": 879.55,
+      "p90Ms": 1032.6,
+      "summaryMedianMs": 879.5999999999999,
+      "minimumRequestCount": 3,
+      "maximumRequestCount": 3,
+      "medianDecodedApiBytes": 4525,
+      "allVisible": true,
+      "resourcesWithoutResponseTiming": 0,
+      "measurementWaitTimeouts": 0,
+      "requestTiming": {
+        "core": {
+          "medianMs": 111,
+          "p90Ms": 151.2,
+          "maximumMs": 155.8
+        },
+        "summary": {
+          "medianMs": 128.2,
+          "p90Ms": 216.9,
+          "maximumMs": 247.1
+        },
+        "details": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "onboarding": {
+          "medianMs": 90.5,
+          "p90Ms": 113,
+          "maximumMs": 187.1
+        }
+      }
+    },
+    {
+      "profile": "phone",
+      "test": "cached-return",
+      "samples": 10,
+      "medianMs": 4.9,
+      "p90Ms": 7.4,
+      "summaryMedianMs": 4.9,
+      "minimumRequestCount": 0,
+      "maximumRequestCount": 0,
+      "medianDecodedApiBytes": 0,
+      "allVisible": true,
+      "resourcesWithoutResponseTiming": 0,
+      "measurementWaitTimeouts": 0,
+      "requestTiming": {
+        "core": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "summary": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "details": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "onboarding": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        }
+      }
+    },
+    {
+      "profile": "phone",
+      "test": "open-details",
+      "samples": 10,
+      "medianMs": 401.4,
+      "p90Ms": 419.6,
+      "summaryMedianMs": 957.9,
+      "minimumRequestCount": 4,
+      "maximumRequestCount": 5,
+      "medianDecodedApiBytes": 10637,
+      "allVisible": true,
+      "resourcesWithoutResponseTiming": 2,
+      "measurementWaitTimeouts": 0,
+      "requestTiming": {
+        "core": {
+          "medianMs": 173.75,
+          "p90Ms": 322.7,
+          "maximumMs": 361.5
+        },
+        "summary": {
+          "medianMs": 162.7,
+          "p90Ms": 295.9,
+          "maximumMs": 689.9
+        },
+        "details": {
+          "medianMs": 133.89999999999998,
+          "p90Ms": 162.3,
+          "maximumMs": 200.4
+        },
+        "onboarding": {
+          "medianMs": 115.75,
+          "p90Ms": 233.2,
+          "maximumMs": 343.3
+        }
+      }
+    },
+    {
+      "profile": "phone",
+      "test": "stale-return",
+      "samples": 10,
+      "medianMs": 14.399999999999999,
+      "p90Ms": 40.3,
+      "summaryMedianMs": 14.399999999999999,
+      "minimumRequestCount": 2,
+      "maximumRequestCount": 2,
+      "medianDecodedApiBytes": 4340,
+      "allVisible": true,
+      "resourcesWithoutResponseTiming": 0,
+      "measurementWaitTimeouts": 0,
+      "requestTiming": {
+        "core": {
+          "medianMs": 395.79999999999995,
+          "p90Ms": 598.9,
+          "maximumMs": 691.7
+        },
+        "summary": {
+          "medianMs": 322.85,
+          "p90Ms": 479.9,
+          "maximumMs": 530.1
+        },
+        "details": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "onboarding": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "test": "stale-return",
+      "samples": 10,
+      "medianMs": 28.25,
+      "p90Ms": 48.9,
+      "summaryMedianMs": 28.299999999999997,
+      "minimumRequestCount": 2,
+      "maximumRequestCount": 2,
+      "medianDecodedApiBytes": 4340,
+      "allVisible": true,
+      "resourcesWithoutResponseTiming": 0,
+      "measurementWaitTimeouts": 1,
+      "requestTiming": {
+        "core": {
+          "medianMs": 178.95,
+          "p90Ms": 264.9,
+          "maximumMs": 308
+        },
+        "summary": {
+          "medianMs": 171,
+          "p90Ms": 665.5,
+          "maximumMs": 28643.9
+        },
+        "details": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        },
+        "onboarding": {
+          "medianMs": null,
+          "p90Ms": null,
+          "maximumMs": null
+        }
+      }
+    }
+  ]
+}

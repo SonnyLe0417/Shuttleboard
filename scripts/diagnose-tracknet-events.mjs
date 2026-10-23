@@ -7,8 +7,9 @@ import { isDirectTrackNetDetection } from "../src/lib/tracknet-evidence.ts";
 
 export function replayTrackNetPoints(points, sourceOffset = 0) {
   if (!Number.isFinite(sourceOffset) || sourceOffset < 0) throw new Error("Invalid source offset.");
-  const provenanceAware = points.some((point) =>
-    point.detected !== undefined || point.repaired !== undefined);
+  const provenanceAware = points.some(
+    (point) => point.detected !== undefined || point.repaired !== undefined,
+  );
   let state = createRallyEndState();
   let previousTime = -Infinity;
   let evidenceFrames = 0;
@@ -57,7 +58,9 @@ export function replayTrackNetPoints(points, sourceOffset = 0) {
       confidence: event.point.confidence,
       lastSeenX: event.point.x,
       lastSeenY: event.point.y,
-      gapEnding: event.reasons.some((reason) => reason.includes("Direct shuttle detections disappeared")),
+      gapEnding: event.reasons.some((reason) =>
+        reason.includes("Direct shuttle detections disappeared"),
+      ),
     });
     evidenceFrames = startsNextRally ? 1 : 0;
   }
@@ -79,12 +82,18 @@ function better(first, second) {
 
 /** Maximize one-to-one matches, then minimize total absolute time error. */
 export function matchProposals(labels, proposals, { coreStart, coreEnd, tolerance = 2 }) {
-  if (![coreStart, coreEnd, tolerance].every(Number.isFinite) || coreEnd <= coreStart || tolerance < 0)
+  if (
+    ![coreStart, coreEnd, tolerance].every(Number.isFinite) ||
+    coreEnd <= coreStart ||
+    tolerance < 0
+  )
     throw new Error("Invalid evaluation interval or tolerance.");
-  const eligibleLabels = labels.filter((label) => Number.isFinite(label.end) &&
-    label.end >= coreStart && label.end <= coreEnd).sort((a, b) => a.end - b.end);
-  const eligibleEvents = proposals.filter((event) => event.emittedTime >= coreStart &&
-    event.emittedTime <= coreEnd).sort((a, b) => a.emittedTime - b.emittedTime);
+  const eligibleLabels = labels
+    .filter((label) => Number.isFinite(label.end) && label.end >= coreStart && label.end <= coreEnd)
+    .sort((a, b) => a.end - b.end);
+  const eligibleEvents = proposals
+    .filter((event) => event.emittedTime >= coreStart && event.emittedTime <= coreEnd)
+    .sort((a, b) => a.emittedTime - b.emittedTime);
   const n = eligibleLabels.length;
   const m = eligibleEvents.length;
   const dp = Array.from({ length: n + 1 }, () => Array(m + 1));
@@ -99,8 +108,11 @@ export function matchProposals(labels, proposals, { coreStart, coreEnd, toleranc
         const error = Math.abs(eligibleLabels[i - 1].end - eligibleEvents[j - 1].emittedTime);
         if (error <= tolerance) {
           const prior = dp[i - 1][j - 1];
-          choices.push({ matches: prior.matches + 1, error: prior.error + error,
-            pairs: [...prior.pairs, [i - 1, j - 1]] });
+          choices.push({
+            matches: prior.matches + 1,
+            error: prior.error + error,
+            pairs: [...prior.pairs, [i - 1, j - 1]],
+          });
         }
       }
       dp[i][j] = choices.reduce(better);
@@ -113,10 +125,13 @@ export function matchProposals(labels, proposals, { coreStart, coreEnd, toleranc
     const event = eligibleEvents[eventIndex];
     matchedLabelIds.add(label.id);
     matchedEventIds.add(event.id);
-    return { rallyId: label.id, proposalId: event.id,
+    return {
+      rallyId: label.id,
+      proposalId: event.id,
       differenceSeconds: event.emittedTime - label.end,
       lastSeenDifferenceSeconds: event.lastSeenTime - label.end,
-      uncertainEnd: Boolean(label.endUncertain) };
+      uncertainEnd: Boolean(label.endUncertain),
+    };
   });
   const unmatchedLabels = eligibleLabels.filter((label) => !matchedLabelIds.has(label.id));
   const classifiedProposals = proposals.map((event) => {
@@ -124,8 +139,8 @@ export function matchProposals(labels, proposals, { coreStart, coreEnd, toleranc
       return { proposalId: event.id, status: "padding" };
     const match = matches.find((item) => item.proposalId === event.id);
     if (match) return { proposalId: event.id, status: "matched", rallyId: match.rallyId };
-    const nearest = eligibleLabels.filter((label) =>
-      Math.abs(label.end - event.emittedTime) <= tolerance)
+    const nearest = eligibleLabels
+      .filter((label) => Math.abs(label.end - event.emittedTime) <= tolerance)
       .sort((a, b) => Math.abs(a.end - event.emittedTime) - Math.abs(b.end - event.emittedTime))[0];
     return nearest
       ? { proposalId: event.id, status: "duplicate", rallyId: nearest.id }
@@ -144,7 +159,9 @@ export function matchProposals(labels, proposals, { coreStart, coreEnd, toleranc
   };
 }
 
-function loadJson(path) { return JSON.parse(readFileSync(path, "utf8")); }
+function loadJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
 
 export function compareManifest(manifest) {
   const labels = loadJson(manifest.labelsPath);
@@ -155,21 +172,36 @@ export function compareManifest(manifest) {
     const selectedLabels = labels.rallies.filter((label) => label.group === clip.id);
     const runs = clip.runs.map((run) => {
       const report = loadJson(run.benchmarkPath);
-      if (report.status !== "completed" || report.input.content_sha256 !== sample.sample_content_sha256)
+      if (
+        report.status !== "completed" ||
+        report.input.content_sha256 !== sample.sample_content_sha256
+      )
         throw new Error(`Run is incomplete or input video differs: ${run.benchmarkPath}`);
       const points = loadJson(resolve(run.benchmarkPath, "..", "coordinates.json"));
-      if (points.length !== report.frames) throw new Error("Coordinate count differs from the run report.");
+      if (points.length !== report.frames)
+        throw new Error("Coordinate count differs from the run report.");
       const replay = replayTrackNetPoints(points, sample.start_seconds);
       return {
-        engine: report.engine, settings: report.settings, timing: report.timing,
-        memory: report.memory, inputSha256: report.input.content_sha256,
+        engine: report.engine,
+        settings: report.settings,
+        timing: report.timing,
+        memory: report.memory,
+        inputSha256: report.input.content_sha256,
         replay,
-        comparison: matchProposals(selectedLabels, replay.proposals,
-          { coreStart: clip.coreStart, coreEnd: clip.coreEnd }),
+        comparison: matchProposals(selectedLabels, replay.proposals, {
+          coreStart: clip.coreStart,
+          coreEnd: clip.coreEnd,
+        }),
       };
     });
-    return { id: clip.id, sample, coreStart: clip.coreStart, coreEnd: clip.coreEnd,
-      labels: selectedLabels, runs };
+    return {
+      id: clip.id,
+      sample,
+      coreStart: clip.coreStart,
+      coreEnd: clip.coreEnd,
+      labels: selectedLabels,
+      runs,
+    };
   });
   return { schemaVersion: 1, sourceSha256: labels.sourceSha256, clips };
 }
@@ -177,7 +209,9 @@ export function compareManifest(manifest) {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const [manifestPath, outputPath] = process.argv.slice(2);
   if (!manifestPath || !outputPath) {
-    console.error("Usage: node --import ./scripts/register-typescript.mjs scripts/diagnose-tracknet-events.mjs MANIFEST.json OUTPUT.json");
+    console.error(
+      "Usage: node --import ./scripts/register-typescript.mjs scripts/diagnose-tracknet-events.mjs MANIFEST.json OUTPUT.json",
+    );
     process.exitCode = 2;
   } else {
     const result = compareManifest(loadJson(resolve(manifestPath)));

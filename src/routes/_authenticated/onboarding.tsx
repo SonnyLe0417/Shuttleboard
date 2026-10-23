@@ -14,7 +14,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { completeOnboarding, getMyProfile, getMyPreferences } from "@/lib/matches.functions";
-import { PRESETS, type PresetId } from "@/lib/badminton-rules";
+import { PRESETS } from "@/lib/badminton-rules";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({ meta: [{ title: "Welcome · ShuttleBoard" }] }),
@@ -57,7 +57,7 @@ function OnboardingWizard() {
   const [homeCourt, setHomeCourt] = useState("");
   const [primaryFocus, setPrimaryFocus] = useState<(typeof FOCUS_OPTIONS)[number]>("Consistency");
 
-  const [preset, setPreset] = useState<PresetId>("21");
+  const preset = "21";
   const [mode, setMode] = useState<"singles" | "doubles">("singles");
   const [courtColor, setCourtColor] = useState<string>("#1b4332");
 

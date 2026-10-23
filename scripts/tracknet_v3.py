@@ -6,13 +6,17 @@ Frame stride moves the sequence window; it never drops frames within a sequence.
 from __future__ import annotations
 
 import json
+import copy
 import os
 import shutil
 import subprocess
 import sys
 import time
 from collections import deque
+from contextlib import contextmanager
 from pathlib import Path
+from queue import Queue, Full
+import threading
 
 import cv2
 import numpy as np
@@ -85,7 +89,11 @@ def background(path, info, samples, width, height, mode, cancelled):
             frames.append(frame)
         if not frames:
             raise ValueError("Cannot read video background.")
-        median = np.median(np.asarray(frames), axis=0)[..., ::-1]
+        # Median may partition its private stack in place. Avoid a second
+        # full-resolution copy of all samples (large on 1080p/4K uploads).
+        stack = np.asarray(frames)
+        frames.clear()
+        median = np.median(stack, axis=0, overwrite_input=True)[..., ::-1]
         if mode == "concat":
             median = np.asarray(Image.fromarray(median.astype("uint8")).resize((width, height)))
             median = np.moveaxis(median, -1, 0)
@@ -110,6 +118,7 @@ def frame_windows(path, length, stride, median, width, height, mode, cancelled):
     history = deque(maxlen=length)
     index = -1
     last_start = -1
+    normalized_median = median.astype("float32") / 255.0 if mode == "concat" else None
     try:
         while True:
             check_cancel(cancelled)
@@ -117,13 +126,14 @@ def frame_windows(path, length, stride, median, width, height, mode, cancelled):
             if not ok:
                 break
             index += 1
-            history.append(prepare_frame(frame, median, width, height, mode))
+            # Normalize each frame once, rather than once per overlapping window.
+            history.append(prepare_frame(frame, median, width, height, mode).astype("float32") / 255.0)
             start = index - length + 1
             if len(history) == length and start % stride == 0:
                 items = list(history)
                 if mode == "concat":
-                    items.insert(0, median)
-                yield start, np.concatenate(items).astype("float32") / 255.0, length
+                    items.insert(0, normalized_median)
+                yield start, np.concatenate(items), length
                 last_start = start
         count = index + 1
         if not count:
@@ -132,17 +142,75 @@ def frame_windows(path, length, stride, median, width, height, mode, cancelled):
         if count < length:
             items = list(history) + [history[-1]] * (length - count)
             if mode == "concat":
-                items.insert(0, median)
-            yield 0, np.concatenate(items).astype("float32") / 255.0, count
+                items.insert(0, normalized_median)
+            yield 0, np.concatenate(items), count
         elif last_start + length < count:
             start = last_start + stride
             valid = count - start
             items = list(history)[-valid:] + [history[-1]] * (length - valid)
             if mode == "concat":
-                items.insert(0, median)
-            yield start, np.concatenate(items).astype("float32") / 255.0, valid
+                items.insert(0, normalized_median)
+            yield start, np.concatenate(items), valid
     finally:
         cap.release()
+
+
+@contextmanager
+def prefetch_windows(source, depth=2):
+    """Overlap decoding/preprocessing with inference using bounded memory.
+
+    The producer owns the capture iterator and closes it on every exit path.
+    No frames are skipped or reordered; exceptions cross the queue unchanged.
+    """
+    if depth <= 0:
+        try:
+            yield source
+        finally:
+            close = getattr(source, "close", None)
+            if close:
+                close()
+        return
+    queue = Queue(maxsize=depth)
+    stopped = threading.Event()
+
+    def send(value):
+        while not stopped.is_set():
+            try:
+                queue.put(value, timeout=0.05)
+                return
+            except Full:
+                pass
+
+    def produce():
+        try:
+            for item in source:
+                if stopped.is_set():
+                    break
+                send(("item", item))
+        except BaseException as exc:
+            send(("error", exc))
+        finally:
+            close = getattr(source, "close", None)
+            if close:
+                close()
+            send(("done", None))
+
+    def consume():
+        while True:
+            kind, value = queue.get()
+            if kind == "error":
+                raise value
+            if kind == "done":
+                return
+            yield value
+
+    worker = threading.Thread(target=produce, name="tracknet-decode", daemon=True)
+    worker.start()
+    try:
+        yield consume()
+    finally:
+        stopped.set()
+        worker.join()
 
 
 def decode_heatmap(heatmap, width, height):
@@ -213,6 +281,8 @@ class V3Engine:
         self.device = str(settings.get("device", os.getenv("TRACKNET_DEVICE", "AUTO"))).upper()
         if self.backend == "pytorch" and self.device == "GPU":
             self.device = "CUDA"
+        self.requested_device = self.device
+        self.intra_threads = int(settings.get("intraThreads", os.getenv("TRACKNET_INTRA_THREADS", "2")))
         self.width = int(os.getenv("TRACKNET_WIDTH", "512"))
         self.height = int(os.getenv("TRACKNET_HEIGHT", "288"))
         self.batch_size = int(os.getenv("TRACKNET_BATCH_SIZE", "1"))
@@ -221,6 +291,10 @@ class V3Engine:
         inpaint_value = settings.get("inpaint", os.getenv("TRACKNET_INPAINT", "1"))
         self.inpaint = inpaint_value if isinstance(inpaint_value, bool) else str(inpaint_value).lower() not in {"0", "false", "off"}
         self.samples = int(os.getenv("TRACKNET_BACKGROUND_SAMPLES", "120"))
+        # Keep concurrency opt-in until a device-specific benchmark shows a gain.
+        self.prefetch = int(os.getenv("TRACKNET_PREFETCH_WINDOWS", "0"))
+        if not 0 <= self.prefetch <= 8:
+            raise ValueError("TRACKNET_PREFETCH_WINDOWS must be between 0 and 8.")
         self.precision = os.getenv("TRACKNET_PRECISION", "f32")
         if self.precision not in {"f32", "f16"}:
             raise ValueError("TRACKNET_PRECISION must be f32 or f16.")
@@ -232,7 +306,7 @@ class V3Engine:
             raise ValueError("TRACKNET_EVAL_MODE must be weight, average, or nonoverlap.")
         if self.backend == "pytorch":
             import torch
-            torch.set_num_threads(int(settings.get("intraThreads", os.getenv("TRACKNET_INTRA_THREADS", "2"))))
+            torch.set_num_threads(self.intra_threads)
             self.track, self.repair, meta = load_torch_models()
             target = "cuda" if self.device == "AUTO" and torch.cuda.is_available() else "cpu"
             if self.device not in {"AUTO", "CPU", "CUDA"}:
@@ -254,7 +328,7 @@ class V3Engine:
             core = ov.Core()
             config = {"PERFORMANCE_HINT": "LATENCY", "INFERENCE_PRECISION_HINT": self.precision}
             if self.device == "CPU":
-                config["INFERENCE_NUM_THREADS"] = int(settings.get("intraThreads", os.getenv("TRACKNET_INTRA_THREADS", "2")))
+                config["INFERENCE_NUM_THREADS"] = self.intra_threads
             cache = directory / "cache"
             cache.mkdir(exist_ok=True)
             config["CACHE_DIR"] = str(cache)
@@ -281,6 +355,32 @@ class V3Engine:
         if self.eval_mode == "nonoverlap":
             self.stride = self.seq_len
 
+    def can_reuse_models(self, settings):
+        backend = str(settings.get("backend", os.getenv("TRACKNET_BACKEND", "openvino"))).lower()
+        device = str(settings.get("device", os.getenv("TRACKNET_DEVICE", "AUTO"))).upper()
+        if backend == "pytorch" and device == "GPU":
+            device = "CUDA"
+        inpaint = settings.get("inpaint", os.getenv("TRACKNET_INPAINT", "1"))
+        inpaint = inpaint if isinstance(inpaint, bool) else str(inpaint).lower() not in {"0", "false", "off"}
+        return (backend == self.backend and device == self.requested_device
+                and int(settings.get("intraThreads", os.getenv("TRACKNET_INTRA_THREADS", "2"))) == self.intra_threads
+                and (not inpaint or self.repair is not None))
+
+    def with_settings(self, settings):
+        """Share compiled models for sequential jobs; never mutate another job's settings."""
+        if not self.can_reuse_models(settings):
+            raise ValueError("These settings require different compiled models.")
+        engine = copy.copy(self)
+        engine.eval_mode = str(settings.get("evalMode", os.getenv("TRACKNET_EVAL_MODE", "weight")))
+        if engine.eval_mode not in {"weight", "average", "nonoverlap"}:
+            raise ValueError("TRACKNET_EVAL_MODE must be weight, average, or nonoverlap.")
+        inpaint = settings.get("inpaint", os.getenv("TRACKNET_INPAINT", "1"))
+        engine.inpaint = inpaint if isinstance(inpaint, bool) else str(inpaint).lower() not in {"0", "false", "off"}
+        engine.stride = self.seq_len if engine.eval_mode == "nonoverlap" else int(os.getenv("TRACKNET_FRAME_STRIDE", "1"))
+        if not 1 <= engine.stride <= self.seq_len:
+            raise ValueError("V3 frame stride must be between 1 and its sequence length.")
+        return engine
+
     def infer(self, inputs, repair=False):
         model = self.repair if repair else self.track
         arrays = [np.ascontiguousarray(x, dtype="float32") for x in inputs]
@@ -304,6 +404,7 @@ class V3Engine:
             raise ValueError("Cannot determine the video's frame count.")
         median = background(video_path, info, self.samples, self.width, self.height,
                             self.bg_mode, cancelled) if self.bg_mode else None
+        background_done = time.perf_counter()
         progress(0.05, 0, info["frames"])
         predictions = []
         pending = {}
@@ -312,10 +413,8 @@ class V3Engine:
 
         def finish(until):
             for index in sorted(k for k in pending if k < until):
-                plain, weighted, count, total_weight = pending.pop(index)
-                # Upstream averages uniformly at the beginning and end of a clip.
-                interior = self.seq_len - 1 <= index <= info["frames"] - self.seq_len
-                heatmap = weighted / total_weight if self.eval_mode == "weight" and interior else plain / count
+                accumulated, total_weight = pending.pop(index)
+                heatmap = accumulated / total_weight
                 x, y, confidence = decode_heatmap(heatmap, info["width"], info["height"])
                 if index != len(predictions):
                     raise RuntimeError("Unexpected gap in V3 frame output.")
@@ -329,33 +428,38 @@ class V3Engine:
                 for offset in range(valid):
                     index = start + offset
                     heatmap = maps[offset]
-                    weight = float(weights[offset])
+                    # Only the chosen aggregation is needed. Upstream uses
+                    # uniform weights at clip edges, even in weighted mode.
+                    interior = self.seq_len - 1 <= index <= info["frames"] - self.seq_len
+                    weight = float(weights[offset]) if self.eval_mode == "weight" and interior else 1.0
                     if index not in pending:
-                        pending[index] = [heatmap.copy(), heatmap * weight, 1, weight]
+                        pending[index] = [heatmap.copy() if weight == 1 else heatmap * weight, weight]
                     else:
                         item = pending[index]
-                        item[0] += heatmap
-                        item[1] += heatmap * weight
-                        item[2] += 1
-                        item[3] += weight
+                        item[0] += heatmap if weight == 1 else heatmap * weight
+                        item[1] += weight
                 progress(0.05 + 0.75 * min((start + valid) / info["frames"], 1), start + valid, info["frames"])
 
         batch = []
-        for item in frame_windows(video_path, self.seq_len, self.stride, median,
-                                  self.width, self.height, self.bg_mode, cancelled):
-            batch.append(item)
-            if len(batch) == self.batch_size:
+        source = frame_windows(video_path, self.seq_len, self.stride, median,
+                               self.width, self.height, self.bg_mode, cancelled)
+        with prefetch_windows(source, getattr(self, "prefetch", 0)) as windows:
+            for item in windows:
+                batch.append(item)
+                if len(batch) == self.batch_size:
+                    run_batch(batch)
+                    batch = []
+            if batch:
                 run_batch(batch)
-                batch = []
-        if batch:
-            run_batch(batch)
         finish(float("inf"))
+        tracking_done = time.perf_counter()
         points = np.asarray(predictions, dtype="float32")
         xy = points[:, :2] / np.array([info["width"], info["height"]], dtype="float32")
         original_visible = np.any(points[:, :2] != 0, axis=1)
         repaired = np.zeros(len(xy), dtype=bool)
         if self.inpaint:
             xy, repaired = self.repair_trajectory(xy, info, cancelled)
+        repair_done = time.perf_counter()
         coordinates = []
         for i, (x, y) in enumerate(xy):
             px, py = int(float(x) * info["width"]), int(float(y) * info["height"])
@@ -378,6 +482,11 @@ class V3Engine:
                        frame_stride=self.stride, eval_mode=self.eval_mode, inpaint=self.inpaint,
                        width=self.width, height=self.height, batch_size=self.batch_size,
                        background_samples=self.samples, inference_seconds=inference_seconds,
+                       background_seconds=background_done - start_time,
+                       tracking_seconds=tracking_done - background_done,
+                       repair_seconds=repair_done - tracking_done,
+                       encoding_seconds=time.perf_counter() - start_time - inference_seconds,
+                       prefetch_windows=getattr(self, "prefetch", 0),
                        elapsed_seconds=time.perf_counter() - start_time,
                        direct_detected_frames=int(original_visible.sum()), repaired_frames=int(repaired.sum()))
         (output_dir / "coordinates.json").write_text(json.dumps(coordinates), encoding="utf-8")
@@ -398,6 +507,9 @@ class V3Engine:
         starts = list(range(0, max(1, count - length + 1), stride))
         if starts[-1] + length < count:
             starts.append(starts[-1] + stride)
+        # Fully observed windows cannot contribute to any repaired frame.
+        # Keep every overlapping window that contains a missing position.
+        starts = [start for start in starts if mask[start:start + length].any()]
         sums = np.zeros_like(xy)
         totals = np.zeros(count, dtype="float32")
         weights = np.minimum(np.arange(length) + 1, np.arange(length, 0, -1)).astype("float32")
@@ -418,7 +530,7 @@ class V3Engine:
                     weight = float(weights[j]) if self.eval_mode == "weight" and length - 1 <= index <= count - length else 1.0
                     sums[index] += sequence[j] * weight
                     totals[index] += weight
-        result = sums / totals[:, None]
+        result = np.divide(sums, totals[:, None], out=xy.copy(), where=totals[:, None] > 0)
         result[np.all(result < 50 / np.hypot(288, 512), axis=1)] = 0
         # Leave observed positions intact. InpaintNet estimates are not measured confidence.
         result[mask == 0] = xy[mask == 0]

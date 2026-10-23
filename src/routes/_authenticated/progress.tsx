@@ -12,7 +12,7 @@ import {
   updateProgressSettings,
   refreshMyProgress,
 } from "@/lib/progress.functions";
-import { DASHBOARD_CORE_QUERY_KEY, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
+import { invalidateDashboard, PROGRESS_QUERY_KEY } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/progress")({
   head: () => ({ meta: [{ title: "Progress · ShuttleBoard" }] }),
@@ -31,7 +31,7 @@ function ProgressPage() {
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY }),
-        qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY }),
+        invalidateDashboard(qc),
       ]);
       toast.success("Progress synchronized with your saved matches");
     },
@@ -53,7 +53,7 @@ function ProgressPage() {
     }) => saveSettings({ data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: PROGRESS_QUERY_KEY });
-      qc.invalidateQueries({ queryKey: DASHBOARD_CORE_QUERY_KEY });
+      invalidateDashboard(qc);
       toast.success("Progress settings saved");
     },
     onError: (error: Error) => {
@@ -151,7 +151,7 @@ function ProgressPage() {
       </header>
 
       {summary?.setupRequired && (
-        <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
+        <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-foreground">
           Progress is in preview mode because the Supabase migration has not been applied yet. Your
           existing match insights still work; XP, quests, achievements, and saved reflections will
           activate after the migration is deployed.

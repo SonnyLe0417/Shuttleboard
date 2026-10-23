@@ -1,24 +1,15 @@
-import { useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import { useSyncExternalStore } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { createSessionStore } from "@/lib/session-store";
+
+const store = createSessionStore<Session>((publish) => {
+  // INITIAL_SESSION supplies the stored session after SDK initialization.
+  // Subsequent events keep every consumer current, including across tabs.
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => publish(session));
+  return () => data.subscription.unsubscribe();
+});
 
 export function useSession() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  return { session, user, loading };
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
 }

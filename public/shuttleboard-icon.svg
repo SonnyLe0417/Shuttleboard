@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">ShuttleBoard app icon</title>
+  <rect width="64" height="64" rx="12" fill="#176348"/>
+  <g transform="translate(8 8)" fill="none" stroke="#F7F7F2" stroke-width="2.8" stroke-linejoin="round">
+    <path d="M8 7 16 32H32L40 7 29 11 24 5 19 11Z"/>
+    <path d="M19 11 21 32M29 11 27 32M10 14 17 18M38 14 31 18M16 32H32V35A8 8 0 0 1 16 35Z"/>
+  </g>
+</svg>

@@ -180,9 +180,7 @@ function asVisibleSample(point: TrackNetPoint): VisibleSample | null {
 
 function parseStubs(stubs: ReadonlyArray<{ x: number; y: number }> | undefined): PlayerStub[] {
   if (!stubs) return [];
-  return stubs.filter(
-    (stub) => Number.isFinite(stub.x) && Number.isFinite(stub.y),
-  );
+  return stubs.filter((stub) => Number.isFinite(stub.x) && Number.isFinite(stub.y));
 }
 
 function stepIsStill(from: VisibleSample, to: VisibleSample) {
@@ -284,7 +282,12 @@ function classifyRest(
   const landing = projectCourtLanding(homography, episode.centroid);
   const winner: "p1" | "p2" = landing.courtY > 0.5 ? "p2" : "p1";
   const offCamera = restOffCamera(episode.centroid);
-  if (offCamera || !landing.inBounds || !Number.isFinite(landing.courtX) || !Number.isFinite(landing.courtY)) {
+  if (
+    offCamera ||
+    !landing.inBounds ||
+    !Number.isFinite(landing.courtX) ||
+    !Number.isFinite(landing.courtY)
+  ) {
     return { kind: "review", episode, landing, winner, offCamera };
   }
   if (episode.centroid.y <= SERVE_READY_MAX_Y && !hadDownwardApproach(span, episode)) {
