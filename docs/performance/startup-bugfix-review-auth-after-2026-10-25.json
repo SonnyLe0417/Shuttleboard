@@ -1,0 +1,24 @@
+{
+  "synthetic": true,
+  "accountAccess": false,
+  "checks": [
+    {
+      "name": "import failure on /auth shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on /settings shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /auth shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /settings shows Reload and preserves storage",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "browser": "156.0.4314.42"
+}

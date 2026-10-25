@@ -67,7 +67,7 @@ function ScoreboardRoute() {
 function ScoreboardPage() {
   const queryClient = useQueryClient();
   const match = useSharedBadmintonMatch();
-  const { user, loading: sessionLoading } = useSession();
+  const { user, loading: sessionLoading, error: sessionError } = useSession();
   const {
     state,
     setName,
@@ -108,7 +108,7 @@ function ScoreboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (sessionLoading) return;
+    if (sessionLoading || sessionError) return;
     if (user) {
       setTrialStatus("available");
       return;
@@ -121,7 +121,7 @@ function ScoreboardPage() {
     }
     window.localStorage.setItem(trialKey, "used");
     setTrialStatus("available");
-  }, [sessionLoading, user]);
+  }, [sessionLoading, sessionError, user]);
 
   const verdict = state.landing
     ? landingVerdict(
@@ -338,7 +338,7 @@ function ScoreboardPage() {
 
   // Keep these returns after every hook so the scoreboard never changes its
   // hook order when the session or one-time preview status resolves.
-  if (sessionLoading || trialStatus === "checking") return <ScoreboardLoading />;
+  if (sessionLoading || sessionError || trialStatus === "checking") return <ScoreboardLoading />;
   if (!user && trialStatus === "used") return <TrialGate />;
 
   if (referee) {

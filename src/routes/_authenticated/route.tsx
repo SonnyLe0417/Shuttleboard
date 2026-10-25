@@ -1,11 +1,12 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { loadBrowserSupabase } from "@/lib/browser-supabase";
 import { getOnboardingStatus } from "@/lib/matches.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location, context }) => {
     // This client guard only controls navigation; server functions still verify JWTs and RLS.
+    const supabase = await loadBrowserSupabase();
     const { data, error } = await supabase.auth.getSession();
     const user = data.session?.user;
     if (error || !user) throw redirect({ to: "/auth" });

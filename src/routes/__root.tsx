@@ -15,8 +15,10 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ThemeInit } from "../components/ThemeInit";
 import { useSession } from "../hooks/useSession";
-import { supabase } from "../integrations/supabase/client";
+import { loadBrowserSupabase } from "../lib/browser-supabase";
+import { deferredSubscription } from "../lib/deferred-subscription";
 import { LoaderCircle } from "lucide-react";
+import { SessionRecovery } from "../components/SessionRecovery";
 import {
   TrackNetAnalysisProvider,
   useTrackNetAnalysis,
@@ -75,9 +77,12 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const { error: sessionError } = useSession();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+
+  if (error.name === "SessionLoadError" || sessionError) return <SessionRecovery />;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -177,23 +182,30 @@ function RootContent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const { pathname } = useLocation();
-  const { user } = useSession();
+  const { user, error: sessionError } = useSession();
+  const publicContent = pathname === "/" || pathname === "/rules" || pathname.startsWith("/p/");
 
   useEffect(() => {
     let previousUserId: string | null | undefined;
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      const nextUserId = session?.user.id ?? null;
-      const changed = previousUserId !== undefined && previousUserId !== nextUserId;
-      previousUserId = nextUserId;
-      if (changed || event === "SIGNED_OUT") {
-        queryClient.clear();
-        queueMicrotask(() => void router.invalidate());
-      } else if (event === "USER_UPDATED") {
-        void queryClient.invalidateQueries({ queryKey: ["me", "profile"] });
-        void queryClient.invalidateQueries({ queryKey: ["dashboard", "core"] });
-      }
-    });
-    return () => sub.subscription.unsubscribe();
+    return deferredSubscription(
+      loadBrowserSupabase(),
+      (supabase) => {
+        const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+          const nextUserId = session?.user.id ?? null;
+          const changed = previousUserId !== undefined && previousUserId !== nextUserId;
+          previousUserId = nextUserId;
+          if (changed || event === "SIGNED_OUT") {
+            queryClient.clear();
+            queueMicrotask(() => void router.invalidate());
+          } else if (event === "USER_UPDATED") {
+            void queryClient.invalidateQueries({ queryKey: ["me", "profile"] });
+            void queryClient.invalidateQueries({ queryKey: ["dashboard", "core"] });
+          }
+        });
+        return () => sub.subscription.unsubscribe();
+      },
+      (error) => reportLovableError(error, { boundary: "auth_subscription" }),
+    );
   }, [router, queryClient]);
 
   return (
@@ -211,8 +223,11 @@ function RootContent() {
       <TrackNetProgressBanner />
       <ThemeInit />
       <main id="main-content" className={pathname === "/" ? "club-public-content" : "club-content"}>
+        {sessionError && publicContent && <SessionRecovery inline />}
         <div className="club-route">
-          {pathname === "/" || pathname === "/rules" || pathname.startsWith("/p/") ? (
+          {sessionError && !publicContent ? (
+            <SessionRecovery />
+          ) : publicContent ? (
             <Outlet />
           ) : (
             <ClientOnly

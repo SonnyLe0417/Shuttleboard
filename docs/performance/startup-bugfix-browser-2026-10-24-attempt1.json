@@ -1,0 +1,97 @@
+{
+  "synthetic": true,
+  "accountAccess": false,
+  "checks": [
+    {
+      "name": "import failure on /scoreboard shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on / shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on /rules shows Reload and preserves storage",
+      "passed": false,
+      "error": "page.waitForEvent: Timeout 30000ms exceeded while waiting for event \"domcontentloaded\"\n=========================== logs ===========================\nwaiting for event \"domcontentloaded\"\n============================================================"
+    },
+    {
+      "name": "import failure on /p/synthetic shows Reload and preserves storage",
+      "passed": false,
+      "error": "page.waitForEvent: Timeout 30000ms exceeded while waiting for event \"domcontentloaded\"\n=========================== logs ===========================\nwaiting for event \"domcontentloaded\"\n============================================================"
+    },
+    {
+      "name": "subscription failure on /scoreboard shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on / shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /rules shows Reload and preserves storage",
+      "passed": false,
+      "error": "page.waitForEvent: Timeout 30000ms exceeded while waiting for event \"domcontentloaded\"\n=========================== logs ===========================\nwaiting for event \"domcontentloaded\"\n============================================================"
+    },
+    {
+      "name": "subscription failure on /p/synthetic shows Reload and preserves storage",
+      "passed": false,
+      "error": "page.waitForEvent: Timeout 30000ms exceeded while waiting for event \"domcontentloaded\"\n=========================== logs ===========================\nwaiting for event \"domcontentloaded\"\n============================================================"
+    },
+    {
+      "name": "preparation timeout exposes export and a successful retry retains records and caps",
+      "passed": false,
+      "error": "page.waitForFunction: Timeout 30000ms exceeded."
+    }
+  ],
+  "passed": false,
+  "browser": "156.0.4314.42",
+  "collectorFailure": {
+    "schema": 2,
+    "samples": [
+      {
+        "id": "0040f7c6-6188-4a53-9fd1-4856773d4e9c",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "reload",
+        "warmup": true,
+        "readyMs": null,
+        "summaryMs": null,
+        "classification": "timeout",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": 2,
+        "scheduled": false,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 0,
+        "protocol": 3,
+        "batchId": "failed-preparation",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 0,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 4,
+        "navigationNumber": 5,
+        "requests": 1,
+        "exposedTransferBytes": 0,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [],
+        "document": null
+      }
+    ],
+    "batches": [
+      {
+        "id": "failed-preparation",
+        "sessionId": "synthetic-session",
+        "build": "baseline",
+        "scenario": "cached-return",
+        "status": "timeout"
+      }
+    ],
+    "stopReason": "timeout"
+  }
+}

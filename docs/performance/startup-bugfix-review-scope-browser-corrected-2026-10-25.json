@@ -1,0 +1,33 @@
+{
+  "synthetic": true,
+  "accountAccess": false,
+  "passed": false,
+  "interrupted": true,
+  "recordSource": "Observed terminal output preserved after stopping the run once the common bootstrap failure was confirmed",
+  "checks": [
+    {
+      "name": "import failure on /scoreboard shows Reload and preserves storage",
+      "passed": false,
+      "error": "Reload was not visible within 30000ms"
+    },
+    {
+      "name": "import failure on / shows Reload and preserves storage",
+      "passed": false,
+      "error": "Reload was not visible within 30000ms"
+    },
+    {
+      "name": "import failure on /rules shows Reload and preserves storage",
+      "passed": false,
+      "error": "Reload was not visible within 30000ms"
+    },
+    {
+      "name": "import failure on /p/synthetic shows Reload and preserves storage",
+      "passed": false,
+      "error": "Reload was not visible within 30000ms"
+    }
+  ],
+  "remainingChecks": "Incomplete or unobserved; no success is inferred",
+  "cause": "The proposed scope omitted the SDK group's includeDependenciesRecursively=false setting. Its generated SDK chunk also exported Vite's shared preload helper; blocking the SDK blocked bootstrap before recovery could mount.",
+  "collectorRecords": [],
+  "collectorScenarioStarted": false
+}

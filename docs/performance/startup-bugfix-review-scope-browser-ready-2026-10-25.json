@@ -1,0 +1,609 @@
+{
+  "synthetic": true,
+  "accountAccess": false,
+  "checks": [
+    {
+      "name": "import failure on /scoreboard shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on / shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on /rules shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on /p/synthetic shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on /auth shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on /settings shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on /reset-password shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "import failure on /dashboard shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /scoreboard shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on / shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /rules shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /p/synthetic shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /auth shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /settings shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "subscription failure on /reset-password shows Reload and preserves storage",
+      "passed": true
+    },
+    {
+      "name": "preparation timeout exposes export and a successful retry retains records and caps",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "browser": "156.0.4314.42",
+  "collectorFailure": {
+    "schema": 2,
+    "samples": [
+      {
+        "id": "2e548c99-780a-465e-b95a-36aed11abf11",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "reload",
+        "warmup": true,
+        "readyMs": null,
+        "summaryMs": null,
+        "classification": "timeout",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": 2.5,
+        "scheduled": false,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 0,
+        "protocol": 3,
+        "batchId": "failed-preparation",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 0,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 7,
+        "navigationNumber": 5,
+        "requests": 2,
+        "exposedTransferBytes": 30290,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          6.699999988079071
+        ],
+        "document": {
+          "responseStartMs": 18.600000023841858,
+          "domContentLoadedMs": 97.10000002384186,
+          "loadMs": 97.80000001192093
+        }
+      }
+    ],
+    "batches": [
+      {
+        "id": "failed-preparation",
+        "sessionId": "synthetic-session",
+        "build": "baseline",
+        "scenario": "cached-return",
+        "status": "timeout"
+      }
+    ],
+    "stopReason": "timeout"
+  },
+  "collectorCompleted": {
+    "samples": [
+      {
+        "id": "2e548c99-780a-465e-b95a-36aed11abf11",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "reload",
+        "warmup": true,
+        "readyMs": null,
+        "summaryMs": null,
+        "classification": "timeout",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": 2.5,
+        "scheduled": false,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 0,
+        "protocol": 3,
+        "batchId": "failed-preparation",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 0,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 7,
+        "navigationNumber": 5,
+        "requests": 2,
+        "exposedTransferBytes": 30290,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          6.699999988079071
+        ],
+        "document": {
+          "responseStartMs": 18.600000023841858,
+          "domContentLoadedMs": 97.10000002384186,
+          "loadMs": 97.80000001192093
+        }
+      },
+      {
+        "id": "327f0ded-4871-4815-a87d-ea8c022813b4",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "reload",
+        "warmup": true,
+        "readyMs": 148,
+        "summaryMs": 148,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": 2.399999976158142,
+        "scheduled": false,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 0,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 0,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 30674,
+        "navigationNumber": 6,
+        "requests": 2,
+        "exposedTransferBytes": 30290,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          11.100000023841858
+        ],
+        "document": {
+          "responseStartMs": 53.40000003576279,
+          "domContentLoadedMs": 111.40000003576279,
+          "loadMs": 112.40000003576279
+        }
+      },
+      {
+        "id": "458fb6bb-6e84-456e-9c91-33d4db23fa91",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": true,
+        "readyMs": 16,
+        "summaryMs": 16,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 1316.9000000357628,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 0,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 31885,
+        "navigationNumber": 7,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          4.300000011920929
+        ],
+        "document": null
+      },
+      {
+        "id": "7176d562-a387-40f4-8e6f-7eea2f72feb4",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 3.5,
+        "summaryMs": 3.5,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 2496,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 1,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 33064,
+        "navigationNumber": 8,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          7.799999952316284
+        ],
+        "document": null
+      },
+      {
+        "id": "227af279-bf51-45b6-91b7-bccf9c27dd4d",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 15.800000011920929,
+        "summaryMs": 15.800000011920929,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 3667.199999988079,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 2,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 34235,
+        "navigationNumber": 9,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          5.400000035762787
+        ],
+        "document": null
+      },
+      {
+        "id": "23bc4176-84aa-4b9d-af5f-c159877df1a5",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 16.30000001192093,
+        "summaryMs": 16.30000001192093,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 4849.800000011921,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 3,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 35417,
+        "navigationNumber": 10,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          4.899999976158142
+        ],
+        "document": null
+      },
+      {
+        "id": "19ba8807-7eab-4192-b5b0-a973f64fbd84",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 3.099999964237213,
+        "summaryMs": 3.099999964237213,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 6029.600000023842,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 4,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 36597,
+        "navigationNumber": 11,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          5.299999952316284
+        ],
+        "document": null
+      },
+      {
+        "id": "2c80f964-689c-47cf-88b5-95c4af24409b",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 16.099999964237213,
+        "summaryMs": 16.099999964237213,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 7200.100000023842,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 5,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 37768,
+        "navigationNumber": 12,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          6.099999964237213
+        ],
+        "document": null
+      },
+      {
+        "id": "32c94dc8-d5ca-4d73-ab5a-6f7c6ef09088",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 16.200000047683716,
+        "summaryMs": 16.200000047683716,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 8383.199999988079,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 6,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 38951,
+        "navigationNumber": 13,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          5.899999976158142
+        ],
+        "document": null
+      },
+      {
+        "id": "571a48ac-5c87-4121-be6a-062355a5e916",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 16,
+        "summaryMs": 16,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 9566.600000023842,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 7,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 40134,
+        "navigationNumber": 14,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          7.200000047683716
+        ],
+        "document": null
+      },
+      {
+        "id": "152f25e9-2615-4671-aefd-04b683faec44",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 10.900000035762787,
+        "summaryMs": 10.900000035762787,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 10755,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 8,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 41323,
+        "navigationNumber": 15,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          6.300000011920929
+        ],
+        "document": null
+      },
+      {
+        "id": "4f619b34-c9bd-4eff-a246-c365046aa8d5",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 8.700000047683716,
+        "summaryMs": 8.700000047683716,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 11924.199999988079,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 9,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 42492,
+        "navigationNumber": 16,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          4.599999964237213
+        ],
+        "document": null
+      },
+      {
+        "id": "085124a1-e433-4a3b-a7e2-49e5b4f6ef1b",
+        "build": "baseline",
+        "fingerprint": "synthetic",
+        "scenario": "cached-return",
+        "warmup": false,
+        "readyMs": 16.200000047683716,
+        "summaryMs": 16.200000047683716,
+        "classification": "complete",
+        "backgrounded": false,
+        "failures": 0,
+        "resourceErrors": 0,
+        "hookSetupMs": null,
+        "scheduled": true,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "elapsedSinceDocumentMs": 13099.699999988079,
+        "protocol": 3,
+        "batchId": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "sampleIndex": 10,
+        "cacheWindowValid": true,
+        "sessionElapsedMs": 43667,
+        "navigationNumber": 17,
+        "requests": 1,
+        "exposedTransferBytes": 15145,
+        "javascriptTransferBytes": 0,
+        "zeroOrUnavailableTransferEntries": 0,
+        "resourceDurationsMs": [
+          5.300000011920929
+        ],
+        "document": null
+      }
+    ],
+    "batches": [
+      {
+        "id": "failed-preparation",
+        "sessionId": "synthetic-session",
+        "build": "baseline",
+        "scenario": "cached-return",
+        "status": "timeout"
+      },
+      {
+        "id": "6d56ff64-6ec6-432a-9f0f-d21e6720a09a",
+        "sessionId": "synthetic-session",
+        "build": "baseline",
+        "scenario": "cached-return",
+        "status": "complete"
+      }
+    ]
+  }
+}

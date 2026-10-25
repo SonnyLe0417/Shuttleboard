@@ -1,0 +1,12 @@
+{
+  "synthetic": true,
+  "accountAccess": false,
+  "checks": [
+    {
+      "name": "import failure on /dashboard shows Reload and preserves storage",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "browser": "156.0.4314.42"
+}

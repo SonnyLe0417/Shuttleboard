@@ -34,6 +34,8 @@ const createConfig = defineConfig({
                   {
                     name: "supabase-client",
                     test: /node_modules[\\/]@supabase[\\/]/,
+                    // Keep the app bootstrap independent of a failed SDK download.
+                    includeDependenciesRecursively: false,
                     priority: 30,
                   },
                   {

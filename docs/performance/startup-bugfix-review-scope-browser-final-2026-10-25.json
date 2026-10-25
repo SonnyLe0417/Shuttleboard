@@ -1,0 +1,23 @@
+{
+  "synthetic": true,
+  "accountAccess": false,
+  "passed": false,
+  "interrupted": true,
+  "recordSource": "Observed terminal output preserved after stopping repeated bootstrap failures",
+  "checks": [
+    {
+      "name": "import failure on /scoreboard shows Reload and preserves storage",
+      "passed": false,
+      "error": "Reload was not visible within 30000ms"
+    },
+    {
+      "name": "import failure on / shows Reload and preserves storage",
+      "passed": false,
+      "error": "Reload was not visible within 30000ms"
+    }
+  ],
+  "remainingChecks": "Incomplete or unobserved; no success is inferred",
+  "cause": "The proposed scope still used HEAD's eager SDK import in the authenticated parent route. The generated browser entry directly imported the SDK and could not bootstrap when it was blocked. The scope must include deferred guard loading, excluding the unrelated navigation prefetch.",
+  "collectorRecords": [],
+  "collectorScenarioStarted": false
+}

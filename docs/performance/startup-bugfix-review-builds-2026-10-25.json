@@ -1,0 +1,91 @@
+{
+  "checks": [
+    {
+      "build": "working",
+      "route": "/",
+      "status": 200,
+      "assets": 10,
+      "passed": true
+    },
+    {
+      "build": "working",
+      "route": "/dashboard",
+      "status": 200,
+      "assets": 15,
+      "passed": true
+    },
+    {
+      "build": "working",
+      "route": "/scoreboard",
+      "status": 200,
+      "assets": 22,
+      "passed": true
+    },
+    {
+      "build": "working",
+      "route": "/settings",
+      "status": 200,
+      "assets": 24,
+      "passed": true
+    },
+    {
+      "build": "working",
+      "route": "/auth",
+      "status": 200,
+      "assets": 10,
+      "passed": true
+    },
+    {
+      "build": "working",
+      "check": "production collector/fixture/capture markers absent",
+      "scanned": 185,
+      "passed": true
+    },
+    {
+      "build": "fix-only",
+      "route": "/",
+      "status": 200,
+      "assets": 18,
+      "passed": true
+    },
+    {
+      "build": "fix-only",
+      "route": "/dashboard",
+      "status": 200,
+      "assets": 30,
+      "passed": true
+    },
+    {
+      "build": "fix-only",
+      "route": "/scoreboard",
+      "status": 200,
+      "assets": 27,
+      "passed": true
+    },
+    {
+      "build": "fix-only",
+      "route": "/settings",
+      "status": 200,
+      "assets": 26,
+      "passed": true
+    },
+    {
+      "build": "fix-only",
+      "route": "/auth",
+      "status": 200,
+      "assets": 12,
+      "passed": true
+    },
+    {
+      "build": "fix-only",
+      "check": "production collector/fixture/capture markers absent",
+      "scanned": 202,
+      "passed": true
+    }
+  ],
+  "savedServerHashes": {
+    "baseline": "2FC0B20EA3D339765BC24CDE8EEC4E83215946E4FFF1795CE26D8252DAE2D394",
+    "optimized": "397F0FCB1C440199A61E2D29356BC0DCE8462ED4FCC8413BAFA32DEA93FEE20D"
+  },
+  "passed": true
+}
