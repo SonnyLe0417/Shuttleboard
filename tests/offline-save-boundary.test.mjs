@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadRuntime } from "./fixtures/load-runtime.mjs";
 import { insertOwnedMatch } from "../src/lib/match-save.server.ts";
+import * as rules from "../src/lib/badminton-rules.ts";
 const owner = "20000000-0000-4000-8000-000000000001",
   id = "20000000-0000-4000-8000-000000000010";
 const payload = {
@@ -49,6 +50,7 @@ async function functions(progress = async () => {}) {
       },
     },
     "./match-save.server": { insertOwnedMatch },
+    "@/lib/badminton-rules": rules,
     "@/lib/progress.server": { synchronizeProgressForMatch: progress },
   });
 }

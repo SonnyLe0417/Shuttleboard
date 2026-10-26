@@ -10,7 +10,8 @@ import {
   PRESETS,
   findPreset,
   isGameOver,
-  isMatchPoint,
+  pointCall,
+  type PointCall,
 } from "@/lib/badminton-rules";
 import {
   initialState,
@@ -175,7 +176,12 @@ export function useBadmintonMatch(managed = false) {
 
   const correctSide = correctServeSide(state.score[state.server]);
   const sideWarning = state.declaredSide !== correctSide;
-  const matchPoint = isMatchPoint(state.score, state.preset);
+  const pointCalls: [PointCall, PointCall] = [
+    pointCall(state.score, state.games, 0, state.preset),
+    pointCall(state.score, state.games, 1, state.preset),
+  ];
+  const matchPoint = pointCalls.includes("match");
+  const gamePoint = pointCalls.includes("game");
   const gameOver = isGameOver(state.score, state.preset);
 
   const doublesRotation = useMemo(() => {
@@ -244,7 +250,9 @@ export function useBadmintonMatch(managed = false) {
     teamName,
     correctSide,
     sideWarning,
+    pointCalls,
     matchPoint,
+    gamePoint,
     gameOver,
     doublesRotation,
     canUndo: history.length > 0,

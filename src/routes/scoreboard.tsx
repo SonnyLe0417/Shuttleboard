@@ -11,7 +11,7 @@ import {
 } from "@/components/BadmintonMatchProvider";
 import { Court } from "@/components/badminton/Court";
 import { landingVerdict } from "@/lib/badminton";
-import { PRESETS, type PresetId } from "@/lib/badminton-rules";
+import { PRESETS, type PointCall, type PresetId } from "@/lib/badminton-rules";
 import { getStoredPrefs } from "@/lib/themes";
 import { createVoiceController, voiceSupported } from "@/lib/voice";
 import { saveMatch } from "@/lib/matches.functions";
@@ -112,7 +112,9 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
     teamName,
     correctSide,
     sideWarning,
+    pointCalls,
     matchPoint,
+    gamePoint,
     doublesRotation,
     canUndo,
   } = match;
@@ -429,7 +431,7 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
           onPoint={addPoint}
           onUndo={undo}
           onExit={() => setReferee(false)}
-          matchPoint={matchPoint}
+          pointCalls={pointCalls}
         />
         <Cinematic state={state} onDone={dismissCelebration} />
       </div>
@@ -570,7 +572,7 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
             score={state.score[0]}
             games={state.games[0]}
             label="Team A"
-            matchPoint={matchPoint && state.score[0] >= state.score[1]}
+            pointCall={pointCalls[0]}
             isMatchWinner={state.matchWinnerTeam === 0}
           />
           <TeamCard
@@ -583,7 +585,7 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
             score={state.score[1]}
             games={state.games[1]}
             label="Team B"
-            matchPoint={matchPoint && state.score[1] >= state.score[0]}
+            pointCall={pointCalls[1]}
             isMatchWinner={state.matchWinnerTeam === 1}
           />
 
@@ -669,9 +671,9 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
               <MetaCell label="Server" value={teamName(state.server)} highlight />
               <MetaCell label="Correct Side" value={correctSide} capitalize />
               <MetaCell
-                label="Match Point"
-                value={matchPoint ? "Yes" : "No"}
-                tone={matchPoint ? "hot" : "muted"}
+                label="Next Rally Wins"
+                value={matchPoint ? "Match" : gamePoint ? "Game" : "—"}
+                tone={matchPoint || gamePoint ? "hot" : "muted"}
               />
               <RallyMeta
                 rallyMs={rallyElapsed}
@@ -975,7 +977,7 @@ function TeamCard({
   games,
   label,
   className = "",
-  matchPoint,
+  pointCall,
   isMatchWinner,
   onPoint,
   disabled,
@@ -987,7 +989,7 @@ function TeamCard({
   games: number;
   label: string;
   className?: string;
-  matchPoint?: boolean;
+  pointCall?: PointCall;
   isMatchWinner?: boolean;
   onPoint: () => void;
   disabled: boolean;
@@ -1001,9 +1003,9 @@ function TeamCard({
           {label}
         </label>
         <div className="flex items-center gap-1.5">
-          {matchPoint && !isMatchWinner && (
+          {pointCall && !isMatchWinner && (
             <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary animate-glow-pulse">
-              Match Point
+              {pointCall === "match" ? "Match Point" : "Game Point"}
             </span>
           )}
           {active && (
@@ -1176,7 +1178,7 @@ function RefereeMode({
   onPoint,
   onUndo,
   onExit,
-  matchPoint,
+  pointCalls,
 }: {
   state: ReturnType<typeof useSharedBadmintonMatch>["state"];
   teamName: (i: 0 | 1) => string;
@@ -1184,7 +1186,7 @@ function RefereeMode({
   onPoint: (t: 0 | 1) => void;
   onUndo: () => void;
   onExit: () => void;
-  matchPoint: boolean;
+  pointCalls: [PointCall, PointCall];
 }) {
   return (
     <div className="flex h-dvh flex-col p-6">
@@ -1234,9 +1236,9 @@ function RefereeMode({
                 <span>
                   Games <strong className="text-foreground text-base">{state.games[idx]}</strong>
                 </span>
-                {matchPoint && state.score[idx] >= state.score[1 - idx] && (
+                {pointCalls[idx] && (
                   <span className="rounded-full bg-primary/20 px-2 py-0.5 font-bold uppercase tracking-wider text-primary">
-                    Match Point
+                    {pointCalls[idx] === "match" ? "Match Point" : "Game Point"}
                   </span>
                 )}
               </div>

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { matchResultProblem, rulesForResult } from "@/lib/badminton-rules";
 import {
   listMyMatches,
   deleteMatch,
@@ -742,12 +743,22 @@ function LogMatchCard() {
     setSaving(true);
     try {
       const winner = scoreA === scoreB ? null : scoreA > scoreB ? "A" : "B";
+      const format = defaults.format || "21-point";
+      const pointsToWin = defaults.points_to_win ?? 21;
+      const bestOf = defaults.best_of ?? 1;
+      const problem = matchResultProblem(
+        [{ a: scoreA, b: scoreB }],
+        winner,
+        rulesForResult(pointsToWin, bestOf, format),
+        { bestOf, complete: false },
+      );
+      if (problem) throw new Error(`Check the score: ${problem}`);
       const saved = await saveFn({
         data: {
           mode: defaults.mode ?? "singles",
-          format: defaults.format || "21-point",
-          points_to_win: defaults.points_to_win ?? 21,
-          best_of: defaults.best_of ?? 1,
+          format,
+          points_to_win: pointsToWin,
+          best_of: bestOf,
           team_a_names: [aName || defaults.starting_a || "You"],
           team_b_names: [bName || bHandle || defaults.starting_b || "Opponent"],
           team_a_handles: [],
