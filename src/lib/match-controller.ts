@@ -1,11 +1,13 @@
-import { type GameMode, type Side, landingVerdict } from "@/lib/badminton";
+import { type GameMode, type Side, correctServeSide, landingVerdict } from "@/lib/badminton";
 import {
   type MatchRules,
   type PresetId,
   PRESETS,
   findPreset,
   gameWinner,
+  isDecidingGame,
   matchWinner,
+  midGamePoint,
 } from "@/lib/badminton-rules";
 
 export const DEFAULT_NAMES: [string, string] = ["Team A", "Team B"];
@@ -38,7 +40,12 @@ export interface MatchState {
   mode: GameMode;
   declaredSide: Side;
   serveCheck: boolean;
+  /** The server is at the near end (bottom of the court diagram). Derived from nearTeam. */
   nearSide: boolean;
+  /** Team at the near end. Ends change after each game and at 11 in the deciding game. */
+  nearTeam: 0 | 1;
+  /** Doubles: which partner (0 or 1) of each team stands in its right service court. */
+  rightCourt: [0 | 1, 0 | 1];
   names: [string, string]; // team names (singles) or team-side labels (doubles)
   doublesNames: [string, string, string, string]; // A1, A2, B1, B2
   log: LogEntry[];
@@ -63,6 +70,8 @@ export interface Snapshot {
   declaredSide: Side;
   serveCheck: boolean;
   nearSide: boolean;
+  nearTeam: 0 | 1;
+  rightCourt: [0 | 1, 0 | 1];
   names: [string, string];
   doublesNames: [string, string, string, string];
   log: LogEntry[];
@@ -85,6 +94,8 @@ function snapshotOf(s: MatchState): Snapshot {
     declaredSide: s.declaredSide,
     serveCheck: s.serveCheck,
     nearSide: s.nearSide,
+    nearTeam: s.nearTeam,
+    rightCourt: [...s.rightCourt] as [0 | 1, 0 | 1],
     names: [...s.names] as [string, string],
     doublesNames: [...s.doublesNames] as [string, string, string, string],
     log: [...s.log],
@@ -108,6 +119,8 @@ export function initialState(preset: MatchRules): MatchState {
     declaredSide: "right",
     serveCheck: false,
     nearSide: true,
+    nearTeam: 0,
+    rightCourt: [0, 0],
     names: [...DEFAULT_NAMES] as [string, string],
     doublesNames: [...DEFAULT_DOUBLES] as [string, string, string, string],
     log: [],
@@ -134,6 +147,7 @@ export type MatchAction =
   | { type: "mode"; value: GameMode }
   | { type: "side"; value: Side }
   | { type: "serveCheck" | "nearSide"; value: boolean }
+  | { type: "firstServer"; team: 0 | 1 }
   | { type: "preset"; id: PresetId; at: number }
   | { type: "rally"; at: number }
   | { type: "landing"; x: number; y: number; at: number }
@@ -145,6 +159,53 @@ export type MatchController = {
   effects: MatchEffect[];
   sequence: number;
 };
+/**
+ * BWF doubles: the server stands in the court named by their side's score.
+ * Partners only swap courts when their side wins a rally it served, so who
+ * that is depends on the rally history kept in rightCourt.
+ */
+export function doublesServe(
+  state: Pick<MatchState, "server" | "score" | "rightCourt" | "doublesNames">,
+) {
+  const side = correctServeSide(state.score[state.server]);
+  const inCourt = (team: 0 | 1) => {
+    const players = state.doublesNames.slice(team * 2, team * 2 + 2);
+    const right = state.rightCourt[team];
+    return side === "right"
+      ? { player: players[right], partner: players[1 - right] }
+      : { player: players[1 - right], partner: players[right] };
+  };
+  const serving = inCourt(state.server);
+  const receiving = inCourt(state.server === 0 ? 1 : 0);
+  return {
+    side,
+    server: serving.player,
+    partner: serving.partner,
+    receiver: receiving.player,
+    receiverPartner: receiving.partner,
+  };
+}
+
+/** The first rally has begun, so the toss (who serves first) is settled. */
+export function matchHasStarted(
+  state: Pick<MatchState, "matchStartedAt" | "rallyStartedAt" | "completedGames" | "score">,
+) {
+  return (
+    state.matchStartedAt !== null ||
+    state.rallyStartedAt !== null ||
+    state.completedGames.length > 0 ||
+    state.score.some(Boolean)
+  );
+}
+
+/** Points played so far. In rally scoring that is also the number of rallies. */
+export function totalMatchPoints(
+  state: Pick<MatchState, "completedGames" | "score" | "matchOver">,
+) {
+  const completed = state.completedGames.reduce((total, game) => total + game.a + game.b, 0);
+  // The final game's score is retained on screen and already in completedGames.
+  return completed + (state.matchOver ? 0 : state.score[0] + state.score[1]);
+}
 export function createMatchController(): MatchController {
   return { match: initialState(PRESETS[0]), history: [], effects: [], sequence: 0 };
 }
@@ -178,6 +239,13 @@ function point(prev: MatchState, winner: 0 | 1, reason: string, now: number): Ma
   let celebrateKind: "match" | "game" | null = prev.celebrateKind;
 
   let newScore = score;
+  let nearTeam = prev.nearTeam;
+  let rightCourt: [0 | 1, 0 | 1] = [prev.rightCourt[0], prev.rightCourt[1]];
+  // Doubles: a side that wins a rally while serving swaps its partners' courts.
+  if (winner === prev.server) rightCourt[winner] = rightCourt[winner] === 0 ? 1 : 0;
+  const gameNumber = prev.games[0] + prev.games[1] + 1;
+  const mid = midGamePoint(prev.preset);
+  const reachedMid = Math.max(...prev.score) < mid && Math.max(...score) >= mid;
 
   const gw = gameWinner(score, prev.preset);
   if (gw !== null) {
@@ -206,13 +274,35 @@ function point(prev: MatchState, winner: 0 | 1, reason: string, now: number): Ma
       celebrateAt = now;
       celebrateKind = "game";
       newScore = [0, 0];
+      nearTeam = nearTeam === 0 ? 1 : 0;
+      rightCourt = [0, 0];
+      nextLog.unshift({
+        text: `Change ends for game ${gameNumber + 1}. ${winnerName} serves first.`,
+        score,
+        at: now,
+        kind: "info",
+      });
     }
+  } else if (reachedMid) {
+    const changeEnds = isDecidingGame(gameNumber, prev.preset);
+    if (changeEnds) nearTeam = nearTeam === 0 ? 1 : 0;
+    nextLog.unshift({
+      text: `Interval at ${mid}.${changeEnds ? " Change ends for the rest of the deciding game." : ""}`,
+      score,
+      at: now,
+      kind: "info",
+    });
   }
 
   return {
     ...prev,
     score: newScore,
     server: winner,
+    nearTeam,
+    nearSide: winner === nearTeam,
+    rightCourt,
+    declaredSide: correctServeSide(newScore[winner]),
+    landing: null,
     games,
     completedGames,
     log: nextLog,
@@ -223,7 +313,7 @@ function point(prev: MatchState, winner: 0 | 1, reason: string, now: number): Ma
     matchWinnerTeam,
     celebrateAt,
     celebrateKind,
-    matchStartedAt: prev.matchStartedAt ?? now,
+    matchStartedAt: prev.matchStartedAt ?? prev.rallyStartedAt ?? now,
   };
 }
 export function reduceMatch(controller: MatchController, action: MatchAction): MatchController {
@@ -259,7 +349,7 @@ export function reduceMatch(controller: MatchController, action: MatchAction): M
       const reason =
         action.type === "point"
           ? action.reason
-          : `gets the point after ${prev.names[action.team]} committed a ${action.fault}`;
+          : `gets the point after ${prev.names[action.team].trim() || (action.team === 0 ? "Team A" : "Team B")} committed a ${action.fault}`;
       next = point(prev, winner, reason, action.at);
       const kinds: MatchEffect["kind"][] = [];
       if (action.type === "fault") kinds.push("fault");
@@ -310,34 +400,59 @@ export function reduceMatch(controller: MatchController, action: MatchAction): M
       next = { ...prev, serveCheck: action.value };
       remember = true;
       break;
-    case "nearSide":
-      next = { ...prev, nearSide: action.value };
+    case "nearSide": {
+      // A correction of which end the server is at, i.e. a swap of ends.
+      const server = prev.server;
+      next = {
+        ...prev,
+        nearSide: action.value,
+        nearTeam: action.value ? server : server === 0 ? 1 : 0,
+      };
       remember = true;
       break;
+    }
+    case "firstServer": {
+      if (matchHasStarted(prev) || prev.server === action.team) return controller;
+      next = {
+        ...prev,
+        server: action.team,
+        nearSide: action.team === prev.nearTeam,
+        declaredSide: "right",
+      };
+      remember = true;
+      break;
+    }
     case "preset": {
       const preset = findPreset(action.id);
+      // A new match keeps the names and settings but none of the old match's state.
+      const fresh = initialState(preset);
       next = {
         ...prev,
         preset,
-        score: [0, 0],
-        games: [0, 0],
+        score: fresh.score,
+        games: fresh.games,
         completedGames: [],
+        server: fresh.server,
+        nearSide: fresh.nearSide,
+        nearTeam: fresh.nearTeam,
+        rightCourt: fresh.rightCourt,
+        declaredSide: fresh.declaredSide,
+        landing: null,
         matchOver: false,
         matchWinnerTeam: null,
         rallyHistory: [],
         longestRallyMs: 0,
         matchStartedAt: null,
         rallyStartedAt: null,
-        log: [
-          { text: `New match — ${preset.label}.`, score: [0, 0], at: action.at, kind: "info" },
-          ...prev.log,
-        ],
+        celebrateAt: null,
+        celebrateKind: null,
+        log: [{ text: `New match — ${preset.label}.`, score: [0, 0], at: action.at, kind: "info" }],
       };
       remember = true;
       break;
     }
     case "rally":
-      next = prev.rallyStartedAt ? prev : { ...prev, rallyStartedAt: action.at };
+      next = prev.rallyStartedAt || prev.matchOver ? prev : { ...prev, rallyStartedAt: action.at };
       break;
     case "dismiss":
       next = { ...prev, celebrateAt: null, celebrateKind: null };

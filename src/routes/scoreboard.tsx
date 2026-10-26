@@ -12,6 +12,7 @@ import {
 import { Court } from "@/components/badminton/Court";
 import { landingVerdict } from "@/lib/badminton";
 import { PRESETS, type PointCall, type PresetId } from "@/lib/badminton-rules";
+import { matchHasStarted, totalMatchPoints } from "@/lib/match-controller";
 import { getStoredPrefs } from "@/lib/themes";
 import { createVoiceController, voiceSupported } from "@/lib/voice";
 import { saveMatch } from "@/lib/matches.functions";
@@ -101,6 +102,7 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
     setDeclaredSide,
     setServeCheck,
     setNearSide,
+    setFirstServer,
     setPreset,
     startRally,
     addPoint,
@@ -365,7 +367,8 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
             ? Math.max(0, Math.round((Date.now() - state.matchStartedAt) / 1000))
             : 0,
           longest_rally_seconds: Math.round(state.longestRallyMs / 1000),
-          total_rallies: state.rallyHistory.length,
+          // Rally scoring: every point played is one rally, timed or not.
+          total_rallies: totalMatchPoints(state),
           notes: "Saved from the live ShuttleBoard scoreboard.",
           tags: ["scoreboard"],
           opponent_nicknames: {},
@@ -616,8 +619,9 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
                     checked={state.nearSide}
                     onChange={(e) => setNearSide(e.target.checked)}
                     className="h-3 w-3 accent-primary"
+                    title="Follows the serve and the change of ends; untick to swap ends"
                   />
-                  Near side
+                  Server near
                 </label>
               </div>
             </div>
@@ -701,10 +705,7 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
                 </span>
                 <span className="text-muted-foreground">·</span>
                 <span>
-                  Receiving:{" "}
-                  <strong>
-                    {doublesRotation.receivers[0]} / {doublesRotation.receivers[1]}
-                  </strong>
+                  Receiving: <strong>{doublesRotation.receiver}</strong>
                 </span>
               </div>
             )}
@@ -730,6 +731,24 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
                   >
                     Doubles
                   </ToggleButton>
+                </SegmentedGroup>
+              </fieldset>
+
+              <fieldset className="space-y-2">
+                <legend className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  First Serve
+                </legend>
+                <SegmentedGroup>
+                  {([0, 1] as const).map((team) => (
+                    <ToggleButton
+                      key={team}
+                      selected={state.server === team}
+                      disabled={matchHasStarted(state)}
+                      onClick={() => setFirstServer(team)}
+                    >
+                      {teamName(team)}
+                    </ToggleButton>
+                  ))}
                 </SegmentedGroup>
               </fieldset>
 
@@ -1053,16 +1072,19 @@ function ToggleButton({
   selected,
   onClick,
   children,
+  disabled = false,
 }: {
   selected: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${selected ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]" : "text-muted-foreground hover:text-foreground"}`}
+      disabled={disabled}
+      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${selected ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]" : "text-muted-foreground hover:text-foreground"}`}
     >
       {children}
     </button>

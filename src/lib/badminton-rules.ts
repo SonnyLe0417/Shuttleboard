@@ -50,6 +50,16 @@ export function matchWinner(games: [number, number], r: MatchRules): 0 | 1 | nul
   return null;
 }
 
+/** The last game a match can need; best of 3 means game 3. */
+export function isDecidingGame(gameNumber: number, r: MatchRules): boolean {
+  return gameNumber === r.bestOf;
+}
+
+/** BWF: interval, and in the deciding game a change of ends, when the leader reaches 11 of 21. */
+export function midGamePoint(r: MatchRules): number {
+  return Math.ceil(r.target / 2);
+}
+
 export type PointCall = "game" | "match" | null;
 
 /** "game" or "match" when this team wins the game (or the match) with the next rally. */

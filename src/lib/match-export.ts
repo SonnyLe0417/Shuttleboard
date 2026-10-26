@@ -1,4 +1,5 @@
 import type { MatchState } from "@/hooks/useBadmintonMatch";
+import { totalMatchPoints } from "@/lib/match-controller";
 
 export function matchToCsv(state: MatchState): string {
   const lines: string[] = [];
@@ -29,13 +30,7 @@ export function downloadText(filename: string, mime: string, contents: string) {
   downloadBlob(filename, new Blob([contents], { type: mime }));
 }
 
-export function totalMatchPoints(
-  state: Pick<MatchState, "completedGames" | "score" | "matchOver">,
-) {
-  const completed = state.completedGames.reduce((total, game) => total + game.a + game.b, 0);
-  // The final game's score is retained on screen and already in completedGames.
-  return completed + (state.matchOver ? 0 : state.score[0] + state.score[1]);
-}
+export { totalMatchPoints } from "@/lib/match-controller";
 
 export function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);

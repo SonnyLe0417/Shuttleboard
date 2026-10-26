@@ -1,4 +1,11 @@
-import { type MatchRules, PRESETS, gameWinner, matchWinner } from "@/lib/badminton-rules";
+import {
+  type MatchRules,
+  PRESETS,
+  gameWinner,
+  isDecidingGame,
+  matchWinner,
+  midGamePoint,
+} from "@/lib/badminton-rules";
 import type { PlayerId } from "@/lib/match-annotation";
 
 export interface PlayerScore {
@@ -50,15 +57,6 @@ export interface MatchTimeline extends TimelineState {
 
 const other = (player: PlayerId): PlayerId => (player === "p1" ? "p2" : "p1");
 
-export function isDecidingGame(game: number, rules: MatchRules) {
-  return game === rules.bestOf;
-}
-
-/** BWF: in the deciding game, change ends when the leader first reaches 11 (of 21). */
-export function midGameChangePoint(rules: MatchRules) {
-  return Math.ceil(rules.target / 2);
-}
-
 export function createTimeline(options: TimelineOptions = {}): TimelineState {
   return {
     rules: options.rules ?? PRESETS[0],
@@ -103,7 +101,7 @@ export function advanceTimeline(
   };
   const finished = gameWinner([score.p1, score.p2], state.rules);
   if (finished === null) {
-    const changeAt = midGameChangePoint(state.rules);
+    const changeAt = midGamePoint(state.rules);
     const reachedInterval =
       isDecidingGame(state.game, state.rules) &&
       !state.changedAtInterval &&
