@@ -1,19 +1,57 @@
+// BWF court in metres. Normalized court x spans the doubles width and y the
+// full length, with y=0 at the far back boundary and y=1 at the near one.
+export const COURT_LENGTH_M = 13.4;
+export const COURT_WIDTH_M = 6.1;
+const SINGLES_ALLEY_M = 0.46;
+const SHORT_SERVICE_FROM_NET_M = 1.98;
+const DOUBLES_LONG_SERVICE_FROM_BACK_M = 0.76;
+const CLOSE_LINE_M = 0.15;
+
 export const COURT = {
-  singlesSideline: 0.087,
-  shortServiceY: 0.354,
-  doublesLongServiceY: 0.076,
+  singlesSideline: SINGLES_ALLEY_M / COURT_WIDTH_M,
+  shortServiceY: (COURT_LENGTH_M / 2 - SHORT_SERVICE_FROM_NET_M) / COURT_LENGTH_M,
+  doublesLongServiceY: DOUBLES_LONG_SERVICE_FROM_BACK_M / COURT_LENGTH_M,
   center: 0.5,
 } as const;
 
 export type GameMode = "singles" | "doubles";
 export type Side = "left" | "right";
+export type CourtEnd = "near" | "far";
 
+/** The service court a server stands in, named from their own point of view. */
 export function correctServeSide(score: number): Side {
   return score % 2 === 0 ? "right" : "left";
 }
 
-export function receiverSide(serverScore: number): Side {
-  return correctServeSide(serverScore) === "right" ? "left" : "right";
+/** The receiver stands diagonally opposite, in the court with the same name. */
+export function receiverCourt(serverScore: number): Side {
+  return correctServeSide(serverScore);
+}
+
+/**
+ * Where a player's named court appears in the picture. Players at the near end
+ * face away from the camera; players at the far end face it, so their right is
+ * the left of the picture.
+ */
+export function imageSide(court: Side, atNearEnd: boolean): Side {
+  if (atNearEnd) return court;
+  return court === "right" ? "left" : "right";
+}
+
+export function courtEnd(y: number): CourtEnd {
+  return y > COURT.center ? "near" : "far";
+}
+
+/**
+ * Which end a rally landing favours. A shuttle that lands in court, or a net
+ * fault that drops on the hitter's own side, loses the rally for the player at
+ * that end. An out shot was hit there by the opponent, so that player wins.
+ */
+export function rallyLanding(x: number, y: number, mode: GameMode) {
+  const end = courtEnd(y);
+  const isIn = inNormalCourt(x, y, mode);
+  const other: CourtEnd = end === "near" ? "far" : "near";
+  return { end, isIn, winnerEnd: isIn ? other : end };
 }
 
 export function inNormalCourt(x: number, y: number, mode: GameMode): boolean {
@@ -36,7 +74,7 @@ export function inServiceCourt(
   const inTargetHalf = targetNear ? y >= COURT.center : y <= COURT.center;
   if (!inTargetHalf) return false;
 
-  const side = receiverSide(serverScore);
+  const side = imageSide(receiverCourt(serverScore), targetNear);
   const inDiagonalSide = side === "right" ? x >= COURT.center : x <= COURT.center;
   const inWidth =
     mode === "singles"
@@ -94,7 +132,7 @@ export function activeLandingBox(
   }
 
   const targetNear = !nearSide;
-  const side = receiverSide(serverScore);
+  const side = imageSide(receiverCourt(serverScore), targetNear);
   const xMin = side === "right" ? COURT.center : widthMin;
   const xMax = side === "right" ? widthMax : COURT.center;
   const yMin = targetNear
@@ -135,7 +173,8 @@ export interface LandingVerdict {
   modeText: string;
   lineMargin: number;
   absoluteMargin: number;
-  lineMarginPercent: number;
+  /** Distance to the nearest line in centimetres on the real court. */
+  lineMarginCm: number;
   nearestLine: string;
   closeLine: boolean;
 }
@@ -155,16 +194,19 @@ export function landingVerdict(
 
   const xResult = signedBoundaryDistance(x, box.xMin, box.xMax);
   const yResult = signedBoundaryDistance(y, box.yMin, box.yMax);
-  // Outside the court, measure the violated boundary. A nearby line on the
-  // other axis cannot make a clearly out landing a close call.
-  const nearestAxis = xResult.distance <= yResult.distance ? "x" : "y";
+  // Compare in metres: one normalized unit is 6.10 m across but 13.40 m long.
+  // Outside the court, the violated boundary is always the nearest one.
+  const xMetres = xResult.distance * COURT_WIDTH_M;
+  const yMetres = yResult.distance * COURT_LENGTH_M;
+  const nearestAxis = xMetres <= yMetres ? "x" : "y";
   const nearest = nearestAxis === "x" ? xResult : yResult;
+  const nearestMetres = Math.abs(nearestAxis === "x" ? xMetres : yMetres);
   const labelKey = `${nearestAxis}${nearest.edge === "min" ? "Min" : "Max"}`;
   const lineMargin = nearest.distance;
   const absoluteMargin = Math.abs(lineMargin);
 
   const modeText = serveCheck
-    ? `Serve must land diagonally in the ${receiverSide(serverScore)} service court.`
+    ? `Serve must land diagonally in the receiver's ${receiverCourt(serverScore)} service court.`
     : `${mode === "singles" ? "Singles" : "Doubles"} rally boundary is active.`;
 
   return {
@@ -172,9 +214,9 @@ export function landingVerdict(
     modeText,
     lineMargin,
     absoluteMargin,
-    lineMarginPercent: Number((absoluteMargin * 100).toFixed(2)),
+    lineMarginCm: Math.round(nearestMetres * 100),
     nearestLine: box.labels[labelKey as keyof LandingBox["labels"]],
-    closeLine: absoluteMargin < 0.025,
+    closeLine: nearestMetres < CLOSE_LINE_M,
   };
 }
 

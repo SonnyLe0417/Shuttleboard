@@ -657,7 +657,7 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
               </p>
               {verdict?.closeLine && (
                 <p className="mt-1.5 text-[11px] font-medium">
-                  Close line — {verdict.lineMarginPercent}% from {verdict.nearestLine}.
+                  Close line — {verdict.lineMarginCm} cm from {verdict.nearestLine}.
                 </p>
               )}
             </div>
