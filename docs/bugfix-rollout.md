@@ -1,5 +1,10 @@
 # Eight bug fixes: local validation and rollout
 
+Submission rollout update: GitHub main is merged and the tested migration is now
+applied under server-assigned version `20261026013152` (identical SQL). See
+`submission-deployment-2026-10-25.md` for live-hosting status. Earlier validation
+details below describe the state before that separately authorized rollout.
+
 The isolated database acceptance checks passed after the Windows restart on
 October 25, 2026. Local database advisors also completed: zero ERROR findings,
 37 performance WARN findings and 34 INFO findings. See the advisor JSON and
