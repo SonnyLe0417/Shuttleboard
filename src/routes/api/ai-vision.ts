@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { judgeVisionLanding } from "@/lib/vision-geometry";
 
 const PointSchema = z.object({
   x: z.number().min(0).max(1),
@@ -39,34 +40,6 @@ const ResponseSchema = z.object({
   confidence: z.number().min(0).max(1),
   reasoning: z.string(),
 });
-
-// Ray-casting point-in-polygon on normalized coords.
-function pointInPolygon(x: number, y: number, poly: { x: number; y: number }[]): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const xi = poly[i].x;
-    const yi = poly[i].y;
-    const xj = poly[j].x;
-    const yj = poly[j].y;
-    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi + 1e-9) + xi;
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-// Signed area to determine which side of the midline a point is on.
-// Corners are ordered [p1BL, p1BR, p2BR, p2BL], so the midline runs from
-// midpoint(p1BL,p2BL) to midpoint(p1BR,p2BR).
-function sideOfMidline(x: number, y: number, corners: { x: number; y: number }[]): "p1" | "p2" {
-  const [p1BL, p1BR, p2BR, p2BL] = corners;
-  const a = { x: (p1BL.x + p2BL.x) / 2, y: (p1BL.y + p2BL.y) / 2 };
-  const b = { x: (p1BR.x + p2BR.x) / 2, y: (p1BR.y + p2BR.y) / 2 };
-  // Cross product of AB × AP; sign tells us which side.
-  const cross = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
-  // p1 corners are on one side, p2 on the other. Test with p1BL.
-  const refCross = (b.x - a.x) * (p1BL.y - a.y) - (b.y - a.y) * (p1BL.x - a.x);
-  return Math.sign(cross) === Math.sign(refCross) ? "p1" : "p2";
-}
 
 export const Route = createFileRoute("/api/ai-vision")({
   server: {
@@ -231,30 +204,18 @@ export const Route = createFileRoute("/api/ai-vision")({
 
           let out = validated.data;
 
-          // Geometric override when the user has calibrated court corners.
+          // Geometric override when the user has calibrated court corners: the
+          // in/out call uses the lines in play, and an out is won by the player
+          // whose end the shuttle landed at, whoever hit last.
           if (courtCorners && out.shuttleVisible) {
-            const inside = pointInPolygon(out.position.x, out.position.y, courtCorners);
-            const geomCall: "in" | "out" = inside ? "in" : "out";
-            let geomPointTo: "p1" | "p2" | "none" = "none";
-            if (out.landed && out.confidence >= 0.6) {
-              const landedSide = sideOfMidline(out.position.x, out.position.y, courtCorners);
-              if (geomCall === "in") {
-                // Landed IN on opponent's side → point to LAST HITTER; if unknown, receiver-of-shot pattern:
-                // conservatively award to the side OPPOSITE the landing.
-                geomPointTo = landedSide === "p1" ? "p2" : "p1";
-              } else {
-                // Landed OUT → point to the NON-hitter. If we know last hitter, use it; else opposite of landing side.
-                geomPointTo =
-                  lastHitter === "p1"
-                    ? "p2"
-                    : lastHitter === "p2"
-                      ? "p1"
-                      : landedSide === "p1"
-                        ? "p2"
-                        : "p1";
-              }
+            const judged = judgeVisionLanding(out.position, courtCorners, mode);
+            if (judged) {
+              out = {
+                ...out,
+                call: judged.call,
+                pointTo: out.landed && out.confidence >= 0.6 ? judged.pointTo : "none",
+              };
             }
-            out = { ...out, call: geomCall, pointTo: geomPointTo };
           }
 
           return Response.json(out);

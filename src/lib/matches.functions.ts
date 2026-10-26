@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import { matchForPlayer } from "@/lib/player-matches";
 import { completeReferralForUser } from "@/lib/growth.functions";
+import { RETIRED_TAG, matchResultProblem, rulesForResult } from "@/lib/badminton-rules";
 
 const gameSchema = z.object({
   a: z.number().int().nonnegative(),
@@ -113,6 +114,25 @@ export const saveMatch = createServerFn({ method: "POST" })
     const teamBUserIds = Array.from(new Set(bIds));
     const games_won_a = data.games.filter((g) => g.a > g.b).length;
     const games_won_b = data.games.filter((g) => g.b > g.a).length;
+    if (data.status === "finished") {
+      // Every path (scoreboard, offline sync, manual log) must store a result
+      // that the rules could produce, with the winner matching the games.
+      const problem = matchResultProblem(
+        data.games,
+        data.winner,
+        rulesForResult(data.points_to_win, data.best_of, data.format),
+        {
+          bestOf: data.best_of,
+          complete: Boolean(data.client_match_id),
+          pointsToWin: data.points_to_win,
+          retired: data.tags.includes(RETIRED_TAG),
+        },
+      );
+      if (problem) throw new Error(`Validation: ${problem}`);
+    } else if (data.winner !== null) {
+      // Stats treat any row with a winner as a result, so only finished matches may have one.
+      throw new Error("Validation: only a finished match can have a winner.");
+    }
     if (data.client_match_id) {
       const needed = Math.ceil(data.best_of / 2);
       if (

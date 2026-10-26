@@ -23,7 +23,12 @@ npm run dev       # Start the local development server
 npm run lint      # Run ESLint
 npm run build     # Create a production build
 npx tsc --noEmit  # Check TypeScript without emitting files
+npm run evaluate:annotation -- --annotation tests/fixtures/singles-match-1.json --simulate
 ```
+
+Video scoring is checked against a hand-labelled match. See
+[video rally scoring](docs/tracknet-rally-scoring.md) for how rallies, ends and
+games are decided, and for scoring real TrackNet output against the annotation.
 
 `npm run shuttleboard` starts the React app first, warms the most-used routes,
 and then starts the TrackNet FastAPI service in the background. TrackNet's

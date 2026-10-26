@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --import ./scripts/register-typescript.mjs --test tests/*.test.mjs",
+    "evaluate:annotation": "node --import ./scripts/register-typescript.mjs scripts/evaluate-annotated-match.mjs",
     "format": "prettier --write .",
     "design:dev": "vite --config vite.design-preview.config.ts --open /design-preview/",
     "design:build": "vite build --config vite.design-preview.config.ts",

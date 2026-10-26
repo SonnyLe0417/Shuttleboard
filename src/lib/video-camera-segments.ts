@@ -15,6 +15,8 @@ export interface CameraSegment {
 export interface CameraMotionState {
   largeShiftFrames: number;
   lastTime: number;
+  /** Recent movement added up, fading so that jitter cancels while a pan builds up. */
+  drift?: Point;
 }
 
 // The local detector reports camera shift as a fraction of the frame. Its
@@ -22,17 +24,26 @@ export interface CameraMotionState {
 // already meaningful.
 export const CAMERA_SHIFT_LIMIT = 0.007;
 export const CAMERA_SHIFT_FRAMES = 3;
+// A slow pan moves a pixel or two per frame, under the per-frame limit, but
+// soon moves the court lines away from the calibrated corners.
+export const CAMERA_DRIFT_LIMIT = 0.015;
+const DRIFT_KEEP = 0.97;
 
 export function createCameraMotionState(): CameraMotionState {
-  return { largeShiftFrames: 0, lastTime: 0 };
+  return { largeShiftFrames: 0, lastTime: 0, drift: { x: 0, y: 0 } };
 }
 
 export function updateCameraMotion(state: CameraMotionState, shift: Point, time: number) {
   const magnitude = Math.hypot(shift.x, shift.y);
   const largeShiftFrames = magnitude >= CAMERA_SHIFT_LIMIT ? state.largeShiftFrames + 1 : 0;
+  const drift = {
+    x: (state.drift?.x ?? 0) * DRIFT_KEEP + shift.x,
+    y: (state.drift?.y ?? 0) * DRIFT_KEEP + shift.y,
+  };
   return {
-    state: { largeShiftFrames, lastTime: time },
-    needsRecalibration: largeShiftFrames >= CAMERA_SHIFT_FRAMES,
+    state: { largeShiftFrames, lastTime: time, drift },
+    needsRecalibration:
+      largeShiftFrames >= CAMERA_SHIFT_FRAMES || Math.hypot(drift.x, drift.y) >= CAMERA_DRIFT_LIMIT,
   };
 }
 

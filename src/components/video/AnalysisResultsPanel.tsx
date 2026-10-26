@@ -9,35 +9,38 @@ import {
   getDownloadFileName,
   type AnalysisRally,
   type AnalysisRallyPatch,
-  type AnalysisScore,
   type RallyReviewFilter,
   reviewFilterMatches,
   rallyDiagnostics,
   sparseRallyWarning,
 } from "@/lib/analysis-results";
+import { formatGameScores } from "@/lib/match-timeline";
+import type { VideoMatch } from "@/lib/video-match";
 import { useMemo, useState } from "react";
 
 interface AnalysisResultsPanelProps {
   rallies: AnalysisRally[];
-  score: AnalysisScore;
+  match: VideoMatch;
   tracknetPoints?: TrackNetPoint[];
   frameDiagnostics?: TrackNetFrameDiagnostics;
   processedVideoUrl?: string | null;
   selectedRally: number | null;
   onSelectRally: (rally: AnalysisRally) => void;
   onCorrectRally: (id: number, patch: AnalysisRallyPatch) => void;
+  onExcludeRally: (id: number, excluded: boolean) => void;
   onSetReviewStatus: (id: number, status: "needs-review" | "confirmed" | "corrected") => void;
 }
 
 export function AnalysisResultsPanel({
   rallies,
-  score,
+  match,
   tracknetPoints,
   frameDiagnostics,
   processedVideoUrl,
   selectedRally,
   onSelectRally,
   onCorrectRally,
+  onExcludeRally,
   onSetReviewStatus,
 }: AnalysisResultsPanelProps) {
   const [reviewFilter, setReviewFilter] = useState<RallyReviewFilter>("all");
@@ -57,8 +60,10 @@ export function AnalysisResultsPanel({
             100,
         )
       : 0;
-  const winner =
-    score.p1 === score.p2 ? "Even match" : score.p1 > score.p2 ? "Player 1 led" : "Player 2 led";
+  const { timeline, score } = match;
+  const winner = timeline.matchWinner
+    ? `${timeline.matchWinner === "p1" ? "Player 1" : "Player 2"} won ${timeline.gamesWon[timeline.matchWinner]}–${timeline.gamesWon[timeline.matchWinner === "p1" ? "p2" : "p1"]}`
+    : `Game ${timeline.game}: ${score.p1}–${score.p2}`;
   const visibleRallies = rallies.filter((rally) => reviewFilterMatches(rally, reviewFilter));
   const endings = rallyDiagnostics(rallies);
   const frames = useMemo(
@@ -87,10 +92,20 @@ export function AnalysisResultsPanel({
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <SummaryMetric
             icon={<Trophy />}
-            label={isTrackNet && !hasScoredRallies ? "Detector" : "Confirmed point score"}
+            label={
+              isTrackNet && !hasScoredRallies
+                ? "Detector"
+                : match.pending
+                  ? `Match score · ${match.pending} to review`
+                  : "Confirmed match score"
+            }
             value={isTrackNet && !hasScoredRallies ? "TrackNet ready" : winner}
             detail={
-              isTrackNet && !hasScoredRallies ? "Processed video ready" : `${score.p1}-${score.p2}`
+              isTrackNet && !hasScoredRallies
+                ? "Processed video ready"
+                : timeline.games.length
+                  ? `Games ${formatGameScores(timeline.games)}`
+                  : "No game finished yet"
             }
           />
           <SummaryMetric
@@ -236,8 +251,13 @@ export function AnalysisResultsPanel({
                 <div>
                   <p className="font-medium">
                     Rally #{rally.id} —{" "}
-                    {rally.countsTowardScore === false ? "Suggested winner: " : "Point to "}
-                    {rally.winner === "p1" ? "Player 1" : "Player 2"}
+                    {rally.excluded
+                      ? "Not a rally"
+                      : rally.countsTowardScore !== false
+                        ? `Point to ${rally.winner === "p1" ? "Player 1" : "Player 2"}`
+                        : rally.decidedBy
+                          ? `Suggested winner: ${rally.winner === "p1" ? "Player 1" : "Player 2"}`
+                          : "Winner unknown: choose P1 or P2"}
                   </p>
                   {rally.needsReview &&
                     rally.reviewStatus !== "confirmed" &&
@@ -263,8 +283,13 @@ export function AnalysisResultsPanel({
                   )}
                   <p className="text-xs text-muted-foreground">
                     {formatAnalysisTime(rally.t)} ·{" "}
-                    {rally.offCamera ? "Last observed position" : "Landing"}{" "}
-                    {rally.inBounds ? "in" : "out"} ·{" "}
+                    {rally.game !== undefined && rally.scoreAfter && !rally.afterMatch
+                      ? `Game ${rally.game}, ${rally.scoreAfter.p1}–${rally.scoreAfter.p2} · `
+                      : ""}
+                    {rally.landingSeen === false
+                      ? "Landing not seen"
+                      : `${rally.offCamera ? "Last observed position" : "Landing"} ${rally.inBounds ? "in" : "out"}${rally.landingEnd ? ` at the ${rally.landingEnd} end` : ""}`}{" "}
+                    · {rally.decidedBy ? `Decided by ${rally.decidedBy} · ` : ""}
                     {rally.aiConfidence > 0 ? `AI ${Math.round(rally.aiConfidence * 100)}% — ` : ""}
                     {rally.aiNote}
                   </p>
@@ -283,13 +308,15 @@ export function AnalysisResultsPanel({
                         {player.toUpperCase()}
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => onCorrectRally(rally.id, { inBounds: !rally.inBounds })}
-                      className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                    >
-                      {rally.inBounds ? "Mark OUT" : "Mark IN"}
-                    </button>
+                    {rally.landingSeen !== false && (
+                      <button
+                        type="button"
+                        onClick={() => onCorrectRally(rally.id, { inBounds: !rally.inBounds })}
+                        className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                      >
+                        {rally.inBounds ? "Mark OUT" : "Mark IN"}
+                      </button>
+                    )}
                     <select
                       value={rally.shotType ?? "unknown"}
                       onChange={(event) =>
@@ -323,6 +350,13 @@ export function AnalysisResultsPanel({
                       className="rounded border border-amber-500/30 px-1.5 py-0.5 text-[10px] text-amber-200"
                     >
                       Keep for review
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onExcludeRally(rally.id, !rally.excluded)}
+                      className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {rally.excluded ? "Restore rally" : "Not a rally"}
                     </button>
                   </div>
                 </div>

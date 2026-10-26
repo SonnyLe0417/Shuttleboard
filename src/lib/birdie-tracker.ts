@@ -114,7 +114,8 @@ function estimateCameraShift(
 
   // Do not chase random sensor noise when the no-shift comparison is already
   // essentially as good as the best translated comparison.
-  if (!Number.isFinite(zeroScore) || bestScore > zeroScore * 0.98) {
+  // With a flat background every shift ties, and then no shift wins.
+  if (!Number.isFinite(zeroScore) || bestScore >= zeroScore * 0.98) {
     return { x: 0, y: 0 };
   }
   return { x: bestDx, y: bestDy };
@@ -513,7 +514,7 @@ export function detectBirdieMotion(
     const velDecay = locked ? 0.94 : 0.85;
     return {
       gray,
-      cameraShift: cameraShiftPx,
+      cameraShift,
       candidates: [],
       motionPixels,
       searchRadius,
@@ -538,7 +539,7 @@ export function detectBirdieMotion(
   return {
     gray,
     track: null,
-    cameraShift: cameraShiftPx,
+    cameraShift,
     candidates: candidates.slice(0, 5),
     motionPixels,
     searchRadius,

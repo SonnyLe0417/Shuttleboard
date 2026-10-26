@@ -90,6 +90,18 @@ their current save interface. Supplied completed-match timestamps must include
 both start and finish; in-progress matches cannot supply a finish time. Timestamps,
 offline duration and completed results are checked server-side.
 
+Every finished save, online or offline, must be a result the rules can produce
+(`matchResultProblem` in `src/lib/badminton-rules.ts`): each game a reachable final
+score for its preset (21-19, 22-20, 30-29, but not 21-20, 22-19 or 31-29), nothing
+after the deciding game, and a winner that matches the games. Offline uploads must
+also be complete matches; a manually logged single game may stand for a shortened
+match. Rejections start with `Validation:`, so a queued match with an impossible
+result is marked as an error instead of retried.
+
+The scoreboard keeps which team is at the near end, so the serve check and the
+serving court follow the server, and players change ends after each game and at 11
+in the deciding game. Every point is a rally for `total_rallies`, timed or not.
+
 One Web Lock per account serializes uploads across tabs. Temporary errors use
 exponential backoff capped at five minutes; session checks and uploads share a
 twenty-second deadline. Authentication errors pause automatic account uploads until same-account sign-in/token renewal or

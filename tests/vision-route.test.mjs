@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadRuntime } from "./fixtures/load-runtime.mjs";
 import * as access from "../src/lib/vision-access.server.ts";
+import * as geometry from "../src/lib/vision-geometry.ts";
 const body = { image: "data:image/jpeg;base64,c3ludGhldGlj" };
 const result = {
   shuttleVisible: false,
@@ -22,6 +23,7 @@ async function route(
     {
       "@tanstack/react-router": { createFileRoute: () => (config) => config },
       "@/lib/vision-access.server": { ...access, ...overrides },
+      "@/lib/vision-geometry": geometry,
     },
     { fetch, process: { env: { OPENAI_API_KEY: "synthetic-stub-key" } }, ...globals },
   );
@@ -125,4 +127,43 @@ test("server token verifier checks signed-in claims and rejects invalid/expired/
       assert.equal(reply, "u");
     else assert.equal(reply.status, 401);
   }
+});
+test("the geometric override judges the landing on the court, not the picture", async () => {
+  // Camera behind player 1's baseline: p1's half fills most of the picture.
+  const { COURT_TO_IMAGE, IMAGE_CORNERS } = await import("./fixtures/annotation-trace.mjs");
+  const { applyHomography } = await import("../src/lib/birdie-tracker.ts");
+  const at = (x, y) => applyHomography(COURT_TO_IMAGE, { x, y });
+  const calls = [];
+  for (const [position, call, pointTo] of [
+    // 5.5 m from p1's baseline: inside p1's half, so p1 lost the rally.
+    [at(0.5, 1 - 5.5 / 13.4), "in", "p2"],
+    // Past p1's baseline: p2 hit it out, so p1 wins, whoever hit last.
+    [at(0.5, 1.03), "out", "p1"],
+    // In the far doubles alley: out in singles, won by p2 at that end.
+    [at(0.04, 0.25), "out", "p2"],
+  ]) {
+    const post = await route(
+      {
+        authenticateVision: async () => "user",
+        reserveVision: async () => ({ release: async () => {} }),
+      },
+      async () =>
+        Response.json({
+          output_text: JSON.stringify({
+            ...result,
+            shuttleVisible: true,
+            landed: true,
+            confidence: 0.9,
+            position: { x: position.x, y: position.y },
+            pointTo: "none",
+          }),
+        }),
+    );
+    const reply = await (
+      await post({ ...body, mode: "singles", courtCorners: IMAGE_CORNERS, lastHitter: "unknown" })
+    ).json();
+    calls.push([reply.call, reply.pointTo]);
+    assert.deepEqual([reply.call, reply.pointTo], [call, pointTo]);
+  }
+  assert.equal(calls.length, 3);
 });

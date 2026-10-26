@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requestVision } from "@/lib/vision-request";
+import { cornersForPlayerOne } from "@/lib/vision-geometry";
 import { LiveRally } from "@/lib/live-rally";
 import { startLiveFramePump } from "@/lib/live-frame-pump";
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -53,7 +54,13 @@ const CAMERA_PRESETS: Array<{
   { id: "720p30", label: "720p · 30 FPS", width: 1280, height: 720, fps: 30 },
   { id: "480p30", label: "480p · 30 FPS", width: 854, height: 480, fps: 30 },
 ];
-const CORNER_LABELS = ["P1 back-left", "P1 back-right", "P2 back-right", "P2 back-left"] as const;
+// Lines are measured from the outer (doubles) boundary, even in singles.
+const CORNER_LABELS = [
+  "P1 back-left outer corner",
+  "P1 back-right outer corner",
+  "P2 back-right outer corner",
+  "P2 back-left outer corner",
+] as const;
 
 export const Route = createFileRoute("/_authenticated/ai")({
   head: () => ({
@@ -236,6 +243,8 @@ function AiVisionPage() {
   const [exposure, setExposure] = useState(0);
   const [localMode, setLocalMode] = useState<"lost" | "acquiring" | "locked" | "coasting">("lost");
   const [courtCorners, setCourtCorners] = useState<CourtPoint[]>([]);
+  // Corners are tapped with P1's end first; after a change of ends they are reordered.
+  const [cornersP1Side, setCornersP1Side] = useState<"left" | "right">("left");
   const [calibrating, setCalibrating] = useState(false);
   const [lastHitter, setLastHitter] = useState<"p1" | "p2" | "unknown">("unknown");
   const [landingConfirmationCount, setLandingConfirmationCount] = useState(0);
@@ -470,7 +479,10 @@ function AiVisionPage() {
         image,
         mode,
         p1Side,
-        courtCorners: courtCorners.length === 4 ? courtCorners : undefined,
+        courtCorners:
+          courtCorners.length === 4
+            ? cornersForPlayerOne(courtCorners, p1Side === cornersP1Side)
+            : undefined,
         previousTrack,
         lastHitter,
       });
@@ -644,7 +656,7 @@ function AiVisionPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
     }
-  }, [captureFrame, mode, p1Side, courtCorners, lastHitter, addPoint]);
+  }, [captureFrame, mode, p1Side, courtCorners, cornersP1Side, lastHitter, addPoint]);
 
   // The current referee's browser-side tracker runs at camera frame-rate so
   // the circle can keep up with badminton-speed motion.
@@ -1466,6 +1478,7 @@ function AiVisionPage() {
                     setCalibrating(false);
                   } else {
                     setCourtCorners([]);
+                    setCornersP1Side(p1Side);
                     setCalibrating(true);
                   }
                 }}
@@ -1584,7 +1597,9 @@ function AiVisionPage() {
               Candidates: {candidateCount} · motion pixels {motionPixels}
             </span>
             <span>Search radius: {Math.round(searchRadius * 100)}%</span>
-            <span>Camera shift: {Math.round(Math.hypot(cameraShift.x, cameraShift.y))}px</span>
+            <span>
+              Camera shift: {(Math.hypot(cameraShift.x, cameraShift.y) * 100).toFixed(1)}% of frame
+            </span>
             <span>Confidence: {confidenceReason}</span>
           </div>
         </details>

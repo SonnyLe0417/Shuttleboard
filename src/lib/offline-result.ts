@@ -1,7 +1,7 @@
 import type { MatchState } from "./match-controller";
 import type { QueuedMatch } from "./offline-db";
 import { z } from "zod";
-import { initialState } from "./match-controller";
+import { initialState, nearTeamOf, totalMatchPoints } from "./match-controller";
 import { findPreset } from "./badminton-rules";
 const side = z.union([z.literal(0), z.literal(1)]),
   score = z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]);
@@ -16,6 +16,8 @@ const legacySchema = z.object({
   declaredSide: z.enum(["left", "right"]),
   serveCheck: z.boolean(),
   nearSide: z.boolean(),
+  nearTeam: side.optional(),
+  rightCourt: z.tuple([side, side]).optional(),
   names: z.tuple([z.string().max(60), z.string().max(60)]),
   doublesNames: z.tuple([
     z.string().max(60),
@@ -50,6 +52,7 @@ export function restoreLegacyOfflineDraft(raw: string): MatchState {
   return {
     ...initialState(preset),
     ...result.data,
+    nearTeam: nearTeamOf(result.data),
     preset,
     celebrateAt: null,
     celebrateKind: null,
@@ -96,7 +99,7 @@ export function completedOfflineMatch(
       winner: state.matchWinnerTeam === 0 ? "A" : "B",
       duration_seconds: Math.max(0, Math.round((ended - state.matchStartedAt) / 1000)),
       longest_rally_seconds: Math.round(state.longestRallyMs / 1000),
-      total_rallies: state.rallyHistory.length,
+      total_rallies: totalMatchPoints(state),
       notes: "Saved from the live ShuttleBoard scoreboard.",
       tags: ["scoreboard"],
       opponent_nicknames: {},

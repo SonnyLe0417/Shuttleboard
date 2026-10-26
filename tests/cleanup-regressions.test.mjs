@@ -20,10 +20,12 @@ test("a service fault measures the violated service boundary", () => {
 });
 
 test("valid and narrowly out landings retain close-line feedback", () => {
+  // The singles sideline sits 0.46 m inside the 6.10 m doubles width.
+  const line = 0.46 / 6.1;
   for (const [x, expected] of [
-    [0.088, true],
-    [0.086, false],
-    [0.087, true],
+    [line + 0.001, true],
+    [line - 0.001, false],
+    [line, true],
   ]) {
     const verdict = landingVerdict(x, 0.25, "singles", false, true, 0);
     assert.equal(verdict.isIn, expected);

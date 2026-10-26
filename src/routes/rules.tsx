@@ -24,7 +24,8 @@ import {
   activeLandingBox,
   correctServeSide,
   inServiceCourt,
-  receiverSide,
+  receiverCourt,
+  COURT,
   type GameMode,
 } from "@/lib/badminton";
 import { PRESETS } from "@/lib/badminton-rules";
@@ -443,7 +444,9 @@ function ServeChecker() {
   const box = activeLandingBox(mode, true, nearSide, score);
   const isIn = inServiceCourt(landing.x, landing.y, mode, nearSide, score);
   const serverSide = correctServeSide(score);
-  const targetSide = receiverSide(score);
+  const targetSide = receiverCourt(score);
+  // The box, marker and lines share one mapping from court units to the tile.
+  const at = (value: number) => `${value * 86 + 7}%`;
   const updateLanding = (event: React.MouseEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setLanding({
@@ -484,23 +487,44 @@ function ServeChecker() {
           <div className="absolute inset-[7%] border border-primary/70" />
           <div className="absolute inset-x-[7%] top-1/2 border-t border-primary/70" />
           <div className="absolute inset-y-[7%] left-1/2 border-l border-primary/70" />
-          <div className="absolute inset-x-[7%] top-[35.4%] border-t border-primary/30" />
-          <div className="absolute inset-x-[7%] bottom-[7.6%] border-t border-dashed border-primary/30" />
+          {[COURT.shortServiceY, 1 - COURT.shortServiceY].map((y) => (
+            <div
+              key={y}
+              className="absolute inset-x-[7%] border-t border-primary/30"
+              style={{ top: at(y) }}
+            />
+          ))}
+          {mode === "singles" &&
+            [COURT.singlesSideline, 1 - COURT.singlesSideline].map((x) => (
+              <div
+                key={x}
+                className="absolute inset-y-[7%] border-l border-primary/30"
+                style={{ left: at(x) }}
+              />
+            ))}
+          {mode === "doubles" &&
+            [COURT.doublesLongServiceY, 1 - COURT.doublesLongServiceY].map((y) => (
+              <div
+                key={y}
+                className="absolute inset-x-[7%] border-t border-dashed border-primary/30"
+                style={{ top: at(y) }}
+              />
+            ))}
           <div
             className="absolute rounded-lg border-2 border-primary bg-primary/15 shadow-[0_0_25px_oklch(0.82_0.17_165/0.45)] transition-all duration-300"
             style={{
-              left: `${box.xMin * 86 + 7}%`,
-              top: `${box.yMin * 86 + 7}%`,
+              left: at(box.xMin),
+              top: at(box.yMin),
               width: `${(box.xMax - box.xMin) * 86}%`,
               height: `${(box.yMax - box.yMin) * 86}%`,
             }}
           />
           <div
             className={`absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-lg transition-all duration-300 ${isIn ? "bg-primary" : "bg-destructive"}`}
-            style={{ left: `${landing.x * 86 + 7}%`, top: `${landing.y * 86 + 7}%` }}
+            style={{ left: at(landing.x), top: at(landing.y) }}
           />
           <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary/80">
-            Receiver side · {targetSide}
+            Receiver's {targetSide} court
           </span>
         </button>
       </div>
@@ -516,8 +540,8 @@ function ServeChecker() {
           </p>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
             {isIn
-              ? `Landing is inside the diagonal ${targetSide} service court.`
-              : `Move the landing into the diagonal ${targetSide} service court.`}
+              ? `Landing is inside the receiver's ${targetSide} service court.`
+              : `Move the landing into the receiver's ${targetSide} service court.`}
           </p>
         </div>
         <div className="mt-5 space-y-3">
@@ -540,7 +564,7 @@ function ServeChecker() {
               </strong>
             </div>
             <div className="rounded-xl border border-white/10 bg-background/30 p-3">
-              Target box
+              Receiver's court
               <strong className="mt-1 block font-display text-lg capitalize text-primary">
                 {targetSide}
               </strong>

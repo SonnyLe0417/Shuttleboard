@@ -12,6 +12,7 @@ import {
   setRallyReviewStatus,
   sparseRallyWarning,
 } from "../src/lib/analysis-results.ts";
+import { COURT } from "../src/lib/badminton.ts";
 import {
   createRallyEndState,
   updateRallyEndState,
@@ -40,7 +41,14 @@ function point(time, x = 0.5, y = 0.6, extra = {}) {
 const missing = (time) => point(time, null, null, { detected: false, confidence: 0 });
 const repaired = (time, x = 0.5, y = 0.6) =>
   point(time, x, y, { detected: false, repaired: true, confidence: 0 });
-const motion = [point(0, 0.2, 0.2), point(0.1, 0.3, 0.4), point(0.2, 0.5, 0.6)];
+// A shot in flight: several fast sightings, unlike a pickup or a flick.
+const motion = [
+  point(0, 0.2, 0.2),
+  point(0.05, 0.3, 0.35),
+  point(0.1, 0.4, 0.45),
+  point(0.15, 0.45, 0.55),
+  point(0.2, 0.5, 0.6),
+];
 const rest = (start = 0.3, extra = {}) =>
   Array.from({ length: 11 }, (_, i) => point(start + i * 0.1, 0.5, 0.6, extra));
 
@@ -174,24 +182,56 @@ test("a shuttle held before serving does not become a point", () => {
 });
 
 test("a directly seen downward approach permits a stop in the serve-ready area", () => {
-  const approach = [point(0, 0.5, 0.2), point(0.1, 0.5, 0.26), point(0.2, 0.5, 0.3)];
+  const approach = [0, 0.05, 0.1, 0.15, 0.2].map((t) => point(t, 0.5, 0.1 + t));
   const landing = rest(0.3).map((p) => ({ ...p, y: 0.3 }));
   assert.equal(buildTrackNetRallies([...approach, ...landing], H).length, 1);
 });
 
-test("a stop near the court boundary needs review and cannot change the score", () => {
-  const boundary = rest(0.3).map((p) => ({ ...p, x: 0.02 }));
+test("a low-confidence landing needs review but is not a line call the next serve may settle", () => {
+  const rallies = buildTrackNetRallies([...motion, ...rest(0.3, { confidence: 0.5 })], H);
+  assert.equal(rallies.length, 1);
+  assert.equal(rallies[0].needsReview, true);
+  assert.equal(rallies[0].landingAmbiguous, false);
+});
+
+test("a stop with no fall before it, mid-rally, needs review", () => {
+  // Fast across the court at one height, then still: never seen coming down.
+  const flat = [0, 0.05, 0.1, 0.15, 0.2].map((t) => point(t, 0.2 + t * 1.5, 0.6));
+  const rallies = buildTrackNetRallies([...flat, ...rest(0.3)], H);
+  assert.equal(rallies.length, 1);
+  assert.equal(rallies[0].countsTowardScore, false);
+  assert.match(rallies[0].aiNote, /not seen coming down/);
+});
+
+test("a stop on a boundary line needs review and cannot change the score", () => {
+  // 6 cm inside the singles sideline.
+  const boundary = rest(0.3).map((p) => ({ ...p, x: COURT.singlesSideline + 0.01 }));
   const rallies = buildTrackNetRallies([...motion, ...boundary], H);
   assert.equal(rallies.length, 1);
   assert.equal(rallies[0].needsReview, true);
   assert.equal(rallies[0].countsTowardScore, false);
+  assert.equal(rallies[0].landingAmbiguous, true);
   assert.deepEqual(scoreFromRallies(rallies), { p1: 0, p2: 0 });
+});
+
+test("a clear out scores for the player at the end it landed on", () => {
+  // In the doubles alley at the near end: out in singles, so the near player wins.
+  const alley = rest(0.3).map((p) => ({ ...p, x: 0.03, y: 0.8 }));
+  const [singles] = buildTrackNetRallies([...motion, ...alley], H);
+  assert.equal(singles.inBounds, false);
+  assert.equal(singles.landingEnd, "near");
+  assert.equal(singles.countsTowardScore, true);
+  assert.equal(singles.winner, "p1");
+  const [doubles] = buildTrackNetRallies([...motion, ...alley], H, { mode: "doubles" });
+  assert.equal(doubles.inBounds, true);
+  assert.equal(doubles.winner, "p2");
 });
 
 test("a stop by the camera edge or outside the court cannot score automatically", () => {
   const cases = [
-    { x: 0.03, homography: H },
-    { x: 0.8, homography: [1.5, 0, 0, 0, 1, 0, 0, 0, 1] },
+    { x: 0.005, homography: H },
+    // More than 2 m outside the court.
+    { x: 0.8, homography: [2, 0, 0, 0, 1, 0, 0, 0, 1] },
   ];
   for (const { x, homography } of cases) {
     const edge = rest(0.3).map((p) => ({ ...p, x }));
@@ -217,7 +257,8 @@ test("legacy coordinates from the current engine can prove a visible stop", () =
   const old = [...motion, ...rest()].map(({ detected, repaired, ...p }) => p);
   const rallies = buildTrackNetRallies(old, H);
   assert.equal(rallies.length, 1);
-  assert.equal(rallies[0].t, 1.3);
+  // The rally ends when the shuttle lands, not when it is picked up.
+  assert.equal(rallies[0].t, 0.2);
   assert.equal(rallies[0].offCamera, false);
   assert.equal(rallies[0].evidenceFrames, 12);
   assert.deepEqual(scoreFromRallies(rallies), { p1: 0, p2: 1 });
@@ -228,7 +269,7 @@ test("visual trail retains repaired positions and rally processing does not muta
   const snapshot = structuredClone(points);
   buildTrackNetRallies(points, H);
   const trail = trackNetVisualTrail(points, 1.3);
-  assert.equal(trail.length, 4);
+  assert.equal(trail.length, 6);
   assert.equal(trail.at(-1).repaired, true);
   assert.equal(trail.at(-1).confidence, 0);
   assert.deepEqual(points, snapshot);
@@ -242,8 +283,8 @@ test("frame diagnostics separate direct, repaired and missing rows including leg
     point(2, 0.5, 0.5, { detected: undefined, repaired: undefined }),
   ];
   assert.deepEqual(summarizeTrackNetFrames(points), {
-    totalFrames: 6,
-    directFrames: 4,
+    totalFrames: 8,
+    directFrames: 6,
     repairedFrames: 1,
     missingFrames: 1,
     durationSeconds: 2,
@@ -291,7 +332,7 @@ test("confirmed review points and diagnostics survive saving and restoring the m
   assert.deepEqual(restored.score, { p1: 0, p2: 1 });
   assert.deepEqual(scoreFromRallies(restored.rallies), restored.score);
   assert.equal(restored.tracknetJobId, "job-1");
-  assert.equal(restored.tracknetFrameDiagnostics.directFrames, 14);
+  assert.equal(restored.tracknetFrameDiagnostics.directFrames, 16);
   assert.equal(loadVideoAnalysisSession(storage, "another-video"), null);
 });
 
@@ -307,4 +348,219 @@ test("sparse-rally notice describes missing evidence rather than asserting match
   assert.equal(sparseRallyWarning({ ...long, durationSeconds: 4 }, []), null);
   assert.equal(sparseRallyWarning({ ...long, directFrames: 0 }, []), null);
   assert.equal(sparseRallyWarning(long, Array(6).fill({})), null);
+});
+
+const at30 = (from, to, place) => {
+  const points = [];
+  for (let frame = Math.round(from * 30); frame < Math.round(to * 30); frame++) {
+    const where = place(frame / 30, frame);
+    points.push(where ? point(frame / 30, where.x, where.y) : missing(frame / 30));
+  }
+  return points;
+};
+const flightTo = (start, from, to) =>
+  at30(start, start + 0.5, (t) => {
+    const u = (t - start) / 0.5;
+    return { x: from.x + (to.x - from.x) * u, y: from.y + (to.y - from.y) * u };
+  });
+
+test("the shuttle lying, being carried and held between rallies adds no rally", () => {
+  const landing = { x: 0.5, y: 0.7 };
+  const server = { x: 0.4, y: 0.75 };
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.2 }, landing),
+    // Lies for 7 s: a player walks past twice and the blob flickers by a cell.
+    ...at30(0.5, 7.5, (t, frame) =>
+      (t > 2 && t < 2.7) || (t > 5 && t < 5.4)
+        ? null
+        : { x: landing.x + (frame % 7 === 0 ? 1 / 512 : 0), y: landing.y },
+    ),
+    // Carried to the server, then held still before the serve.
+    ...at30(7.5, 11, (t) => ({
+      x: 0.5 - ((t - 7.5) / 3.5) * 0.1,
+      y: 0.7 + ((t - 7.5) / 3.5) * 0.05,
+    })),
+    ...at30(11, 12.5, () => server),
+    ...flightTo(12.5, server, { x: 0.6, y: 0.2 }),
+    ...at30(13, 15, () => ({ x: 0.6, y: 0.2 })),
+  ];
+  const rallies = buildTrackNetRallies(points, H);
+  assert.equal(rallies.length, 2);
+  assert.ok(Math.abs(rallies[0].t - 0.5) < 0.1, "the first rally ends when the shuttle lands");
+  assert.equal(rallies[0].countsTowardScore, true);
+  // The held shuttle projects to the near half, so the near player served next.
+  assert.equal(rallies[1].serveEnd, "near");
+  assert.ok(Math.abs(rallies[1].startT - 12.5) < 0.1, `${rallies[1].startT}`);
+});
+
+test("a rally whose landing nobody saw is offered for review once the next one is served", () => {
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.2 }, { x: 0.5, y: 0.9 }),
+    ...at30(0.5, 9, () => null),
+    ...at30(9, 10, () => ({ x: 0.5, y: 0.25 })),
+    ...flightTo(10, { x: 0.5, y: 0.25 }, { x: 0.5, y: 0.8 }),
+    ...at30(10.5, 12, () => ({ x: 0.5, y: 0.8 })),
+  ];
+  const rallies = buildTrackNetRallies(points, H);
+  assert.equal(rallies.length, 2);
+  assert.equal(rallies[0].landingSeen, false);
+  assert.equal(rallies[0].countsTowardScore, false);
+  assert.equal(rallies[1].serveEnd, "far");
+  // Without a following serve, a disappearance alone still proposes nothing.
+  assert.equal(buildTrackNetRallies(points.slice(0, 15), H).length, 0);
+});
+
+test("a shuttle hidden for a few seconds mid-rally rejoins its rally", () => {
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, { x: 0.5, y: 0.75 }),
+    // Three seconds with no rows at all, then the rally carries on and lands.
+    ...flightTo(3.5, { x: 0.5, y: 0.25 }, { x: 0.5, y: 0.7 }),
+    ...at30(4, 6, () => ({ x: 0.5, y: 0.7 })),
+  ];
+  const rallies = buildTrackNetRallies(points, H);
+  assert.equal(rallies.length, 1);
+  assert.equal(rallies[0].landingSeen, true);
+  assert.ok(rallies[0].startT < 0.1, `${rallies[0].startT}`);
+});
+
+test("a serve hidden straight after it leaves the hand still starts when it was hit", () => {
+  const server = { x: 0.5, y: 0.75 };
+  const points = [
+    ...at30(0, 1.5, () => server),
+    // Seen for a few frames of flight, too few to prove a rally, then hidden by
+    // the server's body for half a second.
+    ...flightTo(1.5, server, { x: 0.5, y: 0.25 }).filter((p) => p.time < 1.62),
+    ...flightTo(2.1, { x: 0.5, y: 0.15 }, { x: 0.5, y: 0.4 }),
+    ...at30(2.6, 4, () => ({ x: 0.5, y: 0.4 })),
+  ];
+  const rallies = buildTrackNetRallies(points, H);
+  assert.equal(rallies.length, 1);
+  assert.ok(Math.abs(rallies[0].startT - 1.5) < 0.15, `${rallies[0].startT}`);
+});
+
+test("a pickup shortly before the serve neither starts a rally nor hides the serve", () => {
+  const landing = { x: 0.5, y: 0.3 };
+  const server = { x: 0.6, y: 0.75 };
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.8 }, landing),
+    ...at30(0.5, 3.5, () => landing),
+    // Scooped up with the racket: one fast step, then carried and held.
+    ...at30(3.5, 3.54, () => ({ x: 0.5, y: 0.36 })),
+    ...at30(3.54, 5.5, (t) => ({
+      x: 0.5 + ((t - 3.54) / 2) * 0.1,
+      y: 0.36 + ((t - 3.54) / 2) * 0.39,
+    })),
+    ...at30(5.5, 6.5, () => server),
+    ...flightTo(6.5, server, { x: 0.4, y: 0.25 }),
+    ...at30(7, 9, () => ({ x: 0.4, y: 0.25 })),
+  ];
+  const rallies = buildTrackNetRallies(points, H);
+  assert.equal(rallies.length, 2);
+  assert.ok(Math.abs(rallies[1].startT - 6.5) < 0.1, `${rallies[1].startT}`);
+  assert.equal(rallies[1].serveEnd, "near");
+});
+
+test("a rest seen too late to be the landing still ends the rally", () => {
+  // The landing is hidden, the shuttle is then seen lying, scooped up, carried
+  // and held, and the next rally is served.
+  const lying = { x: 0.5, y: 0.8 };
+  const server = { x: 0.4, y: 0.3 };
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, { x: 0.5, y: 0.75 }),
+    ...at30(0.5, 3.6, () => null),
+    ...at30(3.6, 5, () => lying),
+    ...flightTo(5, lying, { x: 0.45, y: 0.55 }).slice(0, 4),
+    ...at30(5.13, 6.5, (t) => ({ x: 0.45 - (t - 5.13) * 0.035, y: 0.55 - (t - 5.13) * 0.18 })),
+    ...at30(6.5, 8, () => server),
+    ...flightTo(8, server, { x: 0.6, y: 0.8 }),
+    ...at30(8.5, 10, () => ({ x: 0.6, y: 0.8 })),
+  ];
+  const rallies = buildTrackNetRallies(points, H);
+  assert.equal(rallies.length, 2);
+  assert.equal(rallies[0].landingSeen, false);
+  assert.equal(rallies[1].landingSeen, true);
+  assert.ok(Math.abs(rallies[1].startT - 8) < 0.1, `${rallies[1].startT}`);
+});
+
+test("a shuttle scooped up or knocked back to the server is not a rally", () => {
+  const landing = { x: 0.5, y: 0.8 };
+  const server = { x: 0.4, y: 0.3 };
+  // A racket scoop from where it landed: several fast frames, caught a metre up.
+  const scooped = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, landing),
+    ...at30(0.5, 4, () => landing),
+    ...flightTo(4, landing, { x: 0.5, y: 0.6 }),
+    ...at30(4.5, 7, (t) => ({ x: 0.5 - (t - 4.5) * 0.04, y: 0.6 - (t - 4.5) * 0.12 })),
+    ...at30(7, 8.5, () => server),
+    ...flightTo(8.5, server, { x: 0.6, y: 0.8 }),
+    ...at30(9, 11, () => ({ x: 0.6, y: 0.8 })),
+  ];
+  assert.equal(buildTrackNetRallies(scooped, H).length, 2);
+  // Picked up by hand, then hit over the net 6.5 s later and served 3.5 s after that.
+  const knocked = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, landing),
+    ...at30(0.5, 3, () => landing),
+    ...at30(3, 6.5, (t) => ({ x: 0.5 + (t - 3) * 0.02, y: 0.8 - (t - 3) * 0.02 })),
+    ...flightTo(6.5, { x: 0.57, y: 0.73 }, { x: 0.45, y: 0.3 }),
+    ...at30(7, 8.5, () => ({ x: 0.45, y: 0.3 })),
+    ...at30(8.5, 10, () => ({ x: 0.43, y: 0.3 })),
+    ...flightTo(10, { x: 0.43, y: 0.3 }, { x: 0.6, y: 0.8 }),
+    ...at30(10.5, 12, () => ({ x: 0.6, y: 0.8 })),
+  ];
+  const rallies = buildTrackNetRallies(knocked, H);
+  assert.deepEqual(
+    rallies.map((rally) => Math.round(rally.startT)),
+    [0, 10],
+  );
+});
+
+test("a short rally survives the shuttle being scooped from where it landed", () => {
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, { x: 0.5, y: 0.75 }),
+    ...at30(0.5, 7, () => ({ x: 0.5, y: 0.75 })),
+    // Walked to the far server and held, then a one-shot rally 9.5 s after the last landing.
+    ...at30(7, 9, (t) => ({ x: 0.5 - (t - 7) * 0.025, y: 0.75 - (t - 7) * 0.225 })),
+    ...at30(9, 10, () => ({ x: 0.45, y: 0.3 })),
+    ...flightTo(10, { x: 0.45, y: 0.3 }, { x: 0.5, y: 0.7 }),
+    ...at30(10.5, 13, () => ({ x: 0.5, y: 0.7 })),
+    // Scooped up fast on the near side, walked to the near server, served.
+    ...at30(13, 13.2, (t) => ({ x: 0.5, y: 0.7 - (t - 13) * 0.75 })),
+    ...at30(13.2, 16, (t) => ({ x: 0.5 + (t - 13.2) * 0.018, y: 0.55 + (t - 13.2) * 0.09 })),
+    ...at30(16, 17.5, () => ({ x: 0.55, y: 0.8 })),
+    ...flightTo(17.5, { x: 0.55, y: 0.8 }, { x: 0.5, y: 0.25 }),
+    ...at30(18, 20, () => ({ x: 0.5, y: 0.25 })),
+  ];
+  assert.deepEqual(
+    buildTrackNetRallies(points, H).map((rally) => Math.round(rally.startT)),
+    [0, 10, 18],
+  );
+});
+
+test("a server holding the shuttle where a knock-back dropped it still serves", () => {
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, { x: 0.5, y: 0.8 }),
+    ...at30(0.5, 6.5, () => ({ x: 0.5, y: 0.8 })),
+    // Knocked over the net to the far server, who picks it up there and serves.
+    ...flightTo(6.6, { x: 0.52, y: 0.75 }, { x: 0.45, y: 0.3 }),
+    ...at30(7.1, 10, () => ({ x: 0.45, y: 0.3 })),
+    ...flightTo(10, { x: 0.45, y: 0.3 }, { x: 0.6, y: 0.8 }),
+    ...at30(10.5, 12, () => ({ x: 0.6, y: 0.8 })),
+  ];
+  assert.deepEqual(
+    buildTrackNetRallies(points, H).map((rally) => Math.round(rally.startT)),
+    [0, 10],
+  );
+});
+
+test("the last rally of a video is offered for review even when its landing is hidden", () => {
+  const rallyPlay = [];
+  for (let shot = 0; shot < 4; shot++) {
+    const from = { x: 0.5, y: shot % 2 ? 0.75 : 0.3 };
+    const to = { x: 0.5, y: shot % 2 ? 0.3 : 0.75 };
+    rallyPlay.push(...flightTo(shot * 0.6, from, to));
+  }
+  const rallies = buildTrackNetRallies([...rallyPlay, ...at30(2.5, 6, () => null)], H);
+  assert.equal(rallies.length, 1);
+  assert.equal(rallies[0].landingSeen, false);
+  assert.equal(rallies[0].countsTowardScore, false);
 });

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { RETIRED_TAG, matchResultProblem, rulesForResult } from "@/lib/badminton-rules";
 import {
   listMyMatches,
   deleteMatch,
@@ -718,6 +719,7 @@ function LogMatchCard() {
   const pointsDefault = defaults.points_to_win ?? 21;
   const [scoreA, setScoreA] = useState(pointsDefault);
   const [scoreB, setScoreB] = useState(0);
+  const [retired, setRetired] = useState<"none" | "opponent" | "me">("none");
   const [saving, setSaving] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -741,13 +743,35 @@ function LogMatchCard() {
     e.preventDefault();
     setSaving(true);
     try {
-      const winner = scoreA === scoreB ? null : scoreA > scoreB ? "A" : "B";
+      // After a retirement the player who carried on wins, whatever the score.
+      const winner =
+        retired === "opponent"
+          ? "A"
+          : retired === "me"
+            ? "B"
+            : scoreA === scoreB
+              ? null
+              : scoreA > scoreB
+                ? "A"
+                : "B";
+      const format = defaults.format || "21-point";
+      const pointsToWin = defaults.points_to_win ?? 21;
+      const bestOf = defaults.best_of ?? 1;
+      const savedTags =
+        retired === "none" || tags.includes(RETIRED_TAG) ? tags : [...tags, RETIRED_TAG];
+      const problem = matchResultProblem(
+        [{ a: scoreA, b: scoreB }],
+        winner,
+        rulesForResult(pointsToWin, bestOf, format),
+        { bestOf, complete: false, pointsToWin, retired: retired !== "none" },
+      );
+      if (problem) throw new Error(`Check the score: ${problem}`);
       const saved = await saveFn({
         data: {
           mode: defaults.mode ?? "singles",
-          format: defaults.format || "21-point",
-          points_to_win: defaults.points_to_win ?? 21,
-          best_of: defaults.best_of ?? 1,
+          format,
+          points_to_win: pointsToWin,
+          best_of: bestOf,
           team_a_names: [aName || defaults.starting_a || "You"],
           team_b_names: [bName || bHandle || defaults.starting_b || "Opponent"],
           team_a_handles: [],
@@ -758,7 +782,7 @@ function LogMatchCard() {
           longest_rally_seconds: 0,
           total_rallies: 0,
           notes: notes || undefined,
-          tags,
+          tags: savedTags,
           opponent_nicknames: {},
           status: "finished",
         },
@@ -776,6 +800,7 @@ function LogMatchCard() {
       setBHandle("");
       setScoreA(defaults.points_to_win ?? 21);
       setScoreB(0);
+      setRetired("none");
       setTags([]);
       setNotes("");
     } catch (err: any) {
@@ -836,6 +861,18 @@ function LogMatchCard() {
             />
           </label>
         </div>
+        <label className="block">
+          <span className="text-[10px] uppercase text-muted-foreground">Ended</span>
+          <select
+            value={retired}
+            onChange={(e) => setRetired(e.target.value as typeof retired)}
+            className="mt-1 w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm outline-none"
+          >
+            <option value="none">Played out</option>
+            <option value="opponent">Opponent retired or conceded</option>
+            <option value="me">I retired or conceded</option>
+          </select>
+        </label>
         <div className="flex flex-wrap items-center gap-1 rounded-lg border border-white/10 bg-background px-2 py-2">
           {tags.map((t) => (
             <span

@@ -11,30 +11,29 @@ interface CourtProps {
 export function Court({ mode, onTap, landing, isIn }: CourtProps) {
   const ref = useRef<HTMLDivElement>(null);
 
+  // Taps are measured from the court's outer lines, so a tap in the margin
+  // around it is a landing outside the court (below 0 or above 1).
   const handlePointer = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = ref.current?.getBoundingClientRect();
     if (!rect) return;
-    const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-    onTap(x, y);
+    onTap((e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl bg-court shadow-xl">
-      <div
-        ref={ref}
-        className="relative aspect-[610/1340] w-full cursor-crosshair touch-none"
-        onPointerDown={handlePointer}
-        onPointerMove={(e) => e.buttons === 1 && handlePointer(e)}
-        role="button"
-        tabIndex={0}
-        aria-label="Tap the court where the shuttle landed"
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            onTap(0.5, 0.5);
-          }
-        }}
-      >
+    <div
+      className="relative w-full cursor-crosshair touch-none overflow-hidden rounded-2xl bg-court/55 p-[10%] shadow-xl"
+      onPointerDown={handlePointer}
+      onPointerMove={(e) => e.buttons === 1 && handlePointer(e)}
+      role="button"
+      tabIndex={0}
+      aria-label="Tap where the shuttle landed, in or outside the court"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          onTap(0.5, 0.5);
+        }
+      }}
+    >
+      <div ref={ref} className="relative aspect-[610/1340] w-full bg-court">
         {/* Boundary lines */}
         <CourtLine horizontal={0} />
         <CourtLine horizontal={1} />

@@ -1,14 +1,16 @@
 import { useState, type ReactNode } from "react";
 import { Play, RotateCcw } from "lucide-react";
+import type { GameMode } from "@/lib/badminton";
 import type { Point } from "@/lib/birdie-tracker";
 import type { TrackNetSettings } from "@/lib/tracknet-client";
 import type { CameraSegment, CameraViewType } from "@/lib/video-camera-segments";
 
+// Every court line is measured from the outer (doubles) boundary, even in singles.
 const CORNER_LABELS = [
-  "Near-left corner (bottom-left of court)",
-  "Near-right corner (bottom-right of court)",
-  "Far-right corner (top-right of court)",
-  "Far-left corner (top-left of court)",
+  "Near-left outer corner (bottom-left, where the doubles lines meet)",
+  "Near-right outer corner (bottom-right, where the doubles lines meet)",
+  "Far-right outer corner (top-right, where the doubles lines meet)",
+  "Far-left outer corner (top-left, where the doubles lines meet)",
 ];
 
 interface CourtCalibrationPanelProps {
@@ -32,6 +34,8 @@ interface CourtCalibrationPanelProps {
   tracknetSettings: TrackNetSettings;
   onTrackNetSettingsChange: (settings: TrackNetSettings) => void;
   tracknetEngine: "current" | "v3" | "unknown";
+  gameMode: GameMode;
+  onGameModeChange: (mode: GameMode) => void;
 }
 
 export function CourtCalibrationPanel({
@@ -55,6 +59,8 @@ export function CourtCalibrationPanel({
   tracknetSettings,
   onTrackNetSettingsChange,
   tracknetEngine,
+  gameMode,
+  onGameModeChange,
 }: CourtCalibrationPanelProps) {
   const [showSegments, setShowSegments] = useState(true);
   const complete = corners.length === 4;
@@ -90,6 +96,21 @@ export function CourtCalibrationPanel({
               {mode === "browser" ? "Browser fallback" : "TrackNet AI"}
             </button>
           ))}
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-medium text-foreground">Match</span>
+          {(["singles", "doubles"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onGameModeChange(value)}
+              className={`rounded-md px-3 py-1.5 font-semibold capitalize ${gameMode === value ? "bg-primary text-primary-foreground" : "border border-input bg-background"}`}
+            >
+              {value}
+            </button>
+          ))}
+          <span className="text-muted-foreground">Sets the side lines for in and out calls.</span>
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">

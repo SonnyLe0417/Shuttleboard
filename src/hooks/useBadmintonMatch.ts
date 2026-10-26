@@ -10,7 +10,8 @@ import {
   PRESETS,
   findPreset,
   isGameOver,
-  isMatchPoint,
+  pointCall,
+  type PointCall,
 } from "@/lib/badminton-rules";
 import {
   initialState,
@@ -18,6 +19,8 @@ import {
   DEFAULT_DOUBLES,
   MATCH_DRAFT_KEY,
   type MatchState,
+  doublesServe,
+  nearTeamOf,
   type CompletedGame,
   type Snapshot,
 } from "@/lib/match-controller";
@@ -52,6 +55,8 @@ export function useBadmintonMatch(managed = false) {
         const restored: MatchState = {
           ...initialState(preset),
           ...parsed,
+          // Drafts from before ends were tracked keep the server's end they recorded.
+          nearTeam: nearTeamOf(parsed),
           preset,
           score:
             Array.isArray(parsed.score) && parsed.score.length === 2
@@ -151,6 +156,7 @@ export function useBadmintonMatch(managed = false) {
     [],
   );
   const setNearSide = useCallback((value: boolean) => dispatch({ type: "nearSide", value }), []);
+  const setFirstServer = useCallback((team: 0 | 1) => dispatch({ type: "firstServer", team }), []);
   const setPreset = useCallback(
     (id: PresetId) => dispatch({ type: "preset", id, at: Date.now() }),
     [],
@@ -175,33 +181,26 @@ export function useBadmintonMatch(managed = false) {
 
   const correctSide = correctServeSide(state.score[state.server]);
   const sideWarning = state.declaredSide !== correctSide;
-  const matchPoint = isMatchPoint(state.score, state.preset);
+  const pointCalls: [PointCall, PointCall] = [
+    pointCall(state.score, state.games, 0, state.preset),
+    pointCall(state.score, state.games, 1, state.preset),
+  ];
+  const matchPoint = pointCalls.includes("match");
+  const gamePoint = pointCalls.includes("game");
   const gameOver = isGameOver(state.score, state.preset);
 
-  const doublesRotation = useMemo(() => {
-    if (state.mode !== "doubles") return null;
-    // In doubles, the server is a specific player from the serving team.
-    // Right service court (even score) → player A1/B1 serves initially;
-    // partners swap on each point won while serving.
-    const team = state.server;
-    const serverScore = state.score[team];
-    const teamPlayers: [string, string] =
-      team === 0
-        ? [state.doublesNames[0], state.doublesNames[1]]
-        : [state.doublesNames[2], state.doublesNames[3]];
-    // Deterministic simple rotation: on even score, first-listed player serves; odd, partner.
-    const currentServer = serverScore % 2 === 0 ? teamPlayers[0] : teamPlayers[1];
-    const receiverTeam: [string, string] =
-      team === 0
-        ? [state.doublesNames[2], state.doublesNames[3]]
-        : [state.doublesNames[0], state.doublesNames[1]];
-    return {
-      server: currentServer,
-      partner: teamPlayers[0] === currentServer ? teamPlayers[1] : teamPlayers[0],
-      receivers: receiverTeam,
-      side: correctSide,
-    };
-  }, [state.mode, state.server, state.score, state.doublesNames, correctSide]);
+  const doublesRotation = useMemo(
+    () =>
+      state.mode === "doubles"
+        ? doublesServe({
+            server: state.server,
+            score: state.score,
+            rightCourt: state.rightCourt,
+            doublesNames: state.doublesNames,
+          })
+        : null,
+    [state.mode, state.server, state.score, state.rightCourt, state.doublesNames],
+  );
 
   // Keep sfx/haptics in sync with prefs by reading window flags set by settings init
   useEffect(() => {
@@ -233,6 +232,7 @@ export function useBadmintonMatch(managed = false) {
     setDeclaredSide,
     setServeCheck,
     setNearSide,
+    setFirstServer,
     setPreset,
     startRally,
     addPoint,
@@ -244,7 +244,9 @@ export function useBadmintonMatch(managed = false) {
     teamName,
     correctSide,
     sideWarning,
+    pointCalls,
     matchPoint,
+    gamePoint,
     gameOver,
     doublesRotation,
     canUndo: history.length > 0,
