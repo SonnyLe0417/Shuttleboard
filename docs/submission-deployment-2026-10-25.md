@@ -31,7 +31,8 @@ Live URL: https://shuttleboard.shuttleboard-sonnyle0417.workers.dev
 Cloudflare version: `c4fd4370-1b49-46fb-8450-ea5085db1ac2`.
 Server configuration was uploaded through the approved encrypted-secret option.
 The first HTTPS checks hit a TLS handshake failure while the new workers.dev
-subdomain was provisioning; passing live application checks are still pending.
+subdomain was provisioning. Strict HTTPS subsequently became healthy without
+disabling certificate checks.
 
 The user approved reusing the existing OpenAI key. Uploading the broader local
 credential set was rejected by automatic approval review; those credentials were
@@ -46,8 +47,27 @@ URL. `public/.assetsignore` retains that original locally while excluding it fro
 Cloudflare's 25 MiB asset limit. Generated video result downloads are unaffected.
 Saved comparison builds remain unchanged.
 
-After deployment, verify the live homepage, scoring, auth guard, static assets,
-offline manifest and unauthenticated API rejection without paid provider calls.
-Google OAuth needs the final origin in Supabase's redirect allowlist. TrackNet's
+Live verification passed: homepage, scoreboard, rules and auth returned 200; the
+service worker and offline manifest were served with correct content types; all
+33 offline assets were available. AI and notification POSTs without authentication
+returned 401. The 77 public text assets and live homepage did not contain either
+private server key (values were checked silently, never printed).
+
+An isolated signed-out Edge browser scored two Team A points and displayed 2–0;
+Undo displayed 1–0. The browser console had zero warnings/errors, and navigating
+to the protected dashboard redirected to /auth. Reload then showed the existing
+guest-trial exhaustion screen; this was not treated as a signed-in draft-recovery
+test. Signed-in recovery/queue acceptance remains covered by the prior isolated
+production fixture, not a real-account live benchmark. The test browser was closed
+and its local artifacts are ignored; the user's account storage was not touched.
+
+Google is enabled and signup is allowed in the existing auth service. The user
+reported adding the base origin as Site URL and Redirect URL. Adding
+`https://shuttleboard.shuttleboard-sonnyle0417.workers.dev/**` to the redirect
+allowlist was requested to cover /auth and /reset-password; confirmation and a
+personal Google sign-in test are still pending. No paid AI request was made.
+
+Only the new approved migration was applied; older repository migrations were
+not replayed against the existing database. TrackNet's
 Python inference remains local unless separately hosted; deploying the web Worker
 does not move PyTorch/OpenVINO inference to Cloudflare.

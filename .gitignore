@@ -25,6 +25,7 @@ dist-ssr
 !.env.*.example
 supabase/.temp/
 .pytest_cache/
+.playwright-cli/
 
 # Preserve raw account attempts and large baseline snapshots locally.
 # Reviewed numeric summaries and synthetic comparison reports are versioned.
