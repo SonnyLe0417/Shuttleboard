@@ -10,7 +10,7 @@ import {
   videoMatchOptions,
   DEFAULT_VIDEO_MATCH_SETTINGS,
 } from "../src/lib/video-match.ts";
-import { correctRally, setRallyReviewStatus } from "../src/lib/analysis-results.ts";
+import { correctRally, excludeRally, setRallyReviewStatus } from "../src/lib/analysis-results.ts";
 import { traceFromAnnotation } from "./fixtures/annotation-trace.mjs";
 
 const annotation = loadMatchAnnotation(
@@ -73,7 +73,7 @@ test("confirming the suggestions completes the confirmed score", () => {
   let rallies = built;
   let match = resolveVideoMatch(rallies);
   for (const rally of match.rallies.filter((item) => !item.countsTowardScore)) {
-    rallies = setRallyReviewStatus(rallies, rally.id, "confirmed", rally.winner);
+    rallies = setRallyReviewStatus(rallies, rally.id, "confirmed", rally);
     match = resolveVideoMatch(rallies);
   }
   assert.equal(match.pending, 0);
@@ -123,7 +123,7 @@ test("a correction re-scores every rally after it", () => {
 test("rallies after the match ends do not score", () => {
   const match = resolveVideoMatch([
     ...built,
-    { ...built.at(-1), id: 999, t: built.at(-1).t + 30, winnerLocked: true, winner: "p1" },
+    { ...built.at(-1), id: 999, t: built.at(-1).t + 30, reviewerWinnerEnd: "far" },
   ]);
   const extra = match.rallies.find((rally) => rally.id === 999);
   assert.equal(extra.afterMatch, true);
@@ -200,4 +200,100 @@ test("at a game point the next serve cannot tell who won", () => {
   const unseen = match.rallies.at(-2);
   assert.equal(unseen.decidedBy, undefined);
   assert.equal(unseen.countsTowardScore, false);
+});
+
+test("reviewer decisions follow the ends when the start of the match is corrected", () => {
+  // The reviewer first works with the wrong starting ends and confirms every suggestion.
+  const wrong = { initialNear: "p2" };
+  let rallies = built;
+  for (const rally of resolveVideoMatch(rallies, wrong).rallies.filter((r) => !r.countsTowardScore))
+    rallies = setRallyReviewStatus(rallies, rally.id, "confirmed", rally);
+  // Fixing the setting re-attributes the confirmed rallies with everything else.
+  const fixed = resolveVideoMatch(rallies);
+  assert.equal(formatGameScores(fixed.timeline.games), "18-21, 12-21");
+  for (const [index, [found]] of byAnnotatedRally(fixed.rallies).entries())
+    assert.equal(found.winner, annotation.rallies[index].winner, `rally ${index}`);
+  assert.equal(fixed.pending, 0);
+});
+
+test("keeping a pending rally for review changes nothing else", () => {
+  const before = resolveVideoMatch(built);
+  const pendingRally = before.rallies.find((rally) => !rally.countsTowardScore);
+  const after = resolveVideoMatch(
+    setRallyReviewStatus(built, pendingRally.id, "needs-review", pendingRally),
+  );
+  assert.equal(formatGameScores(after.timeline.games), formatGameScores(before.timeline.games));
+  assert.deepEqual(
+    after.rallies.map((rally) => [rally.winner, rally.countsTowardScore]),
+    before.rallies.map((rally) => [rally.winner, rally.countsTowardScore]),
+  );
+  // Keeping a counted rally for review takes it out of the score but not out of the games.
+  const counted = before.rallies.find((rally) => rally.countsTowardScore);
+  const kept = resolveVideoMatch(setRallyReviewStatus(built, counted.id, "needs-review", counted));
+  assert.equal(formatGameScores(kept.timeline.games), "18-21, 12-21");
+  assert.equal(kept.pending, before.pending + 1);
+});
+
+test("correcting a rally the next serve settled keeps it in the score", () => {
+  const match = resolveVideoMatch(built);
+  const settled = match.rallies.find(
+    (rally) => rally.landingAmbiguous && rally.countsTowardScore && !rally.reviewStatus,
+  );
+  assert.ok(settled, "the simulated match has a settled line or net call");
+  const reaffirmed = resolveVideoMatch(
+    correctRally(built, settled.id, { winner: settled.winner }, settled),
+  );
+  assert.equal(reaffirmed.pending, match.pending);
+  const flipped = settled.winner === "p1" ? "p2" : "p1";
+  const corrected = resolveVideoMatch(
+    correctRally(built, settled.id, { winner: flipped }, settled),
+  );
+  const after = corrected.rallies.find((rally) => rally.id === settled.id);
+  assert.equal(after.winner, flipped);
+  assert.equal(after.countsTowardScore, true);
+});
+
+test("a rally marked as not a rally drops out, and the real next serve is read", () => {
+  // A lands in court at the near end, so p2 wins and serves next from the far end.
+  // X is a knock-up the detector took for a rally; B is the real next rally.
+  const rallies = [
+    landed(1, 10, "near", true),
+    landed(2, 20, "far", true, { startT: 15, serveEnd: "near" }),
+    landed(3, 40, "far", true, { startT: 30, serveEnd: "far" }),
+  ];
+  const withKnockUp = resolveVideoMatch(rallies);
+  assert.equal(withKnockUp.rallies[0].countsTowardScore, false);
+  const excluded = resolveVideoMatch(excludeRally(rallies, 2, true));
+  assert.equal(excluded.rallies[0].countsTowardScore, true);
+  assert.equal(excluded.rallies[0].decidedBy, "landing and next serve");
+  assert.equal(excluded.rallies[1].excluded, true);
+  assert.equal(excluded.rallies[1].game, undefined);
+  assert.deepEqual(excluded.confirmed, [{ p1: 1, p2: 1 }]);
+});
+
+test("the reviewer's in/out call stands over the next serve", () => {
+  const match = resolveVideoMatch(built);
+  const out = match.rallies.find(
+    (rally) => rally.landingSeen && !rally.inBounds && rally.countsTowardScore,
+  );
+  const marked = resolveVideoMatch(correctRally(built, out.id, { inBounds: true }, out));
+  const after = marked.rallies.find((rally) => rally.id === out.id);
+  assert.notEqual(after.winner, out.winner);
+  assert.equal(after.countsTowardScore, true);
+  assert.equal(after.decidedBy, "reviewer");
+});
+
+test("the near end honours marked changes of ends, and vision verdicts follow it", () => {
+  const rallies = [
+    landed(1, 10, "near", true),
+    landed(2, 70, "near", true, { aiWinnerEnd: "far" }),
+  ];
+  const plain = resolveVideoMatch(rallies);
+  assert.equal(plain.near, "p1");
+  const marked = resolveVideoMatch(rallies, { sideChanges: parseSideChanges("1:00", "p1") });
+  assert.equal(marked.near, "p2");
+  // After the marked change p2 is near, so the far end (and the vision verdict) is p1.
+  assert.equal(marked.rallies[1].winner, "p1");
+  assert.equal(marked.rallies[1].decidedBy, "vision check");
+  assert.equal(plain.rallies[1].winner, "p2");
 });

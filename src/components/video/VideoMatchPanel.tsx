@@ -53,7 +53,7 @@ export function VideoMatchPanel({
         {(["p1", "p2"] as const).map((player) => (
           <div key={player} className="rounded-lg border border-border bg-background/40 p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {playerName(player)} · {timeline.near === player ? "near" : "far"} end
+              {playerName(player)} · {match.near === player ? "near" : "far"} end
             </p>
             <p className="mt-1 text-4xl font-bold tabular-nums">{match.score[player]}</p>
             <p className="text-[11px] text-muted-foreground">Games {won(player)}</p>

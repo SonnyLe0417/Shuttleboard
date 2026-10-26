@@ -14,6 +14,7 @@ import {
   setRallyReviewStatus,
 } from "../src/lib/analysis-results.ts";
 import { COURT } from "../src/lib/badminton.ts";
+import { resolveVideoMatch } from "../src/lib/video-match.ts";
 import {
   VIDEO_ANALYSIS_SESSION_KEY,
   clearVideoAnalysisSession,
@@ -67,13 +68,16 @@ test("no rallies has a clear empty message", () => {
 });
 
 test("correcting a winner updates the score once and pins the winner", () => {
-  const corrected = correctRally([rally(1, "p1")], 1, { winner: "p2" });
-  assert.equal(corrected[0].winner, "p2");
-  assert.equal(corrected[0].winnerLocked, true);
+  const shown = resolveVideoMatch([rally(1, "p1")]).rallies[0];
+  const corrected = correctRally([rally(1, "p1")], 1, { winner: "p2" }, shown);
+  // Player 2 was at the far end, so the pick is kept as "the far player won".
+  assert.equal(corrected[0].reviewerWinnerEnd, "far");
   assert.equal(corrected[0].reviewStatus, "corrected");
-  assert.deepEqual(scoreFromRallies(corrected), { p1: 0, p2: 1 });
-  const repeated = correctRally(corrected, 1, { winner: "p2" });
-  assert.deepEqual(scoreFromRallies(repeated), { p1: 0, p2: 1 });
+  const resolved = resolveVideoMatch(corrected);
+  assert.equal(resolved.rallies[0].winner, "p2");
+  assert.deepEqual(resolved.confirmed, [{ p1: 0, p2: 1 }]);
+  const repeated = correctRally(corrected, 1, { winner: "p2" }, resolved.rallies[0]);
+  assert.deepEqual(resolveVideoMatch(repeated).confirmed, [{ p1: 0, p2: 1 }]);
 });
 
 test("marking a rally IN or OUT hands it to the other player", () => {
@@ -82,8 +86,12 @@ test("marking a rally IN or OUT hands it to the other player", () => {
     inBounds: false,
   });
   assert.equal(recorded[0].inBounds, false);
-  assert.equal(recorded[0].winnerLocked, false);
+  assert.equal(recorded[0].reviewerCall, true);
   assert.equal(recorded[0].manuallyCorrected, true);
+  // Out at the near end: the near player (p1) wins, and it still counts.
+  const resolved = resolveVideoMatch(recorded).rallies[0];
+  assert.equal(resolved.winner, "p1");
+  assert.equal(resolved.countsTowardScore, true);
   // Older rallies without a landing end flip the stored winner directly.
   const legacy = correctRally([rally(1, "p1", true)], 1, { inBounds: false });
   assert.equal(legacy[0].winner, "p2");
@@ -153,12 +161,14 @@ test("line calls are judged against the singles or doubles lines in play", () =>
   assert.match(getRallyReviewReasons(nearDoublesLine, "doubles").join(" "), /boundary line/);
 });
 
-test("a review-only rally does not change the score", () => {
+test("a review-only rally does not count toward the confirmed score", () => {
   const uncertain = { ...rally(1, "p1"), countsTowardScore: false };
   const corrected = correctRally([uncertain], 1, { winner: "p2" });
-  assert.equal(corrected[0].winner, "p2");
   assert.equal(corrected[0].reviewStatus, "needs-review");
-  assert.deepEqual(scoreFromRallies(corrected), { p1: 0, p2: 0 });
+  const resolved = resolveVideoMatch(corrected);
+  assert.equal(resolved.rallies[0].winner, "p2");
+  assert.deepEqual(resolved.confirmed, [{ p1: 0, p2: 0 }]);
+  assert.equal(resolved.pending, 1);
 });
 
 test("confirming a review rally makes it count without changing the chosen winner", () => {
@@ -189,11 +199,15 @@ test("confirming a rally preserves winner and court decision", () => {
   const updated = setRallyReviewStatus([original], 1, "confirmed")[0];
   assert.equal(updated.winner, original.winner);
   assert.equal(updated.inBounds, original.inBounds);
-  assert.equal(updated.countLocked, true);
-  // Confirming what the reviewer was shown pins that winner.
-  const shown = setRallyReviewStatus([original], 1, "confirmed", "p1")[0];
-  assert.equal(shown.winner, "p1");
-  assert.equal(shown.winnerLocked, true);
+  assert.equal(updated.reviewerCounts, true);
+  // Confirming what the reviewer was shown pins that winner, as the end they were at.
+  const shown = setRallyReviewStatus([original], 1, "confirmed", {
+    ...original,
+    winner: "p1",
+    near: "p1",
+  })[0];
+  assert.equal(shown.reviewerWinnerEnd, "near");
+  assert.equal(resolveVideoMatch([shown]).rallies[0].winner, "p1");
 });
 
 test("saves and restores review statuses and corrections", () => {

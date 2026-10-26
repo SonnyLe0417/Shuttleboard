@@ -1,4 +1,9 @@
-import { type AnalysisRally, type AnalysisScore, formatAnalysisTime } from "./analysis-results";
+import {
+  type AnalysisRally,
+  type AnalysisScore,
+  type RallyDecision,
+  formatAnalysisTime,
+} from "./analysis-results";
 import type { CourtEnd } from "./badminton";
 import { type MatchRules, type PresetId, findPreset } from "./badminton-rules";
 import { type PlayerId, parseAnnotationTime } from "./match-annotation";
@@ -82,6 +87,8 @@ export interface VideoMatch {
   confirmed: AnalysisScore[];
   /** Rallies in the reading above that still need a reviewer. */
   pending: number;
+  /** Who is at the near end now, after the last rally, honouring marked changes of ends. */
+  near: PlayerId;
 }
 
 const other = (player: PlayerId): PlayerId => (player === "p1" ? "p2" : "p1");
@@ -110,6 +117,7 @@ export function resolveVideoMatch(
   };
 
   const ordered = [...rallies].sort((a, b) => a.t - b.t || a.id - b.id);
+  const inPlay = ordered.filter((rally) => !rally.excluded);
   // Games and ends follow the best reading of every rally with evidence, so a
   // rally waiting for review neither delays the change of ends (and with it
   // the players on every later rally) nor moves a game into the next one.
@@ -118,8 +126,22 @@ export function resolveVideoMatch(
   const steps: MatchTimeline["steps"] = [];
   const confirmed: AnalysisScore[] = [];
   let pending = 0;
-  const resolved = ordered.map((rally, index) => {
+  const resolved = ordered.map((rally): AnalysisRally => {
     const near = nearAt(state, rally.t);
+    if (rally.excluded) {
+      return {
+        ...rally,
+        near,
+        countsTowardScore: false,
+        needsReview: false,
+        reviewReasons: [],
+        aiNote: "Not a rally.",
+        decidedBy: undefined,
+        game: undefined,
+        scoreAfter: undefined,
+        afterMatch: false,
+      };
+    }
     const owner = (end: CourtEnd) => (end === "near" ? near : other(near));
     const landingWinner =
       rally.landingSeen !== false && rally.landingEnd
@@ -127,24 +149,35 @@ export function resolveVideoMatch(
           ? other(owner(rally.landingEnd))
           : owner(rally.landingEnd)
         : null;
-    const serveWinner = nextServer(state, rally, ordered[index + 1], nearAt);
+    const visionWinner = rally.aiWinnerEnd ? owner(rally.aiWinnerEnd) : null;
+    const seenWinner = visionWinner ?? landingWinner;
+    const following = inPlay[inPlay.indexOf(rally) + 1];
+    const serveWinner = nextServer(state, rally, following, nearAt);
+    const seenBy = visionWinner ? "vision check" : "landing";
 
     const reasons = [...(rally.reviewReasons ?? [])];
     let winner = rally.winner;
     let counts = rally.countsTowardScore !== false;
-    let decidedBy: AnalysisRally["decidedBy"];
-    if (rally.winnerLocked) {
+    let decidedBy: RallyDecision | undefined;
+    if (rally.reviewerWinnerEnd) {
+      winner = owner(rally.reviewerWinnerEnd);
       decidedBy = "reviewer";
-    } else if (landingWinner && serveWinner && landingWinner !== serveWinner) {
+    } else if (rally.reviewerCall && landingWinner) {
+      // The reviewer's own in/out call stands over the next serve.
+      winner = landingWinner;
+      decidedBy = "reviewer";
+      counts = true;
+      reasons.length = 0;
+    } else if (seenWinner && serveWinner && seenWinner !== serveWinner) {
       // Clean or not, conflicting evidence goes to the reviewer.
-      winner = rally.landingAmbiguous ? serveWinner : landingWinner;
+      winner = rally.landingAmbiguous && !visionWinner ? serveWinner : seenWinner;
       counts = false;
       reasons.push(
-        `The landing gives the rally to ${name(landingWinner)}, but ${name(serveWinner)} served next.`,
+        `The ${seenBy} gives the rally to ${name(seenWinner)}, but ${name(serveWinner)} served next.`,
       );
-    } else if (landingWinner) {
-      winner = landingWinner;
-      decidedBy = serveWinner ? "landing and next serve" : "landing";
+    } else if (seenWinner) {
+      winner = seenWinner;
+      decidedBy = serveWinner ? `${seenBy} and next serve` : seenBy;
       // A line or net call that the next serve agrees with is settled.
       if (serveWinner && rally.landingAmbiguous) {
         counts = true;
@@ -154,12 +187,10 @@ export function resolveVideoMatch(
       winner = serveWinner;
       decidedBy = "next serve";
     }
-    if (rally.countLocked) counts = rally.countsTowardScore !== false;
+    if (rally.reviewerCounts !== undefined) counts = rally.reviewerCounts;
 
-    // A rally the reviewer keeps out, or one with no evidence at all, is not read.
-    const keptOut = rally.countLocked && rally.countsTowardScore === false;
-    const evidence = rally.winnerLocked || landingWinner !== null || serveWinner !== null;
-    const next = advanceTimeline(state, winner, evidence && !keptOut);
+    const evidence = decidedBy !== undefined || serveWinner !== null;
+    const next = advanceTimeline(state, winner, evidence);
     state = next.state;
     steps.push(next.step);
     if (next.step.afterMatch) {
@@ -171,16 +202,18 @@ export function resolveVideoMatch(
       else pending++;
     }
     const needsReview = !counts && !next.step.afterMatch;
+    const reviewed = rally.reviewerCounts !== undefined;
     return {
       ...rally,
       winner,
+      near,
       countsTowardScore: counts,
-      needsReview: rally.countLocked ? rally.needsReview : needsReview,
+      needsReview,
       reviewReasons: reasons,
-      reviewStatus: rally.countLocked
+      reviewStatus: reviewed
         ? rally.reviewStatus
         : needsReview
-          ? ("needs-review" as const)
+          ? "needs-review"
           : rally.reviewStatus === "needs-review"
             ? undefined
             : rally.reviewStatus,
@@ -192,12 +225,14 @@ export function resolveVideoMatch(
     };
   });
 
+  const last = inPlay.at(-1);
   return {
     rallies: resolved,
     timeline: { ...state, steps },
     score: { ...state.score },
     confirmed,
     pending,
+    near: nearAt(state, last ? last.t + 1 : 0),
   };
 }
 

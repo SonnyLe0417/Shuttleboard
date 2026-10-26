@@ -9,7 +9,7 @@ export const VIDEO_ANALYSIS_SESSION_KEY = "shuttleboard.video-analysis-session";
  * Bump when rally evidence or scoring changes. Reviews saved under older rules
  * carry winners from the old rules, so they are dropped rather than shown.
  */
-export const VIDEO_SCORING_VERSION = 2;
+export const VIDEO_SCORING_VERSION = 3;
 
 export interface SavedVideoAnalysisSession {
   videoKey: string;

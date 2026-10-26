@@ -34,16 +34,36 @@ export interface AnalysisRally {
   landingAmbiguous?: boolean;
   /** Which end served this rally, when the serve position was clear. */
   serveEnd?: CourtEnd;
-  /** The reviewer chose the winner, so evidence no longer changes it. */
-  winnerLocked?: boolean;
-  /** The reviewer chose whether the rally counts. */
-  countLocked?: boolean;
+  /** The vision check's winner, as the end they were at (browser analysis). */
+  aiWinnerEnd?: CourtEnd;
+  /**
+   * The reviewer's decisions. Winners are kept as the end the winner was at,
+   * which is what the reviewer judged, so they follow any later correction of
+   * who started where or when the players changed ends.
+   */
+  reviewerWinnerEnd?: CourtEnd;
+  /** The reviewer said whether the rally counts; undefined leaves it to the evidence. */
+  reviewerCounts?: boolean;
+  /** The reviewer made the in/out call, so it stands over the next serve. */
+  reviewerCall?: boolean;
+  /** Not a rally at all (a knock-up, a pickup): left out of the score and of the ends. */
+  excluded?: boolean;
   /** Filled in by the match timeline. */
-  decidedBy?: "landing" | "next serve" | "landing and next serve" | "reviewer";
+  decidedBy?: RallyDecision;
+  /** Who was at the near end while this rally was played. */
+  near?: "p1" | "p2";
   game?: number;
   scoreAfter?: AnalysisScore;
   afterMatch?: boolean;
 }
+
+export type RallyDecision =
+  | "landing"
+  | "next serve"
+  | "landing and next serve"
+  | "vision check"
+  | "vision check and next serve"
+  | "reviewer";
 
 export interface AnalysisScore {
   p1: number;
@@ -73,27 +93,47 @@ export function averageTrackNetConfidence(points: TrackNetPoint[] = []) {
   );
 }
 
+/** The end a player was at during a rally, as the match timeline resolved it. */
+function endOf(player: AnalysisRally["winner"], shown?: Pick<AnalysisRally, "near">): CourtEnd {
+  return player === (shown?.near ?? "p1") ? "near" : "far";
+}
+
 /**
- * Applies a reviewer's correction. Choosing a winner pins it. Marking a
- * landing in or out lets the in/out rule decide again, which hands the rally
- * to the other player at the same spot. A shot label is only a label.
+ * Applies a reviewer's correction to the rally as shown (`shown` is the
+ * resolved rally, so the reviewer's pick is stored against the right end).
+ * Choosing a winner pins it. Marking a landing in or out makes the in/out
+ * call the reviewer's, which hands the rally to the other player at the same
+ * spot. A rally that was counted stays counted. A shot label is only a label.
  */
-export function correctRally(rallies: AnalysisRally[], id: number, patch: AnalysisRallyPatch) {
+export function correctRally(
+  rallies: AnalysisRally[],
+  id: number,
+  patch: AnalysisRallyPatch,
+  shown?: AnalysisRally,
+) {
   return rallies.map((rally) => {
     if (rally.id !== id) return rally;
     const next = { ...rally, ...patch };
     if (patch.winner === undefined && patch.inBounds === undefined) return next;
+    const counted = rallyCountsTowardScore(shown ?? rally);
     if (patch.winner !== undefined) {
-      next.winnerLocked = true;
+      next.reviewerWinnerEnd = endOf(patch.winner, shown);
     } else if (patch.inBounds !== rally.inBounds) {
-      next.winnerLocked = false;
+      next.reviewerWinnerEnd = undefined;
+      next.reviewerCall = true;
       // Without a recorded landing end, flip the stored winner directly.
       if (!rally.landingEnd) next.winner = rally.winner === "p1" ? "p2" : "p1";
     }
+    if (counted) next.reviewerCounts = true;
     next.manuallyCorrected = true;
-    next.reviewStatus = rallyCountsTowardScore(rally) ? "corrected" : "needs-review";
+    next.reviewStatus = counted ? "corrected" : "needs-review";
     return next;
   });
+}
+
+/** Marks a detection as not being a rally, or brings it back. */
+export function excludeRally(rallies: AnalysisRally[], id: number, excluded: boolean) {
+  return rallies.map((rally) => (rally.id === id ? { ...rally, excluded } : rally));
 }
 
 export function getDownloadFileName() {
@@ -192,24 +232,31 @@ export function reviewFilterMatches(
   return status === filter;
 }
 
-/** The reviewer decides whether a rally counts. Confirming keeps the winner shown. */
+/**
+ * The reviewer decides whether a rally counts. Confirming counts it with the
+ * winner shown. Keeping it for review takes it out of the score but leaves it
+ * in the reading of games and ends, with the evidence's suggestion.
+ */
 export function setRallyReviewStatus(
   rallies: AnalysisRally[],
   id: number,
   status: RallyReviewStatus,
-  shownWinner?: AnalysisRally["winner"],
+  shown?: AnalysisRally,
 ) {
   return rallies.map((rally) =>
     rally.id === id
       ? {
           ...rally,
-          ...(status === "confirmed" && shownWinner
-            ? { winner: shownWinner, winnerLocked: true }
-            : {}),
+          reviewerWinnerEnd:
+            status === "confirmed" && shown
+              ? endOf(shown.winner, shown)
+              : status === "needs-review"
+                ? undefined
+                : rally.reviewerWinnerEnd,
+          reviewerCounts: status !== "needs-review",
           reviewStatus: status,
           needsReview: status === "needs-review",
           countsTowardScore: status !== "needs-review",
-          countLocked: true,
         }
       : rally,
   );

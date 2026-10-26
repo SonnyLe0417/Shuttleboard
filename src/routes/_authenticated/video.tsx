@@ -27,6 +27,7 @@ import {
 } from "@/lib/video-analyzer-flow";
 import {
   correctRally as applyRallyCorrection,
+  excludeRally,
   landingAmbiguityReasons,
   setRallyReviewStatus,
 } from "@/lib/analysis-results";
@@ -344,19 +345,25 @@ function VideoAnalyzerPage() {
   ]);
 
   // -------- Upload --------
+  // Reviewer decisions are recorded against the rally as it is shown, so they
+  // are kept relative to the ends the reviewer saw.
+  const shownRally = (id: number) => match.rallies.find((rally) => rally.id === id);
   const correctRally = (
     id: number,
     patch: Partial<Pick<Rally, "winner" | "inBounds" | "shotType">>,
   ) => {
-    setRallies((current) => applyRallyCorrection(current, id, patch));
+    const shown = shownRally(id);
+    setRallies((current) => applyRallyCorrection(current, id, patch, shown));
   };
   const setReviewStatus = (
     id: number,
     reviewStatus: "needs-review" | "confirmed" | "corrected",
   ) => {
-    // Confirming keeps the winner the reviewer was shown.
-    const shown = match.rallies.find((rally) => rally.id === id)?.winner;
+    const shown = shownRally(id);
     setRallies((current) => setRallyReviewStatus(current, id, reviewStatus, shown));
+  };
+  const setExcluded = (id: number, excluded: boolean) => {
+    setRallies((current) => excludeRally(current, id, excluded));
   };
   const onFile = (file: File) => {
     setError(null);
@@ -373,6 +380,8 @@ function VideoAnalyzerPage() {
     clearTrackNet();
     setSelectedFile(file);
     setVideoSessionKey(createVideoSessionKey(file));
+    // Settings hold times in the previous video, so a new video starts afresh.
+    setMatchSettings(DEFAULT_VIDEO_MATCH_SETTINGS);
     previewAttemptedRef.current = false;
     setVideoUrl(url);
     setTracknetVideoUrl(null);
@@ -758,10 +767,11 @@ function VideoAnalyzerPage() {
     const court = applyHomography(H, { x: last.x, y: last.y });
     const mode = gameModeRef.current;
     const landing = rallyLanding(court.x, court.y, mode);
-    const near = matchRef.current.timeline.near;
+    // Who is at the near end now, following any changes of ends the reviewer marked.
+    const near = matchRef.current.near;
     const endOwner = landing.end === "near" ? near : near === "p1" ? "p2" : "p1";
-    let winner: "p1" | "p2" = landing.isIn ? (endOwner === "p1" ? "p2" : "p1") : endOwner;
-    let winnerLocked = false;
+    const winner: "p1" | "p2" = landing.isIn ? (endOwner === "p1" ? "p2" : "p1") : endOwner;
+    let aiWinnerEnd: "near" | "far" | undefined;
     const reasons = [
       ...event.reasons,
       ...(event.landingSeen ? landingAmbiguityReasons(court.x, court.y, mode) : []),
@@ -790,8 +800,8 @@ function VideoAnalyzerPage() {
         if (resp.ok) {
           const j = await resp.json();
           if (j && (j.pointTo === "p1" || j.pointTo === "p2") && j.confidence >= 0.75) {
-            winner = j.pointTo;
-            winnerLocked = true;
+            // Kept as an end, so it follows any later correction of the ends.
+            aiWinnerEnd = j.pointTo === near ? "near" : "far";
             aiConf = j.confidence;
             aiNote = j.reasoning ?? "AI confirmed";
           }
@@ -815,7 +825,7 @@ function VideoAnalyzerPage() {
         landingCourtY: court.y,
         inBounds: landing.isIn,
         winner,
-        winnerLocked,
+        aiWinnerEnd,
         landingEnd: event.landingSeen ? landing.end : undefined,
         landingSeen: event.landingSeen,
         aiConfidence: aiConf,
@@ -972,6 +982,7 @@ function VideoAnalyzerPage() {
     setCameraChangePending(false);
     setCalibrationTarget("court");
     setViewType("birds-eye");
+    setMatchSettings(DEFAULT_VIDEO_MATCH_SETTINGS);
     cameraMotionRef.current = createCameraMotionState();
     resetAnalysisState();
     setError(fresh.error);
@@ -1091,6 +1102,7 @@ function VideoAnalyzerPage() {
           {(phase === "analyze" || phase === "done") && (
             <>
               <VideoMatchPanel
+                key={videoSessionKey ?? "video"}
                 match={match}
                 settings={matchSettings}
                 onSettingsChange={setMatchSettings}
@@ -1126,6 +1138,7 @@ function VideoAnalyzerPage() {
                       if (videoRef.current) videoRef.current.currentTime = rally.t;
                     }}
                     onCorrectRally={correctRally}
+                    onExcludeRally={setExcluded}
                     onSetReviewStatus={setReviewStatus}
                   />
                 </>

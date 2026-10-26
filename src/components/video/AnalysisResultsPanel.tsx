@@ -27,6 +27,7 @@ interface AnalysisResultsPanelProps {
   selectedRally: number | null;
   onSelectRally: (rally: AnalysisRally) => void;
   onCorrectRally: (id: number, patch: AnalysisRallyPatch) => void;
+  onExcludeRally: (id: number, excluded: boolean) => void;
   onSetReviewStatus: (id: number, status: "needs-review" | "confirmed" | "corrected") => void;
 }
 
@@ -39,6 +40,7 @@ export function AnalysisResultsPanel({
   selectedRally,
   onSelectRally,
   onCorrectRally,
+  onExcludeRally,
   onSetReviewStatus,
 }: AnalysisResultsPanelProps) {
   const [reviewFilter, setReviewFilter] = useState<RallyReviewFilter>("all");
@@ -249,8 +251,13 @@ export function AnalysisResultsPanel({
                 <div>
                   <p className="font-medium">
                     Rally #{rally.id} —{" "}
-                    {rally.countsTowardScore === false ? "Suggested winner: " : "Point to "}
-                    {rally.winner === "p1" ? "Player 1" : "Player 2"}
+                    {rally.excluded
+                      ? "Not a rally"
+                      : rally.countsTowardScore !== false
+                        ? `Point to ${rally.winner === "p1" ? "Player 1" : "Player 2"}`
+                        : rally.decidedBy
+                          ? `Suggested winner: ${rally.winner === "p1" ? "Player 1" : "Player 2"}`
+                          : "Winner unknown: choose P1 or P2"}
                   </p>
                   {rally.needsReview &&
                     rally.reviewStatus !== "confirmed" &&
@@ -301,13 +308,15 @@ export function AnalysisResultsPanel({
                         {player.toUpperCase()}
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => onCorrectRally(rally.id, { inBounds: !rally.inBounds })}
-                      className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                    >
-                      {rally.inBounds ? "Mark OUT" : "Mark IN"}
-                    </button>
+                    {rally.landingSeen !== false && (
+                      <button
+                        type="button"
+                        onClick={() => onCorrectRally(rally.id, { inBounds: !rally.inBounds })}
+                        className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                      >
+                        {rally.inBounds ? "Mark OUT" : "Mark IN"}
+                      </button>
+                    )}
                     <select
                       value={rally.shotType ?? "unknown"}
                       onChange={(event) =>
@@ -341,6 +350,13 @@ export function AnalysisResultsPanel({
                       className="rounded border border-amber-500/30 px-1.5 py-0.5 text-[10px] text-amber-200"
                     >
                       Keep for review
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onExcludeRally(rally.id, !rally.excluded)}
+                      className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {rally.excluded ? "Restore rally" : "Not a rally"}
                     </button>
                   </div>
                 </div>
