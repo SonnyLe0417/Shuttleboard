@@ -297,3 +297,12 @@ test("the near end honours marked changes of ends, and vision verdicts follow it
   assert.equal(marked.rallies[1].decidedBy, "vision check");
   assert.equal(plain.rallies[1].winner, "p2");
 });
+
+test("the simulated match scores the same at 60 frames a second", () => {
+  const fast = traceFromAnnotation(annotation, { fps: 60 });
+  const match = resolveVideoMatch(buildTrackNetRallies(fast.points, fast.homography));
+  assert.equal(match.rallies.length, 72);
+  assert.equal(formatGameScores(match.timeline.games), "18-21, 12-21");
+  for (const [index, [found]] of byAnnotatedRally(match.rallies).entries())
+    assert.equal(found.winner, annotation.rallies[index].winner, `rally ${index}`);
+});

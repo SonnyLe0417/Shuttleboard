@@ -19,7 +19,7 @@ export const IMAGE_CORNERS = [
 export const COURT_TO_IMAGE = computeHomography(courtDestinationCorners(), IMAGE_CORNERS);
 export const IMAGE_TO_COURT = computeHomography(IMAGE_CORNERS, courtDestinationCorners());
 
-const FPS = 30;
+const DEFAULT_FPS = 30;
 // TrackNetV3 reports positions on its 512x288 output grid.
 const GRID_X = 512;
 const GRID_Y = 288;
@@ -81,11 +81,12 @@ function serveSpot(end, serverScore) {
 
 /**
  * @param {import("../../src/lib/match-annotation.ts").MatchAnnotation} annotation
- * @param {{ occludeRestEvery?: number, hideUnseenLandings?: boolean }} [options]
+ * @param {{ occludeRestEvery?: number, hideUnseenLandings?: boolean, fps?: number }} [options]
  */
 export function traceFromAnnotation(annotation, options = {}) {
   const occludeEvery = options.occludeRestEvery ?? 4;
   const hideUnseen = options.hideUnseenLandings ?? true;
+  const fps = options.fps ?? DEFAULT_FPS;
   const path = [];
   const add = (start, end, at) => path.push({ start, end, at });
 
@@ -158,7 +159,7 @@ export function traceFromAnnotation(annotation, options = {}) {
       add(end, restUntil, (u, t) => {
         if (occluded && t > end + 1.2 && t < end + 1.9) return null;
         // The detected blob centre of a resting shuttle flickers by a grid cell.
-        const frame = Math.round(t * FPS);
+        const frame = Math.round(t * fps);
         const image = project(spot);
         return {
           x: image.x + (frame % 7 === 0 ? 1 / GRID_X : 0),
@@ -175,8 +176,8 @@ export function traceFromAnnotation(annotation, options = {}) {
 
   const lastTime = path.reduce((max, segment) => Math.max(max, segment.end), 0);
   const points = [];
-  for (let frame = 0; frame / FPS <= lastTime + 1; frame++) {
-    const time = frame / FPS;
+  for (let frame = 0; frame / fps <= lastTime + 1; frame++) {
+    const time = frame / fps;
     let position = null;
     // Later segments (and hidden landings) take precedence over earlier ones.
     for (let i = path.length - 1; i >= 0; i--) {
