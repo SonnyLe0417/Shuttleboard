@@ -26,6 +26,10 @@ export interface RallyEndEvent {
   type: "confirmed-end" | "needs-review";
   point: RallyEndSample;
   reasons: string[];
+  /** False when the shuttle vanished, so `point` is only where it was last seen. */
+  landingSeen: boolean;
+  /** When the shuttle came to rest (the event itself fires a hold later). */
+  landingTime: number;
 }
 
 export const RALLY_END_HOLD_SECONDS = 1;
@@ -60,8 +64,13 @@ function speedBetween(previous: RallyEndSample | null, current: RallyEndSample) 
   return Math.hypot(current.x - previous.x, current.y - previous.y) / elapsed;
 }
 
-function reviewEvent(point: RallyEndSample, reasons: string[]): RallyEndEvent {
-  return { type: "needs-review", point, reasons };
+function reviewEvent(
+  point: RallyEndSample,
+  reasons: string[],
+  landingSeen = true,
+  landingTime = point.time,
+): RallyEndEvent {
+  return { type: "needs-review", point, reasons, landingSeen, landingTime };
 }
 
 export function updateRallyEndState(
@@ -89,9 +98,13 @@ export function updateRallyEndState(
       next.visibleFrames = missing ? 0 : 1;
       return {
         state: next,
-        event: reviewEvent(state.lastVisible, [
-          "Direct shuttle detections disappeared before a clear landing was confirmed. Review the last observed position; it may not be the landing.",
-        ]),
+        event: reviewEvent(
+          state.lastVisible,
+          [
+            "Direct shuttle detections disappeared before a clear landing was confirmed. Review the last observed position; it may not be the landing.",
+          ],
+          false,
+        ),
       };
     }
     if (missing) {
@@ -150,9 +163,11 @@ export function updateRallyEndState(
     ) {
       return {
         state: { ...createRallyEndState(), phase: "waiting-for-next-rally" },
-        event: reviewEvent(state.lastVisible, [
-          "The shuttle disappeared before a clear landing was confirmed.",
-        ]),
+        event: reviewEvent(
+          state.lastVisible,
+          ["The shuttle disappeared before a clear landing was confirmed."],
+          false,
+        ),
       };
     }
     return { state, event: null };
@@ -197,9 +212,10 @@ export function updateRallyEndState(
         reasons.push("The players were still moving during the possible landing.");
       }
 
-      const event = reasons.length
-        ? reviewEvent(sample, reasons)
-        : { type: "confirmed-end" as const, point: sample, reasons: [] };
+      const landingTime = state.candidateSince ?? sample.time;
+      const event: RallyEndEvent = reasons.length
+        ? reviewEvent(sample, reasons, true, landingTime)
+        : { type: "confirmed-end", point: sample, reasons: [], landingSeen: true, landingTime };
       return {
         state: { ...createRallyEndState(), phase: "waiting-for-next-rally" },
         event,

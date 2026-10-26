@@ -1,7 +1,15 @@
 import type { AnalysisRally, AnalysisScore } from "./analysis-results";
+import type { GameMode } from "./badminton";
+import { PRESETS } from "./badminton-rules";
 import type { TrackNetFrameDiagnostics } from "./tracknet-evidence";
+import { DEFAULT_VIDEO_MATCH_SETTINGS, type VideoMatchSettings } from "./video-match";
 
 export const VIDEO_ANALYSIS_SESSION_KEY = "shuttleboard.video-analysis-session";
+/**
+ * Bump when rally evidence or scoring changes. Reviews saved under older rules
+ * carry winners from the old rules, so they are dropped rather than shown.
+ */
+export const VIDEO_SCORING_VERSION = 2;
 
 export interface SavedVideoAnalysisSession {
   videoKey: string;
@@ -11,6 +19,8 @@ export interface SavedVideoAnalysisSession {
   analysisMode: "browser" | "tracknet";
   tracknetJobId?: string;
   tracknetFrameDiagnostics?: TrackNetFrameDiagnostics;
+  matchSettings?: VideoMatchSettings;
+  gameMode?: GameMode;
 }
 
 export interface VideoFileIdentity {
@@ -27,7 +37,10 @@ export function saveVideoAnalysisSession(
   storage: Pick<Storage, "setItem">,
   session: SavedVideoAnalysisSession,
 ) {
-  storage.setItem(VIDEO_ANALYSIS_SESSION_KEY, JSON.stringify(session));
+  storage.setItem(
+    VIDEO_ANALYSIS_SESSION_KEY,
+    JSON.stringify({ ...session, scoringVersion: VIDEO_SCORING_VERSION }),
+  );
 }
 
 export function loadVideoAnalysisSession(
@@ -38,8 +51,11 @@ export function loadVideoAnalysisSession(
     const raw = storage.getItem(VIDEO_ANALYSIS_SESSION_KEY);
     if (!raw) return null;
 
-    const saved = JSON.parse(raw) as Partial<SavedVideoAnalysisSession>;
+    const saved = JSON.parse(raw) as Partial<SavedVideoAnalysisSession> & {
+      scoringVersion?: number;
+    };
     if (
+      saved.scoringVersion !== VIDEO_SCORING_VERSION ||
       typeof saved.videoKey !== "string" ||
       (expectedVideoKey && saved.videoKey !== expectedVideoKey) ||
       !Array.isArray(saved.rallies) ||
@@ -61,10 +77,27 @@ export function loadVideoAnalysisSession(
       tracknetFrameDiagnostics: validFrameDiagnostics(saved.tracknetFrameDiagnostics)
         ? saved.tracknetFrameDiagnostics
         : undefined,
+      matchSettings: validMatchSettings(saved.matchSettings)
+        ? saved.matchSettings
+        : DEFAULT_VIDEO_MATCH_SETTINGS,
+      gameMode: saved.gameMode === "doubles" ? "doubles" : "singles",
     };
   } catch {
     return null;
   }
+}
+
+function validMatchSettings(value: unknown): value is VideoMatchSettings {
+  if (!value || typeof value !== "object") return false;
+  const settings = value as VideoMatchSettings;
+  return (
+    PRESETS.some((preset) => preset.id === settings.presetId) &&
+    (settings.initialNear === "p1" || settings.initialNear === "p2") &&
+    Array.isArray(settings.sideChanges) &&
+    settings.sideChanges.every(
+      (change) => Number.isFinite(change?.at) && (change.near === "p1" || change.near === "p2"),
+    )
+  );
 }
 
 function validFrameDiagnostics(value: unknown): value is TrackNetFrameDiagnostics {

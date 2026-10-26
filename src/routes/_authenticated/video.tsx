@@ -25,7 +25,18 @@ import {
   createFreshAnalyzerState,
   showsPlaybackControl,
 } from "@/lib/video-analyzer-flow";
-import { scoreFromRallies, setRallyReviewStatus } from "@/lib/analysis-results";
+import {
+  correctRally as applyRallyCorrection,
+  landingAmbiguityReasons,
+  setRallyReviewStatus,
+} from "@/lib/analysis-results";
+import { type GameMode, rallyLanding } from "@/lib/badminton";
+import {
+  DEFAULT_VIDEO_MATCH_SETTINGS,
+  resolveVideoMatch,
+  videoMatchOptions,
+  type VideoMatchSettings,
+} from "@/lib/video-match";
 import {
   createRallyEndState,
   updateRallyEndState,
@@ -44,6 +55,7 @@ import { CourtCalibrationPanel } from "@/components/video/CourtCalibrationPanel"
 import { AnalysisProgressPanel } from "@/components/video/AnalysisProgressPanel";
 import { AnalysisResultsPanel } from "@/components/video/AnalysisResultsPanel";
 import { AnalysisControlsPanel } from "@/components/video/AnalysisControlsPanel";
+import { VideoMatchPanel } from "@/components/video/VideoMatchPanel";
 import { previewFailureMessage, shouldCreateBrowserPreview } from "@/lib/video-preview";
 import {
   addCourtCorner,
@@ -135,7 +147,16 @@ function VideoAnalyzerPage() {
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
   const [playing, setPlaying] = useState(false);
   const [rallies, setRallies] = useState<Rally[]>([]);
-  const score = useMemo(() => scoreFromRallies(rallies), [rallies]);
+  const [matchSettings, setMatchSettings] = useState<VideoMatchSettings>(
+    DEFAULT_VIDEO_MATCH_SETTINGS,
+  );
+  const [gameMode, setGameMode] = useState<GameMode>("singles");
+  // Winners, games and ends are derived from the rally list on every change.
+  const match = useMemo(
+    () => resolveVideoMatch(rallies, videoMatchOptions(matchSettings)),
+    [rallies, matchSettings],
+  );
+  const score = match.score;
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [paidAiNotice, setPaidAiNotice] = useState<string | null>(null);
@@ -155,6 +176,10 @@ function VideoAnalyzerPage() {
   const trailRef = useRef<TrailPt[]>([]);
   const lastVisibleRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const rallyEndStateRef = useRef(createRallyEndState());
+  // The browser analysis loop is set up once per phase, so it reads these through refs.
+  const matchRef = useRef(match);
+  const lastHitterRef = useRef(lastHitter);
+  const gameModeRef = useRef(gameMode);
   const aiPendingRef = useRef(false);
   const tracknetPointsRef = useRef<TrackNetPoint[]>([]);
   const previewAttemptedRef = useRef(false);
@@ -192,6 +217,12 @@ function VideoAnalyzerPage() {
   }, [videoUrl]);
 
   useEffect(() => {
+    matchRef.current = match;
+    lastHitterRef.current = lastHitter;
+    gameModeRef.current = gameMode;
+  }, [match, lastHitter, gameMode]);
+
+  useEffect(() => {
     const calibration = loadCourtCalibration(
       window.localStorage.getItem(TRACKNET_COURT_STORAGE_KEY),
     );
@@ -208,6 +239,8 @@ function VideoAnalyzerPage() {
     setVideoSessionKey(saved.videoKey);
     setAnalysisMode(saved.analysisMode);
     setRallies(saved.rallies);
+    setMatchSettings(saved.matchSettings ?? DEFAULT_VIDEO_MATCH_SETTINGS);
+    setGameMode(saved.gameMode ?? "singles");
     reviewedJobIdRef.current = saved.tracknetJobId ?? null;
     setFrameDiagnostics(saved.tracknetFrameDiagnostics ?? null);
     setTracknetVideoUrl(saved.processedVideoUrl);
@@ -227,8 +260,20 @@ function VideoAnalyzerPage() {
       analysisMode,
       tracknetJobId: reviewedJobIdRef.current ?? undefined,
       tracknetFrameDiagnostics: frameDiagnostics ?? undefined,
+      matchSettings,
+      gameMode,
     });
-  }, [analysisMode, phase, rallies, score, tracknetVideoUrl, videoSessionKey, frameDiagnostics]);
+  }, [
+    analysisMode,
+    phase,
+    rallies,
+    score,
+    tracknetVideoUrl,
+    videoSessionKey,
+    frameDiagnostics,
+    matchSettings,
+    gameMode,
+  ]);
 
   useEffect(() => {
     if (!tracknetJob) return;
@@ -264,7 +309,9 @@ function VideoAnalyzerPage() {
         saved?.tracknetJobId === tracknetResult.job_id
           ? saved.rallies
           : homographyRef.current
-            ? buildTrackNetRallies(tracknetResult.coordinates, homographyRef.current)
+            ? buildTrackNetRallies(tracknetResult.coordinates, homographyRef.current, {
+                mode: gameModeRef.current,
+              })
             : [];
       setRallies(scoredRallies);
       setTracknetVideoUrl(tracknetResult.video_url);
@@ -300,26 +347,15 @@ function VideoAnalyzerPage() {
     id: number,
     patch: Partial<Pick<Rally, "winner" | "inBounds" | "shotType">>,
   ) => {
-    setRallies((current) => {
-      const previous = current.find((r) => r.id === id);
-      if (!previous) return current;
-      return current.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              ...patch,
-              manuallyCorrected: true,
-              reviewStatus: r.countsTowardScore === false ? "needs-review" : "corrected",
-            }
-          : r,
-      );
-    });
+    setRallies((current) => applyRallyCorrection(current, id, patch));
   };
   const setReviewStatus = (
     id: number,
     reviewStatus: "needs-review" | "confirmed" | "corrected",
   ) => {
-    setRallies((current) => setRallyReviewStatus(current, id, reviewStatus));
+    // Confirming keeps the winner the reviewer was shown.
+    const shown = match.rallies.find((rally) => rally.id === id)?.winner;
+    setRallies((current) => setRallyReviewStatus(current, id, reviewStatus, shown));
   };
   const onFile = (file: File) => {
     setError(null);
@@ -711,14 +747,22 @@ function VideoAnalyzerPage() {
       setPlaying(false);
     }
 
-    // Local decision from homography
+    // Local decision from homography, with the same in/out rule as TrackNet.
+    // Players are attributed to ends later by the match timeline.
     const court = applyHomography(H, { x: last.x, y: last.y });
-    const inBounds = court.x >= -0.02 && court.x <= 1.02 && court.y >= -0.02 && court.y <= 1.02;
-    // Winner = opposite side of landing. cy > 0.5 → near half (P1) → P2 wins.
-    let winner: "p1" | "p2" = inBounds ? lastHitter : lastHitter === "p1" ? "p2" : "p1";
-    const needsReview = event.type === "needs-review";
+    const mode = gameModeRef.current;
+    const landing = rallyLanding(court.x, court.y, mode);
+    const near = matchRef.current.timeline.near;
+    const endOwner = landing.end === "near" ? near : near === "p1" ? "p2" : "p1";
+    let winner: "p1" | "p2" = landing.isIn ? (endOwner === "p1" ? "p2" : "p1") : endOwner;
+    let winnerLocked = false;
+    const reasons = [
+      ...event.reasons,
+      ...(event.landingSeen ? landingAmbiguityReasons(court.x, court.y, mode) : []),
+    ];
+    const needsReview = event.type === "needs-review" || reasons.length > 0;
     let aiConf = eventPoint.confidence;
-    let aiNote = needsReview ? event.reasons.join(" ") : "Auto-decided from tracker.";
+    let aiNote = needsReview ? reasons.join(" ") : "Auto-decided from tracker.";
 
     // AI double-check: send a capture of the current frame + last position.
     try {
@@ -732,15 +776,16 @@ function VideoAnalyzerPage() {
         const dataUrl = cap.toDataURL("image/jpeg", 0.7);
         const resp = await requestVision({
           image: dataUrl,
-          mode: "singles",
-          p1Side: "left",
+          mode,
+          p1Side: near === "p1" ? "bottom" : "top",
           courtCorners: normalizedCornersRef.current,
-          lastHitter,
+          lastHitter: lastHitterRef.current,
         });
         if (resp.ok) {
           const j = await resp.json();
           if (j && (j.pointTo === "p1" || j.pointTo === "p2") && j.confidence >= 0.75) {
             winner = j.pointTo;
+            winnerLocked = true;
             aiConf = j.confidence;
             aiNote = j.reasoning ?? "AI confirmed";
           }
@@ -757,17 +802,20 @@ function VideoAnalyzerPage() {
       ...r,
       {
         id: r.length + 1,
-        t: video.currentTime,
+        t: event.landingTime,
         landingImgX: last.x,
         landingImgY: last.y,
         landingCourtX: court.x,
         landingCourtY: court.y,
-        inBounds,
+        inBounds: landing.isIn,
         winner,
+        winnerLocked,
+        landingEnd: event.landingSeen ? landing.end : undefined,
+        landingSeen: event.landingSeen,
         aiConfidence: aiConf,
         aiNote,
         needsReview,
-        reviewReasons: event.reasons,
+        reviewReasons: reasons,
         countsTowardScore: !needsReview,
         reviewStatus: needsReview ? "needs-review" : undefined,
       },
@@ -1027,6 +1075,8 @@ function VideoAnalyzerPage() {
               tracknetSettings={tracknetSettings}
               onTrackNetSettingsChange={setTracknetSettings}
               tracknetEngine={tracknetEngine}
+              gameMode={gameMode}
+              onGameModeChange={setGameMode}
             />
           )}
           {phase === "done" && <CameraTimeline segments={cameraSegments} />}
@@ -1034,10 +1084,11 @@ function VideoAnalyzerPage() {
         <div className="club-analysis-review">
           {(phase === "analyze" || phase === "done") && (
             <>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <ScoreCard label="Player 1 (near)" value={score.p1} />
-                <ScoreCard label="Player 2 (far)" value={score.p2} />
-              </div>
+              <VideoMatchPanel
+                match={match}
+                settings={matchSettings}
+                onSettingsChange={setMatchSettings}
+              />
 
               <AnalysisControlsPanel
                 mode={analysisMode}
@@ -1058,8 +1109,8 @@ function VideoAnalyzerPage() {
               {phase === "done" && (
                 <>
                   <AnalysisResultsPanel
-                    rallies={rallies}
-                    score={score}
+                    rallies={match.rallies}
+                    match={match}
                     tracknetPoints={analysisMode === "tracknet" ? tracknetPoints : undefined}
                     frameDiagnostics={frameDiagnostics ?? undefined}
                     processedVideoUrl={tracknetVideoUrl}
@@ -1107,15 +1158,6 @@ function WorkflowStep({
       >
         {label}
       </span>
-    </div>
-  );
-}
-
-function ScoreCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 text-4xl font-bold tabular-nums">{value}</p>
     </div>
   );
 }

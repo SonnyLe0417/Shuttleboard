@@ -9,17 +9,18 @@ import {
   getDownloadFileName,
   type AnalysisRally,
   type AnalysisRallyPatch,
-  type AnalysisScore,
   type RallyReviewFilter,
   reviewFilterMatches,
   rallyDiagnostics,
   sparseRallyWarning,
 } from "@/lib/analysis-results";
+import { formatGameScores } from "@/lib/match-timeline";
+import type { VideoMatch } from "@/lib/video-match";
 import { useMemo, useState } from "react";
 
 interface AnalysisResultsPanelProps {
   rallies: AnalysisRally[];
-  score: AnalysisScore;
+  match: VideoMatch;
   tracknetPoints?: TrackNetPoint[];
   frameDiagnostics?: TrackNetFrameDiagnostics;
   processedVideoUrl?: string | null;
@@ -31,7 +32,7 @@ interface AnalysisResultsPanelProps {
 
 export function AnalysisResultsPanel({
   rallies,
-  score,
+  match,
   tracknetPoints,
   frameDiagnostics,
   processedVideoUrl,
@@ -57,8 +58,10 @@ export function AnalysisResultsPanel({
             100,
         )
       : 0;
-  const winner =
-    score.p1 === score.p2 ? "Even match" : score.p1 > score.p2 ? "Player 1 led" : "Player 2 led";
+  const { timeline, score } = match;
+  const winner = timeline.matchWinner
+    ? `${timeline.matchWinner === "p1" ? "Player 1" : "Player 2"} won ${timeline.gamesWon[timeline.matchWinner]}–${timeline.gamesWon[timeline.matchWinner === "p1" ? "p2" : "p1"]}`
+    : `Game ${timeline.game}: ${score.p1}–${score.p2}`;
   const visibleRallies = rallies.filter((rally) => reviewFilterMatches(rally, reviewFilter));
   const endings = rallyDiagnostics(rallies);
   const frames = useMemo(
@@ -87,10 +90,20 @@ export function AnalysisResultsPanel({
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <SummaryMetric
             icon={<Trophy />}
-            label={isTrackNet && !hasScoredRallies ? "Detector" : "Confirmed point score"}
+            label={
+              isTrackNet && !hasScoredRallies
+                ? "Detector"
+                : match.pending
+                  ? `Match score · ${match.pending} to review`
+                  : "Confirmed match score"
+            }
             value={isTrackNet && !hasScoredRallies ? "TrackNet ready" : winner}
             detail={
-              isTrackNet && !hasScoredRallies ? "Processed video ready" : `${score.p1}-${score.p2}`
+              isTrackNet && !hasScoredRallies
+                ? "Processed video ready"
+                : timeline.games.length
+                  ? `Games ${formatGameScores(timeline.games)}`
+                  : "No game finished yet"
             }
           />
           <SummaryMetric
@@ -263,8 +276,13 @@ export function AnalysisResultsPanel({
                   )}
                   <p className="text-xs text-muted-foreground">
                     {formatAnalysisTime(rally.t)} ·{" "}
-                    {rally.offCamera ? "Last observed position" : "Landing"}{" "}
-                    {rally.inBounds ? "in" : "out"} ·{" "}
+                    {rally.game !== undefined && rally.scoreAfter && !rally.afterMatch
+                      ? `Game ${rally.game}, ${rally.scoreAfter.p1}–${rally.scoreAfter.p2} · `
+                      : ""}
+                    {rally.landingSeen === false
+                      ? "Landing not seen"
+                      : `${rally.offCamera ? "Last observed position" : "Landing"} ${rally.inBounds ? "in" : "out"}${rally.landingEnd ? ` at the ${rally.landingEnd} end` : ""}`}{" "}
+                    · {rally.decidedBy ? `Decided by ${rally.decidedBy} · ` : ""}
                     {rally.aiConfidence > 0 ? `AI ${Math.round(rally.aiConfidence * 100)}% — ` : ""}
                     {rally.aiNote}
                   </p>
