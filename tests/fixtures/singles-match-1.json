@@ -559,5 +559,18 @@
       "nextServeSecond": "N/A",
       "description": "Match Over p2 wins"
     }
+  ],
+  "unannotatedRallies": [
+    {
+      "fromSecond": "22:54",
+      "beforeSecond": "23:06",
+      "winner": "p2",
+      "reason": "Not in the list above. The 22:32 rally gives nextServeSecond 22:54, but the next listed rally starts at 23:06, and without one more p2 point game 2 stops at 12-20 although the last rally says p2 won the match. p1 (winner of the 22:32 rally) served it at 10-16. Re-watch 22:54-23:06 to add its toSecond and how, then move it into points."
+    }
+  ],
+  "reviewNotes": [
+    "18:38 rally: the description says p1 cleared it out, but the winner is p1. Flipping it would also let p2 finish the match on the last rally (21-11 instead of 21-12), so confirm it on the video. The serve times support the missing 22:54 rally instead.",
+    "10:56 rally: the description says p2 hit out, but p2 won. The winner is right: flipping it would move the end of game 1 past the 14:22 change of ends.",
+    "15:44 and 16:08 rallies: how says p1 hit it into the net, the description says p2 hit it in at the back. Either way p2 won on p1's side of the court."
   ]
 }
