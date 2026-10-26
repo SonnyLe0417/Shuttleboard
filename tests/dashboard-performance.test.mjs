@@ -95,7 +95,14 @@ test("dashboard core fetches five projected, viewer-relative summaries and the s
   assert.ok(db.calls.every((c) => c.columns !== "*"));
   assert.equal(db.calls.find((c) => c.table === "matches").limit, 5);
 });
-test("server aggregates preserve latest-100 legacy formulas and inclusive week boundary", async () => {
+// Historical fixtures retain the old bug; current expectations correct only decider wins.
+function correctedStats(rows) {
+  return {
+    ...legacyStats(rows),
+    deciderWins: rows.filter((row) => row.winner === "A" && row.games.length >= 3).length,
+  };
+}
+test("server aggregates preserve latest-100 selection and inclusive week boundary", async () => {
   for (const count of [0, 20, 100, 150]) {
     const db = database(count),
       weekStart = "2026-10-18T12:00:00.000Z";
@@ -103,7 +110,7 @@ test("server aggregates preserve latest-100 legacy formulas and inclusive week b
     const rows = dataset(count)
       .matches.slice(0, 100)
       .map((m) => matchForPlayer(m, "example-viewer"));
-    assert.deepEqual(result.stats, legacyStats(rows));
+    assert.deepEqual(result.stats, correctedStats(rows));
     assert.equal(
       result.weekMatchCount,
       rows.filter((m) => new Date(m.started_at) >= new Date(weekStart)).length,
@@ -136,7 +143,7 @@ test("incomplete matches, deciders and empty games keep existing statistical beh
       ],
     },
   ];
-  assert.deepEqual(dashboardStats(rows), legacyStats(rows));
+  assert.deepEqual(dashboardStats(rows), correctedStats(rows));
   assert.deepEqual(dashboardStats([]), {
     wins: 0,
     losses: 0,
@@ -183,9 +190,15 @@ test("benchmark response payloads match the real projected service output", asyn
       JSON.parse(JSON.stringify(await readDashboardCore(database(count), "example-viewer"))),
       response("optimized", "core", count, input),
     );
+    const expected = response("optimized", "summary", count, input);
+    expected.stats = correctedStats(
+      dataset(count)
+        .matches.slice(0, 100)
+        .map((m) => matchForPlayer(m, "example-viewer")),
+    );
     assert.deepEqual(
       await readDashboardSummary(database(count), "example-viewer", input.data.weekStart),
-      response("optimized", "summary", count, input),
+      expected,
     );
   }
 });

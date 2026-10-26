@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Clock3, MapPin, Palette, Play, Users } from "lucide-react";
+import { useSession } from "@/hooks/useSession";
 
 export const Route = createFileRoute("/_authenticated/match-lobby")({
   ssr: false,
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/_authenticated/match-lobby")({
 const TEAM_COLORS = ["#2dd4a8", "#38bdf8", "#f59e0b", "#f43f5e", "#a855f7"];
 
 function MatchLobbyPage() {
+  const { user } = useSession();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"singles" | "doubles">("singles");
   const [title, setTitle] = useState("");
@@ -47,8 +49,9 @@ function MatchLobbyPage() {
   }, []);
 
   function launch() {
+    if (!user) return;
     localStorage.setItem(
-      "shuttleboard.match-lobby.v1",
+      `shuttleboard.match-lobby.v1:${user.id}`,
       JSON.stringify({
         mode,
         title: title || `${isDoubles ? "Doubles" : "Singles"} session`,

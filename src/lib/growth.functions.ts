@@ -9,37 +9,6 @@ async function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-async function publicStats(db: any, userId: string) {
-  const { data: matches, error } = await db
-    .from("matches")
-    .select("mode, winner, team_a_user_ids, team_b_user_ids, status")
-    .eq("status", "finished")
-    .or(`team_a_user_ids.cs.{${userId}},team_b_user_ids.cs.{${userId}}`)
-    .order("finished_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  const rows = matches ?? [];
-  let wins = 0;
-  let streak = 0;
-  for (const match of rows) {
-    const onA = (match.team_a_user_ids ?? []).includes(userId);
-    const won = (onA && match.winner === "A") || (!onA && match.winner === "B");
-    if (won) wins++;
-    if (won) streak++;
-    else break;
-  }
-  const singles = rows.filter((m: any) => m.mode === "singles").length;
-  const doubles = rows.filter((m: any) => m.mode === "doubles").length;
-  return {
-    matches: rows.length,
-    wins,
-    losses: Math.max(0, rows.length - wins),
-    winRate: rows.length ? Math.round((wins / rows.length) * 100) : 0,
-    currentStreak: streak,
-    singles,
-    doubles,
-  };
-}
-
 export const getPublicProfile = createServerFn({ method: "GET" })
   .validator((raw: unknown) => z.object({ handle: z.string().min(2).max(24) }).parse(raw))
   .handler(async ({ data }) => {
@@ -58,6 +27,7 @@ export const getPublicProfile = createServerFn({ method: "GET" })
       .eq("id", profile.id)
       .maybeSingle();
     if (!prefs?.public_profile_enabled) return { unavailable: true, handle: profile.handle };
+    const { publicStats } = await import("@/lib/public-profile-stats.server");
     return { profile, stats: await publicStats(db, profile.id) };
   });
 
@@ -74,6 +44,13 @@ export const createMatchInvite = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { data: match, error: matchError } = await db
+      .from("matches")
+      .select("creator_id")
+      .eq("id", data.match_id)
+      .single();
+    if (matchError || match?.creator_id !== context.userId)
+      throw new Error("Only the match creator can create invitations.");
     const { randomBytes } = await import("node:crypto");
     const token = randomBytes(24).toString("hex");
     const tokenHash = await hashToken(token);
@@ -107,42 +84,13 @@ export const listMatchInvites = createServerFn({ method: "GET" })
 
 export const respondToMatchInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((raw: unknown) => z.object({ id: uuid, accept: z.boolean() }).parse(raw))
+  .validator((raw: unknown) => z.object({ id: uuid, accept: z.boolean() }).strict().parse(raw))
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-    const { data: invite, error } = await db
-      .from("match_invites")
-      .select("*")
-      .eq("id", data.id)
-      .eq("recipient_id", context.userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (
-      !invite ||
-      invite.status !== "pending" ||
-      new Date(invite.expires_at).getTime() < Date.now()
-    )
-      throw new Error("This invitation is no longer available.");
-    if (!data.accept) {
-      await db.from("match_invites").update({ status: "declined" }).eq("id", invite.id);
-      return { ok: true, accepted: false };
-    }
-    const { data: match, error: matchError } = await db
-      .from("matches")
-      .select("team_a_user_ids, team_b_user_ids")
-      .eq("id", invite.match_id)
-      .single();
-    if (matchError) throw new Error(matchError.message);
-    const field = invite.team_side === "A" ? "team_a_user_ids" : "team_b_user_ids";
-    await db
-      .from("matches")
-      .update({ [field]: Array.from(new Set([...(match[field] ?? []), context.userId])) })
-      .eq("id", invite.match_id);
-    await db
-      .from("match_invites")
-      .update({ status: "accepted", accepted_at: new Date().toISOString() })
-      .eq("id", invite.id);
-    return { ok: true, accepted: true, match_id: invite.match_id };
+    const { respondToInvite } = await import("./invitations.server");
+    const result = await respondToInvite(context.userId, { id: data.id, accept: data.accept });
+    return data.accept
+      ? { ok: true, accepted: true, match_id: result.match_id }
+      : { ok: true, accepted: false };
   });
 
 export const getInviteByToken = createServerFn({ method: "GET" })
@@ -170,42 +118,19 @@ export const getInviteByToken = createServerFn({ method: "GET" })
 
 export const acceptInviteToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((raw: unknown) => z.object({ token: z.string().min(20).max(100) }).parse(raw))
+  .validator((raw: unknown) =>
+    z
+      .object({ token: z.string().min(20).max(100) })
+      .strict()
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-    const tokenHash = await hashToken(data.token);
-    const { data: invite, error } = await db
-      .from("match_invites")
-      .select("*")
-      .eq("token_hash", tokenHash)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (
-      !invite ||
-      invite.status !== "pending" ||
-      new Date(invite.expires_at).getTime() < Date.now()
-    )
-      throw new Error("This invitation is no longer available.");
-    const { data: match, error: matchError } = await db
-      .from("matches")
-      .select("team_a_user_ids, team_b_user_ids")
-      .eq("id", invite.match_id)
-      .single();
-    if (matchError) throw new Error(matchError.message);
-    const field = invite.team_side === "A" ? "team_a_user_ids" : "team_b_user_ids";
-    await db
-      .from("matches")
-      .update({ [field]: Array.from(new Set([...(match[field] ?? []), context.userId])) })
-      .eq("id", invite.match_id);
-    await db
-      .from("match_invites")
-      .update({
-        status: "accepted",
-        recipient_id: context.userId,
-        accepted_at: new Date().toISOString(),
-      })
-      .eq("id", invite.id);
-    return { ok: true, match_id: invite.match_id };
+    const { respondToInvite } = await import("./invitations.server");
+    const result = await respondToInvite(context.userId, {
+      tokenHash: await hashToken(data.token),
+      accept: true,
+    });
+    return { ok: true, match_id: result.match_id };
   });
 
 export const getReferralStatus = createServerFn({ method: "GET" })

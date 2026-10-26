@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requestVision } from "@/lib/vision-request";
 import { LiveRally } from "@/lib/live-rally";
 import { startLiveFramePump } from "@/lib/live-frame-pump";
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -447,6 +448,7 @@ function AiVisionPage() {
   }, []);
 
   const analyzeFrame = useCallback(async () => {
+    if (!requestVision.canSample()) return;
     const image = captureFrame();
     if (!image) return;
     const sequence = ++analysisSequenceRef.current;
@@ -464,17 +466,13 @@ function AiVisionPage() {
           }
         : undefined;
     try {
-      const res = await fetch("/api/ai-vision", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image,
-          mode,
-          p1Side,
-          courtCorners: courtCorners.length === 4 ? courtCorners : undefined,
-          previousTrack,
-          lastHitter,
-        }),
+      const res = await requestVision({
+        image,
+        mode,
+        p1Side,
+        courtCorners: courtCorners.length === 4 ? courtCorners : undefined,
+        previousTrack,
+        lastHitter,
       });
       const data = await res.json();
       // Concurrent requests can finish out of order. Older camera frames must
@@ -1446,7 +1444,10 @@ function AiVisionPage() {
             <>
               {!tracking ? (
                 <button
-                  onClick={() => setTracking(true)}
+                  onClick={() => {
+                    requestVision.resume();
+                    setTracking(true);
+                  }}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                 >
                   <Play className="h-4 w-4" /> Start Tracking

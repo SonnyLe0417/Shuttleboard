@@ -1,0 +1,26 @@
+diff --git a/src/routes/__root.tsx b/src/routes/__root.tsx
+--- a/src/routes/__root.tsx
++++ b/src/routes/__root.tsx
+@@ -0,0 +1 @@
++import { useOfflineAccount, localOfflineAccess, offlineAuthChanged } from "@/lib/offline-account";
+@@ -155,0 +157,3 @@
++  // The static offline document already provides its own html/head/body.
++  if (typeof document !== "undefined" && document.getElementById("offline-root"))
++    return <>{children}</>;
+@@ -185,0 +190,2 @@
++  const offline = useOfflineAccount();
++  const localScoreboard = pathname === "/scoreboard" && localOfflineAccess(offline.account);
+@@ -194,0 +201 @@
++          queueMicrotask(() => void offlineAuthChanged(event, nextUserId).catch(() => {}));
+@@ -228 +235 @@
+-          {sessionError && !publicContent ? (
++          {sessionError && !publicContent && !localScoreboard ? (
+diff --git a/vite.config.ts b/vite.config.ts
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -8,0 +9 @@
++import { offlineScoreboardBuild } from "./scripts/offline-scoreboard-build";
+@@ -54,0 +56 @@
++    client: { entry: "client" },
+@@ -72,0 +75 @@
++  if (env.command === "build") config.plugins.push(offlineScoreboardBuild());

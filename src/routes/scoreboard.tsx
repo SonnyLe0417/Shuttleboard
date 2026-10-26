@@ -1,3 +1,6 @@
+import { useOfflineAccount, localOfflineAccess } from "@/lib/offline-account";
+import { useDurableScoreboard } from "@/hooks/useDurableScoreboard";
+import { OfflineScoreboardPanel } from "@/components/badminton/OfflineScoreboardPanel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,17 +60,39 @@ export const Route = createFileRoute("/scoreboard")({
 });
 
 function ScoreboardRoute() {
+  const session = useSession(),
+    offline = useOfflineAccount();
+  const supported =
+    typeof indexedDB !== "undefined" &&
+    typeof navigator !== "undefined" &&
+    Boolean(navigator.locks) &&
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function";
+  const prepared = localOfflineAccess(offline.account);
+  if (
+    supported &&
+    (offline.loading ||
+      (session.loading && !prepared) ||
+      (session.user && offline.account?.id !== session.user.id && !offline.error))
+  )
+    return <ScoreboardLoading />;
+  const owner = supported ? (session.user?.id ?? (prepared ? offline.account!.id : null)) : null;
   return (
-    <BadmintonMatchProvider>
-      <ScoreboardPage />
+    <BadmintonMatchProvider key={owner ?? "guest"} managed={Boolean(owner)}>
+      <ScoreboardPage owner={owner} />
     </BadmintonMatchProvider>
   );
 }
 
-function ScoreboardPage() {
+function ScoreboardPage({ owner }: { owner: string | null }) {
   const queryClient = useQueryClient();
   const match = useSharedBadmintonMatch();
+  const durable = useDurableScoreboard(owner, match);
+  const editor = useRef(durable.canEdit);
+  editor.current = durable.canEdit;
   const { user, loading: sessionLoading, error: sessionError } = useSession();
+  const signedInId = user?.id;
+  const { ready: localReady, canEdit: localCanEdit, setMeta: setLocalMeta } = durable;
   const {
     state,
     setName,
@@ -98,16 +123,25 @@ function ScoreboardPage() {
   const [referee, setReferee] = useState(false);
   const [savingHistory, setSavingHistory] = useState(false);
   const [savedHistoryKey, setSavedHistoryKey] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem("shuttleboard.saved-history-key.v1");
+    if (owner || typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem("shuttleboard.saved-history-key.v1");
+    } catch {
+      return null;
+    }
   });
-  const [savedMatchId, setSavedMatchId] = useState<string | null>(null);
+  const [legacySavedMatchId, setSavedMatchId] = useState<string | null>(null);
+  const savedMatchId = owner ? durable.savedId : legacySavedMatchId;
   const createInvite = useServerFn(createMatchInvite);
   const [warmupRemaining, setWarmupRemaining] = useState(0);
   const [trialStatus, setTrialStatus] = useState<"checking" | "available" | "used">("checking");
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (owner) {
+      setTrialStatus("available");
+      return;
+    }
     if (sessionLoading || sessionError) return;
     if (user) {
       setTrialStatus("available");
@@ -121,7 +155,7 @@ function ScoreboardPage() {
     }
     window.localStorage.setItem(trialKey, "used");
     setTrialStatus("available");
-  }, [sessionLoading, sessionError, user]);
+  }, [sessionLoading, sessionError, user, owner]);
 
   const verdict = state.landing
     ? landingVerdict(
@@ -152,6 +186,7 @@ function ScoreboardPage() {
     if (!voiceSupported()) return;
     const controller = createVoiceController(() => [teamName(0), teamName(1)]);
     controller.setListener((cmd) => {
+      if (owner && !editor.current) return;
       setVoiceHeard(null);
       if (cmd.type === "point") addPoint(cmd.team);
       else if (cmd.type === "fault") addFault(cmd.team, "fault");
@@ -161,7 +196,11 @@ function ScoreboardPage() {
     });
     controller.start();
     return () => controller.stop();
-  }, [voiceOn, addPoint, addFault, undo, reset, teamName]);
+  }, [voiceOn, addPoint, addFault, undo, reset, teamName, owner]);
+
+  useEffect(() => {
+    if (owner && durable.readOnly) setReferee(false);
+  }, [owner, durable.readOnly]);
 
   // Auto-enable voice from persisted pref on mount
   useEffect(() => {
@@ -171,9 +210,15 @@ function ScoreboardPage() {
 
   // The dashboard's “usual match” action carries the last-used context into the live setup.
   useEffect(() => {
+    if (owner && (!localReady || !localCanEdit || state.matchStartedAt || state.matchOver)) return;
+    const lobbyKey =
+      owner || signedInId
+        ? `shuttleboard.match-lobby.v1:${owner ?? signedInId}`
+        : "shuttleboard.match-lobby.v1";
     try {
-      const lobbyRaw = window.localStorage.getItem("shuttleboard.match-lobby.v1");
-      const raw = lobbyRaw ?? window.localStorage.getItem("shuttleboard.quick-match.v1");
+      const lobbyRaw = window.localStorage.getItem(lobbyKey);
+      const raw =
+        lobbyRaw ?? (!owner ? window.localStorage.getItem("shuttleboard.quick-match.v1") : null);
       if (!raw) return;
       const quick = JSON.parse(raw) as {
         mode?: "singles" | "doubles";
@@ -187,7 +232,8 @@ function ScoreboardPage() {
         colorB?: string;
         warmup?: string;
       };
-      if (quick.title || quick.court)
+      if (owner) setLocalMeta({ title: quick.title, court: quick.court });
+      else if (quick.title || quick.court)
         window.localStorage.setItem("shuttleboard.pending-match-meta.v1", JSON.stringify(quick));
       if (quick.warmup && quick.warmup !== "none") setWarmupRemaining(Number(quick.warmup) * 60);
       if (quick.mode) setMode(quick.mode);
@@ -196,15 +242,26 @@ function ScoreboardPage() {
       if (quick.names?.[0] || quick.teamA) setName(0, quick.names?.[0] ?? quick.teamA ?? "You");
       if (quick.names?.[1] || quick.teamB)
         setName(1, quick.names?.[1] ?? quick.teamB ?? "Opponent");
-      window.localStorage.removeItem("shuttleboard.quick-match.v1");
-      window.localStorage.removeItem("shuttleboard.match-lobby.v1");
+      if (!owner) window.localStorage.removeItem("shuttleboard.quick-match.v1");
+      window.localStorage.removeItem(lobbyKey);
       toast.success("Usual match loaded", {
         description: "Your last-used format and players are ready.",
       });
     } catch {
       window.localStorage.removeItem("shuttleboard.quick-match.v1");
     }
-  }, [setMode, setName, setPreset]);
+  }, [
+    setMode,
+    setName,
+    setPreset,
+    owner,
+    signedInId,
+    localReady,
+    localCanEdit,
+    setLocalMeta,
+    state.matchStartedAt,
+    state.matchOver,
+  ]);
 
   useEffect(() => {
     if (warmupRemaining <= 0) return;
@@ -263,6 +320,11 @@ function ScoreboardPage() {
 
   const historyKey = `${state.matchStartedAt ?? 0}:${state.completedGames.length}:${state.games.join("-")}`;
   const saveCompletedMatch = async () => {
+    if (owner) {
+      durable.retrySave();
+      await durable.sync();
+      return;
+    }
     if (!user || !state.matchOver || savedHistoryKey === historyKey || savingHistory) return;
     setSavingHistory(true);
     try {
@@ -330,7 +392,8 @@ function ScoreboardPage() {
   };
 
   useEffect(() => {
-    if (!user || !state.matchOver || savedHistoryKey === historyKey || savingHistory) return;
+    if (owner || !user || !state.matchOver || savedHistoryKey === historyKey || savingHistory)
+      return;
     void saveCompletedMatch();
     // The history key changes only when a new completed match is created.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -338,12 +401,27 @@ function ScoreboardPage() {
 
   // Keep these returns after every hook so the scoreboard never changes its
   // hook order when the session or one-time preview status resolves.
-  if (sessionLoading || sessionError || trialStatus === "checking") return <ScoreboardLoading />;
-  if (!user && trialStatus === "used") return <TrialGate />;
+  const offlinePanel = (
+    <OfflineScoreboardPanel owner={owner} signedIn={Boolean(user)} session={durable} />
+  );
+  if (owner && !durable.ready)
+    return (
+      <>
+        {offlinePanel}
+        {!durable.legacy && !durable.error && <ScoreboardLoading />}
+      </>
+    );
+  if (!owner && (sessionLoading || sessionError || trialStatus === "checking"))
+    return <ScoreboardLoading />;
+  if (!owner && !user && trialStatus === "used") return <TrialGate />;
 
   if (referee) {
     return (
-      <div ref={containerRef} className="fixed inset-0 z-[100] bg-background text-foreground">
+      <div
+        ref={containerRef}
+        inert={Boolean(owner && !durable.canEdit)}
+        className="fixed inset-0 z-[100] bg-background text-foreground"
+      >
         <RefereeMode
           state={state}
           teamName={teamName}
@@ -359,436 +437,453 @@ function ScoreboardPage() {
   }
 
   return (
-    <div ref={containerRef} className="club-scoreboard space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-            Courtside Control
-          </p>
-          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            Scoreboard
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-semibold text-primary">
-              {state.preset.label}
-            </span>
-            <span>
-              Games <strong className="text-foreground">{state.games[0]}</strong>–
-              <strong className="text-foreground">{state.games[1]}</strong>
-            </span>
-            {state.matchOver && state.matchWinnerTeam !== null && (
-              <span className="rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 font-semibold text-primary">
-                🏆 {teamName(state.matchWinnerTeam)} wins the match
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setVoiceOn((v) => !v)}
-            disabled={!voiceSupported()}
-            title={
-              voiceSupported() ? "Toggle voice commands" : "Voice not supported in this browser"
-            }
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-medium transition-colors backdrop-blur disabled:opacity-40 ${
-              voiceOn
-                ? "border-primary/50 bg-primary/15 text-primary"
-                : "border-white/10 bg-card/60 text-foreground hover:bg-card"
-            }`}
-          >
-            {voiceOn ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
-            Voice
-          </button>
-          <button
-            onClick={() => setReferee(true)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/60 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-card"
-          >
-            <Maximize2 className="h-3.5 w-3.5" />
-            Referee mode
-          </button>
-          <button
-            onClick={undo}
-            disabled={!canUndo}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/60 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-card disabled:opacity-30"
-          >
-            <Undo2 className="h-3.5 w-3.5" />
-            Undo
-          </button>
-          <button
-            onClick={reset}
-            className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-3.5 py-2 text-xs font-medium text-destructive hover:bg-destructive/20"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset
-          </button>
-        </div>
-      </div>
-
-      {voiceOn && (
-        <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-          </span>
-          Listening. Try: "point {teamName(0)}", "fault B", "undo".
-          {voiceHeard && <span className="ml-auto opacity-70">Heard: "{voiceHeard}"</span>}
-        </div>
-      )}
-
-      {warmupRemaining > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary shadow-[var(--shadow-glow)]">
-          <span>
-            <Timer className="mr-2 inline h-4 w-4" />
-            Warm-up timer · loosen up before the first rally.
-          </span>
-          <strong className="font-display text-xl tabular-nums">
-            {Math.floor(warmupRemaining / 60)}:{String(warmupRemaining % 60).padStart(2, "0")}
-          </strong>
-        </div>
-      )}
-
-      {/* Preset selector */}
-      <div className="bento-tile p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Quick-start preset
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setPreset(p.id as PresetId)}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                  state.preset.id === p.id
-                    ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]"
-                    : "border border-white/10 bg-card/40 text-foreground hover:bg-card"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Bento grid */}
-      <div className="club-score-grid grid gap-4">
-        <TeamCard
-          className="club-team-card"
-          onPoint={() => addPoint(0)}
-          disabled={state.matchOver}
-          active={state.server === 0}
-          name={state.names[0]}
-          onNameChange={(name) => setName(0, name)}
-          score={state.score[0]}
-          games={state.games[0]}
-          label="Team A"
-          matchPoint={matchPoint && state.score[0] >= state.score[1]}
-          isMatchWinner={state.matchWinnerTeam === 0}
-        />
-        <TeamCard
-          className="club-team-card"
-          onPoint={() => addPoint(1)}
-          disabled={state.matchOver}
-          active={state.server === 1}
-          name={state.names[1]}
-          onNameChange={(name) => setName(1, name)}
-          score={state.score[1]}
-          games={state.games[1]}
-          label="Team B"
-          matchPoint={matchPoint && state.score[1] >= state.score[0]}
-          isMatchWinner={state.matchWinnerTeam === 1}
-        />
-
-        {/* Court */}
-        <section className="club-scoring-court bento-tile lg:col-span-2 lg:row-span-3">
-          <div className="flex items-start justify-between gap-3 border-b border-white/5 px-4 py-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-                Line Judge
-              </p>
-              <h2 className="mt-0.5 font-display text-sm font-semibold">
-                Tap where the shuttle landed
-              </h2>
-            </div>
-            <div className="flex flex-col gap-1.5 text-[11px]">
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-white/10 bg-black/20 px-2 py-1">
-                <input
-                  type="checkbox"
-                  checked={state.serveCheck}
-                  onChange={(e) => setServeCheck(e.target.checked)}
-                  className="h-3 w-3 accent-primary"
-                />
-                Serve
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-white/10 bg-black/20 px-2 py-1">
-                <input
-                  type="checkbox"
-                  checked={state.nearSide}
-                  onChange={(e) => setNearSide(e.target.checked)}
-                  className="h-3 w-3 accent-primary"
-                />
-                Near side
-              </label>
-            </div>
-          </div>
-          <div className="p-3">
-            <Court
-              mode={state.mode}
-              onTap={markLanding}
-              landing={state.landing}
-              isIn={verdict?.isIn ?? null}
-            />
-          </div>
-          <div
-            className={`mx-3 mb-3 rounded-xl border p-3 transition-colors ${
-              verdict
-                ? verdict.isIn
-                  ? "border-in/40 bg-in/10 text-in"
-                  : "border-out/40 bg-out/10 text-out"
-                : "border-white/10 bg-black/20"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {verdict ? (
-                verdict.isIn ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                ) : (
-                  <XCircle className="h-4 w-4 shrink-0" />
-                )
-              ) : (
-                <Trophy className="h-4 w-4 shrink-0 text-muted-foreground" />
-              )}
-              <strong className="font-display text-base">
-                {verdict ? (verdict.isIn ? "In" : "Out") : "Awaiting landing mark"}
-              </strong>
-            </div>
-            <p className="mt-1 text-xs opacity-80">
-              {verdict
-                ? verdict.modeText
-                : "Full court for rallies. Diagonal service box for serves."}
+    <>
+      {offlinePanel}
+      <div
+        ref={containerRef}
+        inert={Boolean(owner && !durable.canEdit)}
+        className="club-scoreboard space-y-6"
+      >
+        {/* Header */}
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+              Courtside Control
             </p>
-            {verdict?.closeLine && (
-              <p className="mt-1.5 text-[11px] font-medium">
-                Close line — {verdict.lineMarginPercent}% from {verdict.nearestLine}.
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* Meta strip */}
-        <div className="bento-tile lg:col-span-4">
-          <div className="grid grid-cols-4 divide-x divide-white/5">
-            <MetaCell label="Server" value={teamName(state.server)} highlight />
-            <MetaCell label="Correct Side" value={correctSide} capitalize />
-            <MetaCell
-              label="Match Point"
-              value={matchPoint ? "Yes" : "No"}
-              tone={matchPoint ? "hot" : "muted"}
-            />
-            <RallyMeta
-              rallyMs={rallyElapsed}
-              longestMs={state.longestRallyMs}
-              onStart={startRally}
-              live={!!state.rallyStartedAt}
-            />
-          </div>
-          {sideWarning && (
-            <div className="flex items-center gap-2 border-t border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-              <AlertCircle className="h-3.5 w-3.5" />
-              Server should be on the <strong className="capitalize">{correctSide}</strong> side.
+            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+              Scoreboard
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-semibold text-primary">
+                {state.preset.label}
+              </span>
+              <span>
+                Games <strong className="text-foreground">{state.games[0]}</strong>–
+                <strong className="text-foreground">{state.games[1]}</strong>
+              </span>
+              {state.matchOver && state.matchWinnerTeam !== null && (
+                <span className="rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 font-semibold text-primary">
+                  🏆 {teamName(state.matchWinnerTeam)} wins the match
+                </span>
+              )}
             </div>
-          )}
-          {doublesRotation && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/5 px-4 py-2 text-xs">
-              <span className="text-muted-foreground">Rotation:</span>
-              <span>
-                <strong className="text-primary">{doublesRotation.server}</strong> serves from{" "}
-                <span className="capitalize">{doublesRotation.side}</span>
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span>
-                Partner: <strong>{doublesRotation.partner}</strong>
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span>
-                Receiving:{" "}
-                <strong>
-                  {doublesRotation.receivers[0]} / {doublesRotation.receivers[1]}
-                </strong>
-              </span>
-            </div>
-          )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setVoiceOn((v) => !v)}
+              disabled={!voiceSupported()}
+              title={
+                voiceSupported() ? "Toggle voice commands" : "Voice not supported in this browser"
+              }
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-medium transition-colors backdrop-blur disabled:opacity-40 ${
+                voiceOn
+                  ? "border-primary/50 bg-primary/15 text-primary"
+                  : "border-white/10 bg-card/60 text-foreground hover:bg-card"
+              }`}
+            >
+              {voiceOn ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
+              Voice
+            </button>
+            <button
+              onClick={() => setReferee(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/60 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-card"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+              Referee mode
+            </button>
+            <button
+              onClick={undo}
+              disabled={!canUndo || Boolean(owner && state.matchOver)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/60 px-3.5 py-2 text-xs font-medium text-foreground hover:bg-card disabled:opacity-30"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              Undo
+            </button>
+            <button
+              onClick={reset}
+              disabled={Boolean(owner && state.matchOver && !match.deviceSaved)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-3.5 py-2 text-xs font-medium text-destructive hover:bg-destructive/20"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {state.matchOver ? "New match" : "Reset"}
+            </button>
+          </div>
         </div>
 
-        {/* Controls */}
-        <section className="bento-tile lg:col-span-4">
-          <div className="grid gap-4 p-4 sm:grid-cols-2">
-            <fieldset className="space-y-2">
-              <legend className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Game Type
-              </legend>
-              <SegmentedGroup>
-                <ToggleButton
-                  selected={state.mode === "singles"}
-                  onClick={() => setMode("singles")}
-                >
-                  Singles
-                </ToggleButton>
-                <ToggleButton
-                  selected={state.mode === "doubles"}
-                  onClick={() => setMode("doubles")}
-                >
-                  Doubles
-                </ToggleButton>
-              </SegmentedGroup>
-            </fieldset>
-
-            <fieldset className="space-y-2">
-              <legend className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Serving From
-              </legend>
-              <SegmentedGroup>
-                <ToggleButton
-                  selected={state.declaredSide === "right"}
-                  onClick={() => setDeclaredSide("right")}
-                >
-                  Right
-                </ToggleButton>
-                <ToggleButton
-                  selected={state.declaredSide === "left"}
-                  onClick={() => setDeclaredSide("left")}
-                >
-                  Left
-                </ToggleButton>
-              </SegmentedGroup>
-            </fieldset>
-
-            {state.mode === "doubles" && (
-              <fieldset className="space-y-2 sm:col-span-2">
-                <legend className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Doubles Line-up
-                </legend>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(["A1", "A2", "B1", "B2"] as const).map((label, i) => (
-                    <label
-                      key={label}
-                      className="flex flex-col gap-1 rounded-lg border border-white/10 bg-card/40 px-2.5 py-1.5"
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        {label}
-                      </span>
-                      <input
-                        value={state.doublesNames[i]}
-                        onChange={(e) => setDoublesName(i as 0 | 1 | 2 | 3, e.target.value)}
-                        className="bg-transparent text-sm font-semibold outline-none"
-                        maxLength={16}
-                      />
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            )}
-
-            <FaultControls teamName={teamName} onFault={addFault} />
+        {voiceOn && (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
+            Listening. Try: "point {teamName(0)}", "fault B", "undo".
+            {voiceHeard && <span className="ml-auto opacity-70">Heard: "{voiceHeard}"</span>}
           </div>
-        </section>
+        )}
 
-        {/* Calls & history + export */}
-        <section className="bento-tile lg:col-span-4">
-          <div className="flex items-center justify-between gap-2 border-b border-white/5 px-4 py-3">
-            <h2 className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Calls &amp; History
-            </h2>
-            <div className="flex items-center gap-1.5">
-              {state.matchOver &&
-                (user ? (
-                  <button
-                    type="button"
-                    onClick={saveCompletedMatch}
-                    disabled={savingHistory || savedHistoryKey === historyKey}
-                    className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary disabled:opacity-60"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {savedHistoryKey === historyKey
-                      ? "Saved automatically"
-                      : savingHistory
-                        ? "Saving…"
-                        : "Save now"}
-                  </button>
-                ) : (
-                  <Link
-                    to="/auth"
-                    className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary"
-                  >
-                    <Save className="h-3.5 w-3.5" /> Sign in to save
-                  </Link>
-                ))}
-              <IconChip
-                onClick={shareCard}
-                icon={<Share2 className="h-3.5 w-3.5" />}
-                label="Share PNG"
-              />
-              {state.matchOver && savedMatchId && (
-                <IconChip
-                  onClick={async () => {
-                    try {
-                      const invite = await createInvite({
-                        data: { match_id: savedMatchId, team_side: "B" },
-                      });
-                      const link = `${window.location.origin}/invite/${invite.token}`;
-                      await navigator.clipboard?.writeText(link);
-                      toast.success("Match invite link copied");
-                    } catch (err: any) {
-                      toast.error(err.message ?? "Could not create invite");
-                    }
-                  }}
-                  icon={<Users className="h-3.5 w-3.5" />}
-                  label="Invite"
-                />
-              )}
-              <IconChip
-                onClick={exportCsv}
-                icon={<FileDown className="h-3.5 w-3.5" />}
-                label="CSV"
-              />
-              <IconChip
-                onClick={exportPdf}
-                icon={<FileDown className="h-3.5 w-3.5" />}
-                label="PDF"
-              />
-              <Users className="ml-1 h-3.5 w-3.5 text-muted-foreground" />
+        {warmupRemaining > 0 && (
+          <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary shadow-[var(--shadow-glow)]">
+            <span>
+              <Timer className="mr-2 inline h-4 w-4" />
+              Warm-up timer · loosen up before the first rally.
+            </span>
+            <strong className="font-display text-xl tabular-nums">
+              {Math.floor(warmupRemaining / 60)}:{String(warmupRemaining % 60).padStart(2, "0")}
+            </strong>
+          </div>
+        )}
+
+        {/* Preset selector */}
+        <div className="bento-tile p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Quick-start preset
             </div>
-          </div>
-          <ol className="max-h-56 space-y-1 overflow-y-auto px-4 py-3 text-sm">
-            {state.log.length === 0 ? (
-              <li className="text-xs italic text-muted-foreground">
-                No calls yet. Start with a rally point or a court tap.
-              </li>
-            ) : (
-              state.log.map((item, i) => (
-                <li
-                  key={i}
-                  className={`flex items-start gap-2 rounded-md border px-2.5 py-1.5 text-xs ${
-                    item.kind === "match"
-                      ? "border-primary/40 bg-primary/10 font-semibold"
-                      : item.kind === "game"
-                        ? "border-primary/25 bg-primary/5"
-                        : "border-white/5 bg-black/20"
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  disabled={Boolean(owner && state.matchOver && !match.deviceSaved)}
+                  onClick={() => setPreset(p.id as PresetId)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    state.preset.id === p.id
+                      ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]"
+                      : "border border-white/10 bg-card/40 text-foreground hover:bg-card"
                   }`}
                 >
-                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary shadow-[0_0_8px_oklch(0.82_0.17_165/0.8)]" />
-                  <span>{item.text}</span>
-                </li>
-              ))
-            )}
-          </ol>
-        </section>
-      </div>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
-      <Cinematic state={state} onDone={dismissCelebration} />
-    </div>
+        {/* Bento grid */}
+        <div className="club-score-grid grid gap-4">
+          <TeamCard
+            className="club-team-card"
+            onPoint={() => addPoint(0)}
+            disabled={state.matchOver}
+            active={state.server === 0}
+            name={state.names[0]}
+            onNameChange={(name) => setName(0, name)}
+            score={state.score[0]}
+            games={state.games[0]}
+            label="Team A"
+            matchPoint={matchPoint && state.score[0] >= state.score[1]}
+            isMatchWinner={state.matchWinnerTeam === 0}
+          />
+          <TeamCard
+            className="club-team-card"
+            onPoint={() => addPoint(1)}
+            disabled={state.matchOver}
+            active={state.server === 1}
+            name={state.names[1]}
+            onNameChange={(name) => setName(1, name)}
+            score={state.score[1]}
+            games={state.games[1]}
+            label="Team B"
+            matchPoint={matchPoint && state.score[1] >= state.score[0]}
+            isMatchWinner={state.matchWinnerTeam === 1}
+          />
+
+          {/* Court */}
+          <section className="club-scoring-court bento-tile lg:col-span-2 lg:row-span-3">
+            <div className="flex items-start justify-between gap-3 border-b border-white/5 px-4 py-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+                  Line Judge
+                </p>
+                <h2 className="mt-0.5 font-display text-sm font-semibold">
+                  Tap where the shuttle landed
+                </h2>
+              </div>
+              <div className="flex flex-col gap-1.5 text-[11px]">
+                <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-white/10 bg-black/20 px-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={state.serveCheck}
+                    onChange={(e) => setServeCheck(e.target.checked)}
+                    className="h-3 w-3 accent-primary"
+                  />
+                  Serve
+                </label>
+                <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-white/10 bg-black/20 px-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={state.nearSide}
+                    onChange={(e) => setNearSide(e.target.checked)}
+                    className="h-3 w-3 accent-primary"
+                  />
+                  Near side
+                </label>
+              </div>
+            </div>
+            <div className="p-3">
+              <Court
+                mode={state.mode}
+                onTap={markLanding}
+                landing={state.landing}
+                isIn={verdict?.isIn ?? null}
+              />
+            </div>
+            <div
+              className={`mx-3 mb-3 rounded-xl border p-3 transition-colors ${
+                verdict
+                  ? verdict.isIn
+                    ? "border-in/40 bg-in/10 text-in"
+                    : "border-out/40 bg-out/10 text-out"
+                  : "border-white/10 bg-black/20"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {verdict ? (
+                  verdict.isIn ? (
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <XCircle className="h-4 w-4 shrink-0" />
+                  )
+                ) : (
+                  <Trophy className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <strong className="font-display text-base">
+                  {verdict ? (verdict.isIn ? "In" : "Out") : "Awaiting landing mark"}
+                </strong>
+              </div>
+              <p className="mt-1 text-xs opacity-80">
+                {verdict
+                  ? verdict.modeText
+                  : "Full court for rallies. Diagonal service box for serves."}
+              </p>
+              {verdict?.closeLine && (
+                <p className="mt-1.5 text-[11px] font-medium">
+                  Close line — {verdict.lineMarginPercent}% from {verdict.nearestLine}.
+                </p>
+              )}
+            </div>
+          </section>
+
+          {/* Meta strip */}
+          <div className="bento-tile lg:col-span-4">
+            <div className="grid grid-cols-4 divide-x divide-white/5">
+              <MetaCell label="Server" value={teamName(state.server)} highlight />
+              <MetaCell label="Correct Side" value={correctSide} capitalize />
+              <MetaCell
+                label="Match Point"
+                value={matchPoint ? "Yes" : "No"}
+                tone={matchPoint ? "hot" : "muted"}
+              />
+              <RallyMeta
+                rallyMs={rallyElapsed}
+                longestMs={state.longestRallyMs}
+                onStart={startRally}
+                live={!!state.rallyStartedAt}
+              />
+            </div>
+            {sideWarning && (
+              <div className="flex items-center gap-2 border-t border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                <AlertCircle className="h-3.5 w-3.5" />
+                Server should be on the <strong className="capitalize">{correctSide}</strong> side.
+              </div>
+            )}
+            {doublesRotation && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/5 px-4 py-2 text-xs">
+                <span className="text-muted-foreground">Rotation:</span>
+                <span>
+                  <strong className="text-primary">{doublesRotation.server}</strong> serves from{" "}
+                  <span className="capitalize">{doublesRotation.side}</span>
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span>
+                  Partner: <strong>{doublesRotation.partner}</strong>
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span>
+                  Receiving:{" "}
+                  <strong>
+                    {doublesRotation.receivers[0]} / {doublesRotation.receivers[1]}
+                  </strong>
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Controls */}
+          <section className="bento-tile lg:col-span-4">
+            <div className="grid gap-4 p-4 sm:grid-cols-2">
+              <fieldset className="space-y-2">
+                <legend className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Game Type
+                </legend>
+                <SegmentedGroup>
+                  <ToggleButton
+                    selected={state.mode === "singles"}
+                    onClick={() => setMode("singles")}
+                  >
+                    Singles
+                  </ToggleButton>
+                  <ToggleButton
+                    selected={state.mode === "doubles"}
+                    onClick={() => setMode("doubles")}
+                  >
+                    Doubles
+                  </ToggleButton>
+                </SegmentedGroup>
+              </fieldset>
+
+              <fieldset className="space-y-2">
+                <legend className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Serving From
+                </legend>
+                <SegmentedGroup>
+                  <ToggleButton
+                    selected={state.declaredSide === "right"}
+                    onClick={() => setDeclaredSide("right")}
+                  >
+                    Right
+                  </ToggleButton>
+                  <ToggleButton
+                    selected={state.declaredSide === "left"}
+                    onClick={() => setDeclaredSide("left")}
+                  >
+                    Left
+                  </ToggleButton>
+                </SegmentedGroup>
+              </fieldset>
+
+              {state.mode === "doubles" && (
+                <fieldset className="space-y-2 sm:col-span-2">
+                  <legend className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    Doubles Line-up
+                  </legend>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {(["A1", "A2", "B1", "B2"] as const).map((label, i) => (
+                      <label
+                        key={label}
+                        className="flex flex-col gap-1 rounded-lg border border-white/10 bg-card/40 px-2.5 py-1.5"
+                      >
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                          {label}
+                        </span>
+                        <input
+                          value={state.doublesNames[i]}
+                          onChange={(e) => setDoublesName(i as 0 | 1 | 2 | 3, e.target.value)}
+                          className="bg-transparent text-sm font-semibold outline-none"
+                          maxLength={16}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+
+              <FaultControls teamName={teamName} onFault={addFault} />
+            </div>
+          </section>
+
+          {/* Calls & history + export */}
+          <section className="bento-tile lg:col-span-4">
+            <div className="flex items-center justify-between gap-2 border-b border-white/5 px-4 py-3">
+              <h2 className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Calls &amp; History
+              </h2>
+              <div className="flex items-center gap-1.5">
+                {state.matchOver &&
+                  (user || owner ? (
+                    <button
+                      type="button"
+                      onClick={saveCompletedMatch}
+                      disabled={
+                        owner ? match.deviceSaved : savingHistory || savedHistoryKey === historyKey
+                      }
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary disabled:opacity-60"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {owner
+                        ? savedMatchId
+                          ? "Synced"
+                          : match.deviceSaved
+                            ? "Saved on device"
+                            : "Saving on device…"
+                        : savedHistoryKey === historyKey
+                          ? "Saved automatically"
+                          : savingHistory
+                            ? "Saving…"
+                            : "Save now"}
+                    </button>
+                  ) : (
+                    <Link
+                      to="/auth"
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary"
+                    >
+                      <Save className="h-3.5 w-3.5" /> Sign in to save
+                    </Link>
+                  ))}
+                <IconChip
+                  onClick={shareCard}
+                  icon={<Share2 className="h-3.5 w-3.5" />}
+                  label="Share PNG"
+                />
+                {state.matchOver && savedMatchId && (
+                  <IconChip
+                    onClick={async () => {
+                      try {
+                        const invite = await createInvite({
+                          data: { match_id: savedMatchId, team_side: "B" },
+                        });
+                        const link = `${window.location.origin}/invite/${invite.token}`;
+                        await navigator.clipboard?.writeText(link);
+                        toast.success("Match invite link copied");
+                      } catch (err: any) {
+                        toast.error(err.message ?? "Could not create invite");
+                      }
+                    }}
+                    icon={<Users className="h-3.5 w-3.5" />}
+                    label="Invite"
+                  />
+                )}
+                <IconChip
+                  onClick={exportCsv}
+                  icon={<FileDown className="h-3.5 w-3.5" />}
+                  label="CSV"
+                />
+                <IconChip
+                  onClick={exportPdf}
+                  icon={<FileDown className="h-3.5 w-3.5" />}
+                  label="PDF"
+                />
+                <Users className="ml-1 h-3.5 w-3.5 text-muted-foreground" />
+              </div>
+            </div>
+            <ol className="max-h-56 space-y-1 overflow-y-auto px-4 py-3 text-sm">
+              {state.log.length === 0 ? (
+                <li className="text-xs italic text-muted-foreground">
+                  No calls yet. Start with a rally point or a court tap.
+                </li>
+              ) : (
+                state.log.map((item, i) => (
+                  <li
+                    key={i}
+                    className={`flex items-start gap-2 rounded-md border px-2.5 py-1.5 text-xs ${
+                      item.kind === "match"
+                        ? "border-primary/40 bg-primary/10 font-semibold"
+                        : item.kind === "game"
+                          ? "border-primary/25 bg-primary/5"
+                          : "border-white/5 bg-black/20"
+                    }`}
+                  >
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary shadow-[0_0_8px_oklch(0.82_0.17_165/0.8)]" />
+                    <span>{item.text}</span>
+                  </li>
+                ))
+              )}
+            </ol>
+          </section>
+        </div>
+
+        <Cinematic state={state} onDone={dismissCelebration} />
+      </div>
+    </>
   );
 }
 

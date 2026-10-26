@@ -62,7 +62,7 @@ export function dashboardStats(matches: Array<Pick<DashboardMatch, "winner" | "g
     wins += won ? 1 : 0;
     if (m.games.length >= 3) {
       decisiveGames++;
-      if (m.games[m.games.length - 1]?.a > m.games[m.games.length - 1]?.b === won) deciderWins++;
+      if (won) deciderWins++;
     }
     for (const g of m.games) {
       margin += Math.abs(g.a - g.b);

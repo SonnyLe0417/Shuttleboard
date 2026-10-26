@@ -367,7 +367,8 @@ function SettingsPage() {
       await deleteAccount({
         data: { confirmation: "DELETE MY ACCOUNT", password: deletePassword || undefined },
       });
-      await supabase.auth.signOut();
+      const { signOutOfflineAccount } = await import("@/lib/offline-account");
+      await signOutOfflineAccount(() => supabase.auth.signOut());
       window.location.assign("/auth");
     } catch (error: any) {
       toast.error(error.message ?? "Could not delete account");

@@ -394,7 +394,8 @@ export function ProfilePage({ forceEditing = false }: { forceEditing?: boolean }
     }
   }
   async function onSignOut() {
-    await supabase.auth.signOut();
+    const { signOutOfflineAccount } = await import("@/lib/offline-account");
+    await signOutOfflineAccount(() => supabase.auth.signOut());
     router.navigate({ to: "/auth", replace: true });
   }
 

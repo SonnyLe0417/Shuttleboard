@@ -6,9 +6,16 @@ import type { TablesInsert } from "@/integrations/supabase/types";
 import { matchForPlayer } from "@/lib/player-matches";
 import { completeReferralForUser } from "@/lib/growth.functions";
 
-const gameSchema = z.object({ a: z.number().int(), b: z.number().int() });
+const gameSchema = z.object({
+  a: z.number().int().nonnegative(),
+  b: z.number().int().nonnegative(),
+});
 
-const saveMatchInput = z.object({
+export const saveMatchInput = z.object({
+  client_match_id: z.string().uuid().optional(),
+  expected_owner_id: z.string().uuid().optional(),
+  started_at: z.string().datetime({ offset: true }).optional(),
+  finished_at: z.string().datetime({ offset: true }).optional(),
   mode: z.enum(["singles", "doubles"]),
   category: z
     .enum(["mens-singles", "womens-singles", "mens-doubles", "womens-doubles", "mixed-doubles"])
@@ -70,9 +77,33 @@ async function handlesToIds(supabase: any, handles: string[]): Promise<string[]>
 
 export const saveMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((raw: unknown) => saveMatchInput.parse(raw))
+  .validator((raw: unknown) => {
+    const parsed = saveMatchInput.safeParse(raw);
+    if (!parsed.success) throw new Error("Validation: invalid match result.");
+    return parsed.data;
+  })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    if (data.expected_owner_id && data.expected_owner_id !== userId)
+      throw new Error("Unauthorized: Sign in to the same account to sync this match.");
+    if (
+      data.client_match_id &&
+      (!data.started_at || !data.finished_at || data.status !== "finished")
+    )
+      throw new Error(
+        "Validation: offline matches require original start/end times and a completed result.",
+      );
+    if (
+      (data.finished_at && (!data.started_at || data.status !== "finished")) ||
+      (data.started_at && data.status === "finished" && !data.finished_at) ||
+      (data.started_at && Date.parse(data.started_at) > Date.now() + 300000) ||
+      (data.finished_at && Date.parse(data.finished_at) > Date.now() + 300000) ||
+      (data.started_at &&
+        data.finished_at &&
+        Date.parse(data.finished_at) < Date.parse(data.started_at))
+    )
+      throw new Error("Validation: invalid match timestamps.");
+    const { insertOwnedMatch } = await import("./match-save.server");
     const [aIds, bIds] = await Promise.all([
       handlesToIds(supabase, data.team_a_handles),
       handlesToIds(supabase, data.team_b_handles),
@@ -82,7 +113,29 @@ export const saveMatch = createServerFn({ method: "POST" })
     const teamBUserIds = Array.from(new Set(bIds));
     const games_won_a = data.games.filter((g) => g.a > g.b).length;
     const games_won_b = data.games.filter((g) => g.b > g.a).length;
+    if (data.client_match_id) {
+      const needed = Math.ceil(data.best_of / 2);
+      if (
+        !data.expected_owner_id ||
+        data.games.some((game) => game.a === game.b) ||
+        data.games.length > data.best_of ||
+        !(
+          (data.winner === "A" && games_won_a === needed && games_won_b < needed) ||
+          (data.winner === "B" && games_won_b === needed && games_won_a < needed)
+        )
+      )
+        throw Error("Validation: the offline result is not a completed match.");
+      if (
+        Math.abs(
+          data.duration_seconds -
+            Math.round((Date.parse(data.finished_at!) - Date.parse(data.started_at!)) / 1000),
+        ) > 1
+      )
+        throw Error("Validation: match duration does not match its original timestamps.");
+    }
     const matchPayload = {
+      ...(data.client_match_id ? { id: data.client_match_id } : {}),
+      ...(data.started_at ? { started_at: data.started_at } : {}),
       creator_id: userId,
       mode: data.mode,
       category: data.category,
@@ -106,13 +159,10 @@ export const saveMatch = createServerFn({ method: "POST" })
       tags: data.tags,
       opponent_nicknames: data.opponent_nicknames,
       status: data.status,
-      finished_at: data.status === "finished" ? new Date().toISOString() : null,
+      finished_at:
+        data.status === "finished" ? (data.finished_at ?? new Date().toISOString()) : null,
     };
-    let { data: row, error } = await supabase
-      .from("matches")
-      .insert(matchPayload)
-      .select("id")
-      .single();
+    let { data: row, error, created } = await insertOwnedMatch(supabase, userId, matchPayload);
     if (error && isMissingMatchesColumn(error, "category")) {
       // Keep scoreboard history usable while the remote PostgREST schema cache
       // catches up with the match-lobby migration. The new fields will be used
@@ -121,11 +171,11 @@ export const saveMatch = createServerFn({ method: "POST" })
       delete legacyPayload.category;
       delete legacyPayload.title;
       delete legacyPayload.court_name;
-      ({ data: row, error } = await supabase
-        .from("matches")
-        .insert(legacyPayload as TablesInsert<"matches">)
-        .select("id")
-        .single());
+      ({
+        data: row,
+        error,
+        created,
+      } = await insertOwnedMatch(supabase, userId, legacyPayload as TablesInsert<"matches">));
     }
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Match was not saved.");
@@ -137,10 +187,10 @@ export const saveMatch = createServerFn({ method: "POST" })
         console.error("Saved match; progress sync needs retry", progressError);
         return { id: row.id, progressPending: true };
       }
-      void completeReferralForUser(userId).catch(() => {});
+      if (created) void completeReferralForUser(userId).catch(() => {});
     }
     // Fire-and-forget streak alert on a finished win
-    if (data.status === "finished" && data.winner) {
+    if (created && data.status === "finished" && data.winner) {
       const userOnA = teamAUserIds.includes(userId);
       const userWon = (userOnA && data.winner === "A") || (!userOnA && data.winner === "B");
       if (userWon) {

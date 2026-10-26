@@ -1,145 +1,49 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { type GameMode, type Side, correctServeSide, landingVerdict } from "@/lib/badminton";
 import {
-  type MatchRules,
+  createDurableController,
+  reduceDurableMatch,
+  type DurableAction,
+} from "@/lib/durable-match-controller";
+import { useState, useCallback, useEffect, useMemo, useRef, useReducer } from "react";
+import { type GameMode, type Side, correctServeSide } from "@/lib/badminton";
+import {
   type PresetId,
   PRESETS,
   findPreset,
   isGameOver,
   isMatchPoint,
-  gameWinner,
-  matchWinner,
 } from "@/lib/badminton-rules";
+import {
+  initialState,
+  DEFAULT_NAMES,
+  DEFAULT_DOUBLES,
+  MATCH_DRAFT_KEY,
+  type MatchState,
+  type CompletedGame,
+  type Snapshot,
+} from "@/lib/match-controller";
+export type { MatchState, CompletedGame, LogEntry, RallyRecord } from "@/lib/match-controller";
 import { sfx } from "@/lib/audio";
 import { haptics } from "@/lib/haptics";
 
-const DEFAULT_NAMES: [string, string] = ["Team A", "Team B"];
-const DEFAULT_DOUBLES: [string, string, string, string] = ["A1", "A2", "B1", "B2"];
-const MATCH_DRAFT_KEY = "shuttleboard.match-draft.v1";
-
-export interface LogEntry {
-  text: string;
-  score: [number, number];
-  at: number;
-  kind: "point" | "fault" | "game" | "match" | "line" | "info";
-}
-
-export interface RallyRecord {
-  ms: number;
-  winner: 0 | 1;
-  at: number;
-}
-
-export interface CompletedGame {
-  a: number;
-  b: number;
-}
-
-export interface MatchState {
-  score: [number, number];
-  games: [number, number];
-  completedGames: CompletedGame[];
-  server: 0 | 1;
-  mode: GameMode;
-  declaredSide: Side;
-  serveCheck: boolean;
-  nearSide: boolean;
-  names: [string, string]; // team names (singles) or team-side labels (doubles)
-  doublesNames: [string, string, string, string]; // A1, A2, B1, B2
-  log: LogEntry[];
-  landing: { x: number; y: number } | null;
-  preset: MatchRules;
-  matchStartedAt: number | null;
-  rallyStartedAt: number | null;
-  rallyHistory: RallyRecord[];
-  longestRallyMs: number;
-  matchOver: boolean;
-  matchWinnerTeam: 0 | 1 | null;
-  celebrateAt: number | null; // timestamp of latest cinematic event
-  celebrateKind: "match" | "game" | null;
-}
-
-interface Snapshot {
-  score: [number, number];
-  games: [number, number];
-  completedGames: CompletedGame[];
-  server: 0 | 1;
-  mode: GameMode;
-  declaredSide: Side;
-  serveCheck: boolean;
-  nearSide: boolean;
-  names: [string, string];
-  doublesNames: [string, string, string, string];
-  log: LogEntry[];
-  rallyHistory: RallyRecord[];
-  longestRallyMs: number;
-  matchOver: boolean;
-  matchWinnerTeam: 0 | 1 | null;
-  preset: MatchRules;
-  matchStartedAt: number | null;
-  rallyStartedAt: number | null;
-}
-
-function snapshotOf(s: MatchState): Snapshot {
-  return {
-    score: [...s.score] as [number, number],
-    games: [...s.games] as [number, number],
-    completedGames: s.completedGames.map((game) => ({ ...game })),
-    server: s.server,
-    mode: s.mode,
-    declaredSide: s.declaredSide,
-    serveCheck: s.serveCheck,
-    nearSide: s.nearSide,
-    names: [...s.names] as [string, string],
-    doublesNames: [...s.doublesNames] as [string, string, string, string],
-    log: [...s.log],
-    rallyHistory: [...s.rallyHistory],
-    longestRallyMs: s.longestRallyMs,
-    matchOver: s.matchOver,
-    matchWinnerTeam: s.matchWinnerTeam,
-    preset: s.preset,
-    matchStartedAt: s.matchStartedAt,
-    rallyStartedAt: s.rallyStartedAt,
-  };
-}
-
-function initialState(preset: MatchRules): MatchState {
-  return {
-    score: [0, 0],
-    games: [0, 0],
-    completedGames: [],
-    server: 0,
-    mode: "singles",
-    declaredSide: "right",
-    serveCheck: false,
-    nearSide: true,
-    names: [...DEFAULT_NAMES] as [string, string],
-    doublesNames: [...DEFAULT_DOUBLES] as [string, string, string, string],
-    log: [],
-    landing: null,
-    preset,
-    matchStartedAt: null,
-    rallyStartedAt: null,
-    rallyHistory: [],
-    longestRallyMs: 0,
-    matchOver: false,
-    matchWinnerTeam: null,
-    celebrateAt: null,
-    celebrateKind: null,
-  };
-}
-
-export function useBadmintonMatch() {
-  const [state, setState] = useState<MatchState>(() => initialState(PRESETS[0]));
-  const [history, setHistory] = useState<Snapshot[]>([]);
+export function useBadmintonMatch(managed = false) {
+  const [controller, dispatch] = useReducer(
+    (current: ReturnType<typeof createDurableController>, action: DurableAction) =>
+      reduceDurableMatch(current, action, managed),
+    undefined,
+    createDurableController,
+  );
+  const { match: state, history } = controller;
+  const playedEffectRef = useRef(0);
   const [draftReady, setDraftReady] = useState(false);
-  const stateRef = useRef(state);
-  stateRef.current = state;
 
   // Restore an in-progress courtside session after hydration. Saved History
   // remains the cloud source of truth; this draft protects active play from
   // refreshes, closed tabs, and temporary connectivity loss.
   useEffect(() => {
+    if (managed) {
+      setDraftReady(true);
+      return;
+    }
     try {
       const raw = window.localStorage.getItem(MATCH_DRAFT_KEY);
       if (raw) {
@@ -186,7 +90,7 @@ export function useBadmintonMatch() {
           celebrateAt: null,
           celebrateKind: null,
         };
-        setState(restored);
+        dispatch({ type: "restore", match: restored });
       }
     } catch {
       try {
@@ -197,261 +101,77 @@ export function useBadmintonMatch() {
     } finally {
       setDraftReady(true);
     }
-  }, []);
+  }, [managed]);
 
   useEffect(() => {
-    if (!draftReady) return;
+    if (!draftReady || managed) return;
     try {
       window.localStorage.setItem(MATCH_DRAFT_KEY, JSON.stringify(state));
     } catch {
       // Quota or privacy settings must not interrupt an active match.
     }
-  }, [draftReady, state]);
+  }, [draftReady, state, managed]);
 
   const teamName = useCallback(
     (index: 0 | 1) => state.names[index].trim() || (index === 0 ? "Team A" : "Team B"),
     [state.names],
   );
 
-  const pushHistory = useCallback(() => {
-    setHistory((prev) => [...prev, snapshotOf(stateRef.current)].slice(-60));
-  }, []);
-
-  const setName = useCallback((index: 0 | 1, name: string) => {
-    setState((prev) => ({
-      ...prev,
-      names: index === 0 ? [name, prev.names[1]] : [prev.names[0], name],
-    }));
-  }, []);
-
-  const setDoublesName = useCallback((i: 0 | 1 | 2 | 3, name: string) => {
-    setState((prev) => {
-      const next = [...prev.doublesNames] as [string, string, string, string];
-      next[i] = name;
-      return { ...prev, doublesNames: next };
-    });
-  }, []);
-
-  const setMode = useCallback(
-    (mode: GameMode) => {
-      pushHistory();
-      setState((prev) => ({ ...prev, mode }));
-    },
-    [pushHistory],
-  );
-
-  const setDeclaredSide = useCallback(
-    (side: Side) => {
-      pushHistory();
-      setState((prev) => ({ ...prev, declaredSide: side }));
-    },
-    [pushHistory],
-  );
-
-  const setServeCheck = useCallback(
-    (serveCheck: boolean) => {
-      pushHistory();
-      setState((prev) => ({ ...prev, serveCheck }));
-    },
-    [pushHistory],
-  );
-
-  const setNearSide = useCallback(
-    (nearSide: boolean) => {
-      pushHistory();
-      setState((prev) => ({ ...prev, nearSide }));
-    },
-    [pushHistory],
-  );
-
-  const setPreset = useCallback(
-    (id: PresetId) => {
-      pushHistory();
-      const preset = findPreset(id);
-      setState((prev) => ({
-        ...prev,
-        preset,
-        score: [0, 0],
-        games: [0, 0],
-        completedGames: [],
-        matchOver: false,
-        matchWinnerTeam: null,
-        rallyHistory: [],
-        longestRallyMs: 0,
-        matchStartedAt: null,
-        rallyStartedAt: null,
-        log: [
-          {
-            text: `New match — ${preset.label}.`,
-            score: [0, 0],
-            at: Date.now(),
-            kind: "info",
-          },
-          ...prev.log,
-        ],
-      }));
-    },
-    [pushHistory],
-  );
-
-  const startRally = useCallback(() => {
-    setState((prev) => (prev.rallyStartedAt ? prev : { ...prev, rallyStartedAt: Date.now() }));
-  }, []);
-
-  const addPoint = useCallback(
-    (winner: 0 | 1, reason = "won the rally") => {
-      const prev = stateRef.current;
-      if (prev.matchOver) return;
-      pushHistory();
-      const now = Date.now();
-      const rallyMs = prev.rallyStartedAt ? now - prev.rallyStartedAt : 0;
-      const score: [number, number] = [prev.score[0], prev.score[1]];
-      score[winner] += 1;
-
-      const newRallies: RallyRecord[] =
-        rallyMs > 0 ? [...prev.rallyHistory, { ms: rallyMs, winner, at: now }] : prev.rallyHistory;
-      const newLongest = Math.max(prev.longestRallyMs, rallyMs);
-      const winnerName = winner === 0 ? teamName(0) : teamName(1);
-      const nextLog: LogEntry[] = [
-        {
-          text: `${winnerName} ${reason}. Score ${score[0]}–${score[1]}${
-            rallyMs > 0 ? ` · rally ${(rallyMs / 1000).toFixed(1)}s` : ""
-          }.`,
-          score,
-          at: now,
-          kind: "point",
-        },
-        ...prev.log,
-      ];
-
-      let games: [number, number] = [...prev.games] as [number, number];
-      let completedGames = prev.completedGames;
-      let matchOver: boolean = prev.matchOver;
-      let matchWinnerTeam: 0 | 1 | null = prev.matchWinnerTeam;
-      let celebrateAt: number | null = prev.celebrateAt;
-      let celebrateKind: "match" | "game" | null = prev.celebrateKind;
-
-      let newScore = score;
-
-      const gw = gameWinner(score, prev.preset);
-      if (gw !== null) {
-        games = [prev.games[0], prev.games[1]];
-        games[gw] += 1;
-        completedGames = [...prev.completedGames, { a: score[0], b: score[1] }];
-        nextLog.unshift({
-          text: `${winnerName} wins game ${prev.games[0] + prev.games[1] + 1}: ${score[0]}–${score[1]}.`,
-          score,
-          at: now,
-          kind: "game",
-        });
-        const mw = matchWinner(games, prev.preset);
-        if (mw !== null) {
-          matchOver = true;
-          matchWinnerTeam = mw;
-          nextLog.unshift({
-            text: `🏆 ${winnerName} wins the match ${games[0]}–${games[1]}!`,
-            score,
-            at: now,
-            kind: "match",
-          });
-          celebrateAt = now;
-          celebrateKind = "match";
-          sfx.matchWin();
-          haptics.win();
-        } else {
-          celebrateAt = now;
-          celebrateKind = "game";
-          newScore = [0, 0];
-          sfx.gamePoint();
-          haptics.bump();
-        }
+  useEffect(() => {
+    for (const effect of controller.effects) {
+      if (effect.sequence <= playedEffectRef.current) continue;
+      playedEffectRef.current = effect.sequence;
+      if (effect.kind === "fault") sfx.fault();
+      else if (effect.kind === "match") {
+        sfx.matchWin();
+        haptics.win();
+      } else if (effect.kind === "game") {
+        sfx.gamePoint();
+        haptics.bump();
       } else {
         sfx.point();
         haptics.tap();
       }
-
-      setState({
-        ...prev,
-        score: newScore,
-        server: winner,
-        games,
-        completedGames,
-        log: nextLog,
-        rallyStartedAt: null,
-        rallyHistory: newRallies,
-        longestRallyMs: newLongest,
-        matchOver,
-        matchWinnerTeam,
-        celebrateAt,
-        celebrateKind,
-        matchStartedAt: prev.matchStartedAt ?? now,
-      });
-    },
-    [teamName, pushHistory],
+    }
+    const last = controller.effects.at(-1);
+    if (last) dispatch({ type: "ack", sequence: last.sequence });
+  }, [controller.effects]);
+  const setName = useCallback(
+    (index: 0 | 1, name: string) => dispatch({ type: "name", index, name }),
+    [],
   );
-
+  const setDoublesName = useCallback(
+    (index: 0 | 1 | 2 | 3, name: string) => dispatch({ type: "doublesName", index, name }),
+    [],
+  );
+  const setMode = useCallback((value: GameMode) => dispatch({ type: "mode", value }), []);
+  const setDeclaredSide = useCallback((value: Side) => dispatch({ type: "side", value }), []);
+  const setServeCheck = useCallback(
+    (value: boolean) => dispatch({ type: "serveCheck", value }),
+    [],
+  );
+  const setNearSide = useCallback((value: boolean) => dispatch({ type: "nearSide", value }), []);
+  const setPreset = useCallback(
+    (id: PresetId) => dispatch({ type: "preset", id, at: Date.now() }),
+    [],
+  );
+  const startRally = useCallback(() => dispatch({ type: "rally", at: Date.now() }), []);
+  const addPoint = useCallback(
+    (team: 0 | 1, reason = "won the rally") =>
+      dispatch({ type: "point", team, reason, at: Date.now() }),
+    [],
+  );
   const addFault = useCallback(
-    (team: 0 | 1, faultType: string) => {
-      const other = (team === 0 ? 1 : 0) as 0 | 1;
-      sfx.fault();
-      addPoint(
-        other,
-        `gets the point after ${team === 0 ? stateRef.current.names[0] : stateRef.current.names[1]} committed a ${faultType}`,
-      );
-    },
-    [addPoint],
+    (team: 0 | 1, fault: string) => dispatch({ type: "fault", team, fault, at: Date.now() }),
+    [],
   );
-
-  const undo = useCallback(() => {
-    setHistory((prev) => {
-      if (prev.length === 0) return prev;
-      const snap = prev[prev.length - 1];
-      setState((s) => ({
-        ...s,
-        ...snap,
-        landing: null,
-        celebrateAt: null,
-        celebrateKind: null,
-      }));
-      return prev.slice(0, -1);
-    });
-  }, []);
-
-  const reset = useCallback(() => {
-    pushHistory();
-    setState((prev) => initialState(prev.preset));
-  }, [pushHistory]);
-
-  const dismissCelebration = useCallback(() => {
-    setState((prev) => ({ ...prev, celebrateAt: null, celebrateKind: null }));
-  }, []);
-
-  const markLanding = useCallback((x: number, y: number) => {
-    setState((prev) => {
-      const verdict = landingVerdict(
-        x,
-        y,
-        prev.mode,
-        prev.serveCheck,
-        prev.nearSide,
-        prev.score[prev.server],
-      );
-      const at = Date.now();
-      return {
-        ...prev,
-        landing: { x, y },
-        log: [
-          {
-            text: `${verdict.isIn ? "In" : "Out"} at ${Math.round(x * 100)}%, ${Math.round(y * 100)}% — ${verdict.modeText}`,
-            score: [...prev.score] as [number, number],
-            at,
-            kind: "line",
-          },
-          ...prev.log,
-        ],
-      };
-    });
-  }, []);
+  const undo = useCallback(() => dispatch({ type: "undo" }), []);
+  const reset = useCallback(() => dispatch({ type: "reset" }), []);
+  const dismissCelebration = useCallback(() => dispatch({ type: "dismiss" }), []);
+  const markLanding = useCallback(
+    (x: number, y: number) => dispatch({ type: "landing", x, y, at: Date.now() }),
+    [],
+  );
 
   const correctSide = correctServeSide(state.score[state.server]);
   const sideWarning = state.declaredSide !== correctSide;
@@ -497,6 +217,16 @@ export function useBadmintonMatch() {
 
   return {
     state,
+    restoreDraft: useCallback(
+      (match: MatchState, history?: Snapshot[]) => dispatch({ type: "restore", match, history }),
+      [],
+    ),
+    markDeviceSaved: useCallback(
+      (endedAt: number) => dispatch({ type: "device-saved", endedAt }),
+      [],
+    ),
+    deviceSaved: controller.deviceSaved,
+    undoHistory: history,
     setName,
     setDoublesName,
     setMode,

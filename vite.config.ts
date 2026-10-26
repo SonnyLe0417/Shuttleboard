@@ -6,6 +6,7 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import type { ConfigEnv } from "vite";
+import { offlineScoreboardBuild } from "./scripts/offline-scoreboard-build";
 
 const createConfig = defineConfig({
   vite: {
@@ -52,6 +53,7 @@ const createConfig = defineConfig({
     },
   },
   tanstackStart: {
+    client: { entry: "client" },
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
@@ -70,5 +72,6 @@ export default async (env: ConfigEnv) => {
         plugin.name === "vite-tsconfig-paths"
       ),
   );
+  if (env.command === "build") config.plugins.push(offlineScoreboardBuild());
   return config;
 };

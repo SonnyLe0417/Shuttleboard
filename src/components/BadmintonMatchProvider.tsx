@@ -4,8 +4,14 @@ import { useBadmintonMatch, type UseBadmintonMatch } from "@/hooks/useBadmintonM
 const BadmintonMatchContext = createContext<UseBadmintonMatch | null>(null);
 
 /** Owns one durable match controller shared by every tracker route. */
-export function BadmintonMatchProvider({ children }: { children: ReactNode }) {
-  const match = useBadmintonMatch();
+export function BadmintonMatchProvider({
+  children,
+  managed = false,
+}: {
+  children: ReactNode;
+  managed?: boolean;
+}) {
+  const match = useBadmintonMatch(managed);
   return <BadmintonMatchContext.Provider value={match}>{children}</BadmintonMatchContext.Provider>;
 }
 

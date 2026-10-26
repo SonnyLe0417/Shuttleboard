@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requestVision } from "@/lib/vision-request";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import {
@@ -137,6 +138,7 @@ function VideoAnalyzerPage() {
   const score = useMemo(() => scoreFromRallies(rallies), [rallies]);
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [paidAiNotice, setPaidAiNotice] = useState<string | null>(null);
   const [lastHitter, setLastHitter] = useState<"p1" | "p2">("p1");
   const [selectedRally, setSelectedRally] = useState<number | null>(null);
   const [analysisStarting, setAnalysisStarting] = useState(false);
@@ -485,6 +487,8 @@ function VideoAnalyzerPage() {
   };
 
   const startAnalysis = () => {
+    requestVision.resume();
+    setPaidAiNotice(null);
     if (!acquireAnalyzerLock(analysisStartLockRef.current)) return;
     if (!selectedFile) {
       setError("Upload a video before starting analysis.");
@@ -718,7 +722,7 @@ function VideoAnalyzerPage() {
 
     // AI double-check: send a capture of the current frame + last position.
     try {
-      if (needsReview) throw new Error("Review required before scoring.");
+      if (needsReview || !requestVision.canSample()) throw new Error("Paid review unavailable.");
       const cap = document.createElement("canvas");
       cap.width = 640;
       cap.height = Math.round((640 * video.videoHeight) / video.videoWidth);
@@ -726,16 +730,12 @@ function VideoAnalyzerPage() {
       if (cctx) {
         cctx.drawImage(video, 0, 0, cap.width, cap.height);
         const dataUrl = cap.toDataURL("image/jpeg", 0.7);
-        const resp = await fetch("/api/ai-vision", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            image: dataUrl,
-            mode: "singles",
-            p1Side: "left",
-            courtCorners: normalizedCornersRef.current,
-            lastHitter,
-          }),
+        const resp = await requestVision({
+          image: dataUrl,
+          mode: "singles",
+          p1Side: "left",
+          courtCorners: normalizedCornersRef.current,
+          lastHitter,
         });
         if (resp.ok) {
           const j = await resp.json();
@@ -744,6 +744,9 @@ function VideoAnalyzerPage() {
             aiConf = j.confidence;
             aiNote = j.reasoning ?? "AI confirmed";
           }
+        } else {
+          const failure = await resp.json();
+          setPaidAiNotice(failure.error || "Paid AI is paused; local results remain available.");
         }
       }
     } catch {
@@ -976,6 +979,11 @@ function VideoAnalyzerPage() {
         </div>
       )}
 
+      {paidAiNotice && (
+        <p role="status" className="mb-3 rounded-md border p-3 text-sm">
+          {paidAiNotice}
+        </p>
+      )}
       <AnalysisProgressPanel
         phase={tracknetPhase}
         progress={tracknetProgress}

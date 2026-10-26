@@ -28,14 +28,16 @@ export async function queueNotification(
   title: string,
   body: string,
   url = "/progress",
+  options: { strict?: boolean } = {},
 ) {
-  const { data: prefRow } = await db
+  const { data: prefRow, error: preferenceError } = await db
     .from("user_preferences")
     .select("notifications")
     .eq("id", userId)
     .maybeSingle();
+  if (preferenceError && options.strict) throw new Error("Notification preferences unavailable");
   const notifications = (prefRow?.notifications ?? {}) as Record<string, any>;
-  if (!notificationEnabled(notifications, notificationType)) return;
+  if (!notificationEnabled(notifications, notificationType)) return false;
 
   const availableAt = nextAllowedNotificationAt(new Date(), notifications);
   const { data: event, error } = await db
@@ -52,12 +54,13 @@ export async function queueNotification(
     .select("id, available_at")
     .maybeSingle();
   if (error) {
-    if (error.code === "23505" || isMissingNotificationTable(error)) return;
+    if (error.code === "23505" || (!options.strict && isMissingNotificationTable(error)))
+      return false;
     throw new Error(error.message);
   }
 
   // A leased worker delivers immediate and delayed notifications off the request path.
-  void event;
+  return Boolean(event);
 }
 
 function confidence(count: number) {

@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMessageHistory } from "@/hooks/useMessageHistory";
+import { useSession } from "@/hooks/useSession";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +37,6 @@ import {
   sendGroupMessage,
 } from "@/lib/social.functions";
 import { createMatchInvite, listMatchInvites, respondToMatchInvite } from "@/lib/growth.functions";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/social")({
   head: () => ({ meta: [{ title: "Community · ShuttleBoard" }] }),
@@ -757,20 +758,13 @@ function GroupChatPanel({ group }: { group: GroupChat }) {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [meId, setMeId] = useState("");
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setMeId(data.user?.id ?? ""));
-  }, []);
-  const messagesQ = useQuery({
-    queryKey: ["social", "group-messages", group.id],
-    queryFn: () => fetchMessages({ data: { group_id: group.id } }),
-    refetchInterval: 8_000,
-  });
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    });
-  }, [messagesQ.data]);
+  const { user } = useSession();
+  const meId = user?.id ?? "";
+  const messagesQ = useMessageHistory(
+    ["social", "group-messages", group.id, meId],
+    (before, signal) => fetchMessages({ data: { group_id: group.id, before }, signal }),
+    scrollRef,
+  );
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = body.trim();
@@ -779,6 +773,7 @@ function GroupChatPanel({ group }: { group: GroupChat }) {
     try {
       await sendFn({ data: { group_id: group.id, body: trimmed } });
       setBody("");
+      messagesQ.followLatest();
       qc.invalidateQueries({ queryKey: ["social", "group-messages", group.id] });
     } catch (err: any) {
       toast.error(err.message ?? "Message failed");
@@ -796,6 +791,18 @@ function GroupChatPanel({ group }: { group: GroupChat }) {
         </p>
       </div>
       <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
+        {messagesQ.error && <p role="alert">Messages could not load. Please try again.</p>}
+        {messagesQ.olderError && <p role="alert">{messagesQ.olderError}</p>}
+        {messagesQ.hasOlder && (
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={messagesQ.loadingOlder}
+            onClick={() => void messagesQ.loadOlder()}
+          >
+            {messagesQ.loadingOlder ? "Loading…" : "Load older"}
+          </button>
+        )}
         {messagesQ.isLoading ? (
           <RowSpinner />
         ) : (messagesQ.data ?? []).length === 0 ? (
@@ -859,30 +866,27 @@ function ChatPanel({ other }: { other: Profile }) {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [meId, setMeId] = useState<string>("");
+  const { user } = useSession();
+  const meId = user?.id ?? "";
 
+  const messagesQ = useMessageHistory(
+    ["social", "messages", other.id, meId],
+    (before, signal) => fetchMessages({ data: { other_id: other.id, before }, signal }),
+    scrollRef,
+  );
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setMeId(data.user?.id ?? ""));
-  }, []);
-
-  const messagesQ = useQuery({
-    queryKey: ["social", "messages", other.id],
-    queryFn: () => fetchMessages({ data: { other_id: other.id } }),
-    refetchInterval: 8_000,
-  });
-
-  useEffect(() => {
-    if (!messagesQ.data) return;
-    markRead({ data: { other_id: other.id } })
-      .then(() => qc.invalidateQueries({ queryKey: ["social", "unread"] }))
-      .catch(() => {});
-    // scroll to bottom on new messages
-    requestAnimationFrame(() => {
-      const el = scrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
+    const ids = (messagesQ.data ?? [])
+      .filter((message) => message.sender_id === other.id && !message.read_at)
+      .map((message) => message.id);
+    if (!ids.length) return;
+    void (async () => {
+      for (let offset = 0; offset < ids.length; offset += 200)
+        await markRead({
+          data: { other_id: other.id, message_ids: ids.slice(offset, offset + 200) },
+        });
+      await qc.invalidateQueries({ queryKey: ["social", "unread"] });
+    })().catch(() => {});
   }, [messagesQ.data, other.id, markRead, qc]);
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = body.trim();
@@ -891,6 +895,7 @@ function ChatPanel({ other }: { other: Profile }) {
     try {
       await sendFn({ data: { recipient_id: other.id, body: trimmed } });
       setBody("");
+      messagesQ.followLatest();
       qc.invalidateQueries({ queryKey: ["social", "messages", other.id] });
     } catch (err: any) {
       toast.error(err.message ?? "Message failed");
@@ -902,6 +907,18 @@ function ChatPanel({ other }: { other: Profile }) {
   return (
     <div className="flex h-[520px] flex-col">
       <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
+        {messagesQ.error && <p role="alert">Messages could not load. Please try again.</p>}
+        {messagesQ.olderError && <p role="alert">{messagesQ.olderError}</p>}
+        {messagesQ.hasOlder && (
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={messagesQ.loadingOlder}
+            onClick={() => void messagesQ.loadOlder()}
+          >
+            {messagesQ.loadingOlder ? "Loading…" : "Load older"}
+          </button>
+        )}
         {messagesQ.isLoading ? (
           <RowSpinner />
         ) : (messagesQ.data ?? []).length === 0 ? (

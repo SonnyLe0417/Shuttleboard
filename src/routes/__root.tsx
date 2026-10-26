@@ -1,3 +1,4 @@
+import { useOfflineAccount, localOfflineAccess, offlineAuthChanged } from "@/lib/offline-account";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -153,6 +154,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // The static offline document already provides its own html/head/body.
+  if (typeof document !== "undefined" && document.getElementById("offline-root"))
+    return <>{children}</>;
   return (
     <html lang="en">
       <head>
@@ -183,6 +187,8 @@ function RootContent() {
   const router = useRouter();
   const { pathname } = useLocation();
   const { user, error: sessionError } = useSession();
+  const offline = useOfflineAccount();
+  const localScoreboard = pathname === "/scoreboard" && localOfflineAccess(offline.account);
   const publicContent = pathname === "/" || pathname === "/rules" || pathname.startsWith("/p/");
 
   useEffect(() => {
@@ -192,6 +198,7 @@ function RootContent() {
       (supabase) => {
         const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
           const nextUserId = session?.user.id ?? null;
+          queueMicrotask(() => void offlineAuthChanged(event, nextUserId).catch(() => {}));
           const changed = previousUserId !== undefined && previousUserId !== nextUserId;
           previousUserId = nextUserId;
           if (changed || event === "SIGNED_OUT") {
@@ -225,7 +232,7 @@ function RootContent() {
       <main id="main-content" className={pathname === "/" ? "club-public-content" : "club-content"}>
         {sessionError && publicContent && <SessionRecovery inline />}
         <div className="club-route">
-          {sessionError && !publicContent ? (
+          {sessionError && !publicContent && !localScoreboard ? (
             <SessionRecovery />
           ) : publicContent ? (
             <Outlet />

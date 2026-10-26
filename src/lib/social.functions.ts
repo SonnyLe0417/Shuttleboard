@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const uuid = z.string().uuid();
+import { messageCursorSchema, olderMessageFilter, messagePage } from "./message-history";
 
 // -------- Search users --------
 export const searchUsers = createServerFn({ method: "GET" })
@@ -241,14 +242,19 @@ export const createGroupChat = createServerFn({ method: "POST" })
 
 export const listGroupMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((raw: unknown) => z.object({ group_id: uuid }).parse(raw))
+  .validator((raw: unknown) =>
+    z.object({ group_id: uuid, before: messageCursorSchema.optional() }).strict().parse(raw),
+  )
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    let query = context.supabase
       .from("group_messages")
       .select("id, group_id, sender_id, body, created_at")
-      .eq("group_id", data.group_id)
-      .order("created_at", { ascending: true })
-      .limit(300);
+      .eq("group_id", data.group_id);
+    if (data.before) query = query.or(olderMessageFilter(data.before).slice(3, -1));
+    const { data: rows, error } = await query
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(301);
     if (error) throw new Error(error.message);
     const senderIds = Array.from(new Set((rows ?? []).map((row: any) => row.sender_id)));
     const { data: profiles, error: profilesError } = senderIds.length
@@ -261,10 +267,13 @@ export const listGroupMessages = createServerFn({ method: "GET" })
     const profilesById = Object.fromEntries(
       (profiles ?? []).map((profile: any) => [profile.id, profile]),
     );
-    return (rows ?? []).map((row: any) => ({
-      ...row,
-      sender: profilesById[row.sender_id] ?? null,
-    }));
+    return messagePage(
+      (rows ?? []).map((row: any) => ({
+        ...row,
+        sender: profilesById[row.sender_id] ?? null,
+      })),
+      300,
+    );
   });
 
 export const sendGroupMessage = createServerFn({ method: "POST" })
@@ -285,18 +294,21 @@ export const sendGroupMessage = createServerFn({ method: "POST" })
 // -------- Messages --------
 export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((raw: unknown) => z.object({ other_id: uuid }).parse(raw))
+  .validator((raw: unknown) =>
+    z.object({ other_id: uuid, before: messageCursorSchema.optional() }).strict().parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("direct_messages")
       .select("id, sender_id, recipient_id, body, read_at, created_at")
       .or(
-        `and(sender_id.eq.${context.userId},recipient_id.eq.${data.other_id}),and(sender_id.eq.${data.other_id},recipient_id.eq.${context.userId})`,
+        `and(sender_id.eq.${context.userId},recipient_id.eq.${data.other_id}${data.before ? "," + olderMessageFilter(data.before) : ""}),and(sender_id.eq.${data.other_id},recipient_id.eq.${context.userId}${data.before ? "," + olderMessageFilter(data.before) : ""})`,
       )
-      .order("created_at", { ascending: true })
-      .limit(200);
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(201);
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    return messagePage(rows ?? [], 200);
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
@@ -320,13 +332,19 @@ export const sendMessage = createServerFn({ method: "POST" })
 
 export const markMessagesRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((raw: unknown) => z.object({ other_id: uuid }).parse(raw))
+  .validator((raw: unknown) =>
+    z
+      .object({ other_id: uuid, message_ids: z.array(uuid).min(1).max(200) })
+      .strict()
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("direct_messages")
       .update({ read_at: new Date().toISOString() })
       .eq("recipient_id", context.userId)
       .eq("sender_id", data.other_id)
+      .in("id", data.message_ids)
       .is("read_at", null);
     if (error) throw new Error(error.message);
     return { ok: true };

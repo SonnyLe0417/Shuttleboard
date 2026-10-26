@@ -72,7 +72,12 @@ export const Route = createFileRoute("/api/ai-vision")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = await request.json();
+        const { authenticateVision, readVisionBody, reserveVision } =
+          await import("@/lib/vision-access.server");
+        const userId = await authenticateVision(request);
+        if (userId instanceof Response) return userId;
+        const body = await readVisionBody(request);
+        if (body instanceof Response) return body;
         const parsed = RequestSchema.safeParse(body);
         if (!parsed.success) {
           return Response.json({ error: parsed.error.message }, { status: 400 });
@@ -108,9 +113,12 @@ export const Route = createFileRoute("/api/ai-vision")({
           );
         }
 
+        const reservation = await reserveVision(userId);
+        if (reservation instanceof Response) return reservation;
         try {
           const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
             method: "POST",
+            signal: AbortSignal.any([request.signal, AbortSignal.timeout(45_000)]),
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${apiKey}`,
@@ -262,6 +270,8 @@ export const Route = createFileRoute("/api/ai-vision")({
             confidence: 0,
             reasoning: message,
           });
+        } finally {
+          await reservation.release();
         }
       },
     },
