@@ -35,8 +35,10 @@ export interface AnnotationEvaluation {
     recall: number;
     /** Right winners / rallies found. */
     winnerAccuracy: number;
+    /** Largest gap, in seconds, between an annotated rally end and the app's. */
+    largestTiming: number;
   };
-  games: { annotated: string; app: string; appWinner: string | null };
+  games: { annotated: string; app: string; appWinner: string | null; match: boolean };
 }
 
 /**
@@ -91,6 +93,10 @@ export function evaluateAgainstAnnotation(
     0,
   );
   const app = match.timeline;
+  const annotatedGames = formatGameScores(
+    replayMatch(annotation.rallies, { rules: options.rules, initialNear: annotation.initialNear })
+      .games,
+  );
   return {
     rallies,
     summary: {
@@ -104,16 +110,16 @@ export function evaluateAgainstAnnotation(
       pending: match.pending,
       recall: rallies.length ? withProposal.length / rallies.length : 0,
       winnerAccuracy: withProposal.length ? winnersRight / withProposal.length : 0,
+      largestTiming: rallies.reduce(
+        (largest, rally) => Math.max(largest, Math.abs(rally.timing ?? 0)),
+        0,
+      ),
     },
     games: {
-      annotated: formatGameScores(
-        replayMatch(annotation.rallies, {
-          rules: options.rules,
-          initialNear: annotation.initialNear,
-        }).games,
-      ),
+      annotated: annotatedGames,
       app: formatGameScores(app.games),
       appWinner: app.matchWinner,
+      match: annotatedGames === formatGameScores(app.games),
     },
   };
 }

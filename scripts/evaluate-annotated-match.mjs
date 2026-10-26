@@ -15,8 +15,10 @@
 // Options: --mode singles|doubles, --preset 21|15|11|golden, --marked-ends
 // (use the annotation's side changes instead of following the score),
 // --offset <seconds> (added to coordinate times, for a trimmed clip),
-// --report <file> (write the full JSON), --min-recall and
-// --min-winner-accuracy (exit 1 below them).
+// --report <file> (write the full JSON). Gates, which exit 1 when missed:
+// --min-recall, --min-winner-accuracy, --max-extra, --max-counted-wrong and
+// --max-timing <seconds>. Once any gate is given, games must also match the
+// annotation, and extra endings and wrong counted winners default to 0.
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { evaluateAgainstAnnotation } from "../src/lib/annotation-evaluation.ts";
@@ -39,6 +41,9 @@ const { values } = parseArgs({
     report: { type: "string" },
     "min-recall": { type: "string" },
     "min-winner-accuracy": { type: "string" },
+    "max-extra": { type: "string" },
+    "max-counted-wrong": { type: "string" },
+    "max-timing": { type: "string" },
   },
 });
 
@@ -103,16 +108,25 @@ Extra endings       ${summary.extra}
 Winner right        ${summary.winnersRight} (${percent(summary.winnerAccuracy)})
 Wrong and counted   ${summary.countedWrong}
 Waiting for review  ${summary.pending}
+Largest timing gap  ${summary.largestTiming.toFixed(1)} s
 Games (annotation)  ${games.annotated}
 Games (app)         ${games.app}${games.appWinner ? `, ${games.appWinner} wins` : ""}`);
 
 if (values.report) writeFileSync(values.report, JSON.stringify(evaluation, null, 2));
 
-const below = [
-  ["min-recall", summary.recall],
-  ["min-winner-accuracy", summary.winnerAccuracy],
-].filter(([flag, value]) => values[flag] !== undefined && value < Number(values[flag]));
-if (below.length) {
-  console.error(`Below threshold: ${below.map(([flag]) => flag).join(", ")}`);
-  process.exit(1);
+const gates = ["min-recall", "min-winner-accuracy", "max-extra", "max-counted-wrong", "max-timing"];
+if (gates.some((gate) => values[gate] !== undefined)) {
+  const limit = (gate, fallback) => Number(values[gate] ?? fallback);
+  const missed = [
+    ["min-recall", summary.recall < limit("min-recall", 0)],
+    ["min-winner-accuracy", summary.winnerAccuracy < limit("min-winner-accuracy", 0)],
+    ["max-extra", summary.extra > limit("max-extra", 0)],
+    ["max-counted-wrong", summary.countedWrong > limit("max-counted-wrong", 0)],
+    ["max-timing", summary.largestTiming > limit("max-timing", Infinity)],
+    ["games", !games.match],
+  ].filter(([, failed]) => failed);
+  if (missed.length) {
+    console.error(`Failed: ${missed.map(([gate]) => gate).join(", ")}`);
+    process.exit(1);
+  }
 }
