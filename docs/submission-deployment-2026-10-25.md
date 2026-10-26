@@ -21,7 +21,17 @@ Cloudflare Workers is the selected first-hosting path for the existing Worker
 build. Wrangler 4.152.0 was checked; an initial browser OAuth attempt timed out,
 then authorization succeeded after the user signed in. The refreshed production
 build, encrypted-secret deployment dry run and seven route/bundle checks passed.
-No Worker or live URL has been deployed yet.
+The first upload was rejected because the generic template subdomain
+`tanstack-start-ts` was unavailable. The package name was changed to the unique
+`shuttleboard-sonnyle0417` (including lockfile metadata; dependencies unchanged),
+then deployment succeeded with 83 assets and 123 Worker modules.
+
+Live URL: https://shuttleboard.shuttleboard-sonnyle0417.workers.dev
+
+Cloudflare version: `c4fd4370-1b49-46fb-8450-ea5085db1ac2`.
+Server configuration was uploaded through the approved encrypted-secret option.
+The first HTTPS checks hit a TLS handshake failure while the new workers.dev
+subdomain was provisioning; passing live application checks are still pending.
 
 The user approved reusing the existing OpenAI key. Uploading the broader local
 credential set was rejected by automatic approval review; those credentials were
