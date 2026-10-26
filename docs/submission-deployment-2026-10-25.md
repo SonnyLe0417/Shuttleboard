@@ -18,12 +18,17 @@ were not changed. Only that protected delivery cron currently exists; no new
 reminder/summary/inactivity schedules were invented.
 
 Cloudflare Workers is the selected first-hosting path for the existing Worker
-build. Wrangler 4.152.0 was checked; browser OAuth authorization timed out before
-completion. No Worker or live URL has been deployed yet.
+build. Wrangler 4.152.0 was checked; an initial browser OAuth attempt timed out,
+then authorization succeeded after the user signed in. The refreshed production
+build, encrypted-secret deployment dry run and seven route/bundle checks passed.
+No Worker or live URL has been deployed yet.
 
 The user approved reusing the existing OpenAI key. Uploading the broader local
 credential set was rejected by automatic approval review; those credentials were
-not uploaded. Explicit encrypted Supabase server-configuration approval is pending.
+not uploaded. The user subsequently explicitly approved encrypted Supabase
+server setup. The deployment helper accepts only those known app configuration
+keys, sends the ignored file directly to Wrangler's encrypted-secret option,
+and refuses unexpected keys.
 No secret values are stored in this document or source control.
 
 The application does not reference the legacy 31.6 MB public sample as an asset
