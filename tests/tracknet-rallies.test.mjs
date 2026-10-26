@@ -415,3 +415,70 @@ test("a pickup shortly before the serve neither starts a rally nor hides the ser
   assert.ok(Math.abs(rallies[1].startT - 6.5) < 0.1, `${rallies[1].startT}`);
   assert.equal(rallies[1].serveEnd, "near");
 });
+
+test("a rest seen too late to be the landing still ends the rally", () => {
+  // The landing is hidden, the shuttle is then seen lying, scooped up, carried
+  // and held, and the next rally is served.
+  const lying = { x: 0.5, y: 0.8 };
+  const server = { x: 0.4, y: 0.3 };
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, { x: 0.5, y: 0.75 }),
+    ...at30(0.5, 3.6, () => null),
+    ...at30(3.6, 5, () => lying),
+    ...flightTo(5, lying, { x: 0.45, y: 0.55 }).slice(0, 4),
+    ...at30(5.13, 6.5, (t) => ({ x: 0.45 - (t - 5.13) * 0.035, y: 0.55 - (t - 5.13) * 0.18 })),
+    ...at30(6.5, 8, () => server),
+    ...flightTo(8, server, { x: 0.6, y: 0.8 }),
+    ...at30(8.5, 10, () => ({ x: 0.6, y: 0.8 })),
+  ];
+  const rallies = buildTrackNetRallies(points, H);
+  assert.equal(rallies.length, 2);
+  assert.equal(rallies[0].landingSeen, false);
+  assert.equal(rallies[1].landingSeen, true);
+  assert.ok(Math.abs(rallies[1].startT - 8) < 0.1, `${rallies[1].startT}`);
+});
+
+test("a shuttle scooped up or knocked back to the server is not a rally", () => {
+  const landing = { x: 0.5, y: 0.8 };
+  const server = { x: 0.4, y: 0.3 };
+  // A racket scoop from where it landed: several fast frames, caught a metre up.
+  const scooped = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, landing),
+    ...at30(0.5, 4, () => landing),
+    ...flightTo(4, landing, { x: 0.5, y: 0.6 }),
+    ...at30(4.5, 7, (t) => ({ x: 0.5 - (t - 4.5) * 0.04, y: 0.6 - (t - 4.5) * 0.12 })),
+    ...at30(7, 8.5, () => server),
+    ...flightTo(8.5, server, { x: 0.6, y: 0.8 }),
+    ...at30(9, 11, () => ({ x: 0.6, y: 0.8 })),
+  ];
+  assert.equal(buildTrackNetRallies(scooped, H).length, 2);
+  // Picked up by hand, then hit over the net 6.5 s later and served 3.5 s after that.
+  const knocked = [
+    ...flightTo(0, { x: 0.5, y: 0.3 }, landing),
+    ...at30(0.5, 3, () => landing),
+    ...at30(3, 6.5, (t) => ({ x: 0.5 + (t - 3) * 0.02, y: 0.8 - (t - 3) * 0.02 })),
+    ...flightTo(6.5, { x: 0.57, y: 0.73 }, { x: 0.45, y: 0.3 }),
+    ...at30(7, 8.5, () => ({ x: 0.45, y: 0.3 })),
+    ...at30(8.5, 10, () => ({ x: 0.43, y: 0.3 })),
+    ...flightTo(10, { x: 0.43, y: 0.3 }, { x: 0.6, y: 0.8 }),
+    ...at30(10.5, 12, () => ({ x: 0.6, y: 0.8 })),
+  ];
+  const rallies = buildTrackNetRallies(knocked, H);
+  assert.deepEqual(
+    rallies.map((rally) => Math.round(rally.startT)),
+    [0, 10],
+  );
+});
+
+test("the last rally of a video is offered for review even when its landing is hidden", () => {
+  const rallyPlay = [];
+  for (let shot = 0; shot < 4; shot++) {
+    const from = { x: 0.5, y: shot % 2 ? 0.75 : 0.3 };
+    const to = { x: 0.5, y: shot % 2 ? 0.3 : 0.75 };
+    rallyPlay.push(...flightTo(shot * 0.6, from, to));
+  }
+  const rallies = buildTrackNetRallies([...rallyPlay, ...at30(2.5, 6, () => null)], H);
+  assert.equal(rallies.length, 1);
+  assert.equal(rallies[0].landingSeen, false);
+  assert.equal(rallies[0].countsTowardScore, false);
+});
