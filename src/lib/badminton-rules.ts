@@ -88,6 +88,10 @@ export function isMatchPoint(
   return pointCall(score, games, 0, r) === "match" || pointCall(score, games, 1, r) === "match";
 }
 
+// Results scored before a preset changed may still be waiting to sync. The
+// 15-point preset used to cap at 20, so 20-19 was a final score.
+const EARLIER_CAPS: Partial<Record<PresetId, number[]>> = { "15": [20] };
+
 /** A final game score is legal only if the game had not already ended one point earlier. */
 export function isLegalGameScore(game: { a: number; b: number }, r: MatchRules): boolean {
   const high = Math.max(game.a, game.b);
@@ -129,7 +133,11 @@ export function matchResultProblem(
       return `game ${index + 1} was played after the match was already decided.`;
     }
     if (game.a === game.b) return `game ${index + 1} is tied ${game.a}-${game.b}.`;
-    if (r && !isLegalGameScore(game, r)) {
+    const legal =
+      !r ||
+      isLegalGameScore(game, r) ||
+      (EARLIER_CAPS[r.id] ?? []).some((cap) => isLegalGameScore(game, { ...r, cap }));
+    if (!legal) {
       return `game ${index + 1} (${game.a}-${game.b}) is not a finished ${r.target}-point game.`;
     }
     won[game.a > game.b ? 0 : 1] += 1;

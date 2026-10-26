@@ -193,3 +193,44 @@ test("online saves reject results the rules could not produce", async () => {
   });
   assert.equal(inserted.length, 1);
 });
+
+test("every match the scoreboard can produce passes the server's result check", async () => {
+  const { createMatchController, reduceMatch } = await import("../src/lib/match-controller.ts");
+  const { completedOfflineMatch } = await import("../src/lib/offline-result.ts");
+  let seed = 7;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) % 2 ** 31;
+    return seed / 2 ** 31;
+  };
+  for (const id of ["21", "15", "11", "golden"]) {
+    for (let match = 0; match < 300; match++) {
+      let c = createMatchController();
+      c = reduceMatch(c, { type: "preset", id, at: 1 });
+      // Close matches reach deuce and the cap; lopsided ones end early.
+      const bias = 0.35 + random() * 0.3;
+      for (let at = 2; !c.match.matchOver; at++) {
+        c = reduceMatch(c, { type: "point", team: random() < bias ? 0 : 1, reason: "won", at });
+      }
+      const { payload } = completedOfflineMatch("owner", "id", c.match);
+      const problem = matchResultProblem(
+        payload.games,
+        payload.winner,
+        rulesForResult(payload.points_to_win, payload.best_of, payload.format),
+        { bestOf: payload.best_of, complete: true },
+      );
+      assert.equal(problem, null, `${id}: ${JSON.stringify(payload.games)} ${payload.winner}`);
+    }
+  }
+});
+
+test("15-point games scored under the old cap of 20 can still be saved", () => {
+  const options = { bestOf: 3, complete: true };
+  const old = [
+    { a: 20, b: 19 },
+    { a: 15, b: 10 },
+  ];
+  assert.equal(matchResultProblem(old, "A", r15, options), null);
+  // 21-19 is a legal 3x15 finish, but nothing goes past 21: 22-20 ended at 21-20.
+  assert.equal(matchResultProblem([{ a: 21, b: 19 }, old[1]], "A", r15, options), null);
+  assert.match(matchResultProblem([{ a: 22, b: 20 }, old[1]], "A", r15, options), /not a finished/);
+});
