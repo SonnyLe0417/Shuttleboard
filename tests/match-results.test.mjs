@@ -206,7 +206,7 @@ test("every match the scoreboard can produce passes the server's result check", 
     for (let match = 0; match < 300; match++) {
       let c = createMatchController();
       c = reduceMatch(c, { type: "preset", id, at: 1 });
-      // Close matches reach deuce and the cap; lopsided ones end early.
+      // Close matches reach deuce; lopsided ones end early. Caps are covered below.
       const bias = 0.35 + random() * 0.3;
       for (let at = 2; !c.match.matchOver; at++) {
         c = reduceMatch(c, { type: "point", team: random() < bias ? 0 : 1, reason: "won", at });
@@ -233,4 +233,125 @@ test("15-point games scored under the old cap of 20 can still be saved", () => {
   // 21-19 is a legal 3x15 finish, but nothing goes past 21: 22-20 ended at 21-20.
   assert.equal(matchResultProblem([{ a: 21, b: 19 }, old[1]], "A", r15, options), null);
   assert.match(matchResultProblem([{ a: 22, b: 20 }, old[1]], "A", r15, options), /not a finished/);
+});
+
+test("manual logs from every onboarding preset save, including shortened matches", async () => {
+  const inserted = [];
+  const save = await saveWith(inserted);
+  for (const preset of rules.PRESETS) {
+    // The log form's defaults: the preset's label, target and best-of, one game won to love.
+    await save({
+      ...scoreboardPayload,
+      format: preset.label,
+      points_to_win: preset.target,
+      best_of: preset.bestOf,
+      games: [{ a: preset.target, b: 0 }],
+      winner: "A",
+    });
+  }
+  await save({ ...scoreboardPayload, format: "21-point", games: [{ a: 21, b: 15 }], winner: "A" });
+  assert.equal(inserted.length, rules.PRESETS.length + 1);
+  // The same single game is not a complete match when it comes from the offline queue.
+  await assert.rejects(
+    save({
+      ...scoreboardPayload,
+      client_match_id: "20000000-0000-4000-8000-000000000099",
+      expected_owner_id: owner,
+      started_at: "2026-01-01T10:00:00Z",
+      finished_at: "2026-01-01T10:10:00Z",
+      duration_seconds: 600,
+      games: [{ a: 21, b: 15 }],
+      winner: "A",
+    }),
+    /Validation/,
+  );
+});
+
+test("only finished matches can carry a winner", async () => {
+  const inserted = [];
+  const save = await saveWith(inserted);
+  await assert.rejects(
+    save({ ...scoreboardPayload, status: "in_progress", games: [{ a: 21, b: 20 }], winner: "A" }),
+    /Validation: only a finished match can have a winner/,
+  );
+  assert.equal(inserted.length, 0);
+});
+
+test("games under formats with no preset still have to reach the target", () => {
+  const options = { bestOf: 1, complete: false, pointsToWin: 22 };
+  assert.equal(matchResultProblem([{ a: 22, b: 15 }], "A", null, options), null);
+  assert.equal(matchResultProblem([{ a: 24, b: 22 }], "A", null, options), null);
+  assert.match(
+    matchResultProblem([{ a: 99, b: 0 }], "A", null, options),
+    /not a finished 22-point/,
+  );
+  assert.match(matchResultProblem([{ a: 15, b: 10 }], "A", null, options), /not a finished/);
+  assert.equal(rulesForResult(22, 3, "21 · Best of 3"), null);
+});
+
+test("a retirement leaves the last game unfinished and goes to the player who carried on", async () => {
+  const options = { bestOf: 3, complete: false, pointsToWin: 21, retired: true };
+  assert.equal(matchResultProblem([{ a: 15, b: 10 }], "B", r21, options), null);
+  assert.equal(
+    matchResultProblem(
+      [
+        { a: 21, b: 15 },
+        { a: 3, b: 3 },
+      ],
+      "A",
+      r21,
+      options,
+    ),
+    null,
+  );
+  assert.match(matchResultProblem([{ a: 15, b: 10 }], null, r21, options), /needs a winner/);
+  assert.match(
+    matchResultProblem(
+      [
+        { a: 21, b: 20 },
+        { a: 3, b: 3 },
+      ],
+      "A",
+      r21,
+      options,
+    ),
+    /game 1 \(21-20\) is not a finished/,
+  );
+  const inserted = [];
+  const save = await saveWith(inserted);
+  const retired = { ...scoreboardPayload, games: [{ a: 15, b: 10 }], winner: "B" };
+  await assert.rejects(save(retired), /Validation/);
+  await save({ ...retired, tags: [rules.RETIRED_TAG] });
+  assert.equal(inserted.length, 1);
+});
+
+test("deuce and cap finishes from every preset pass the server's check", async () => {
+  const { createMatchController, reduceMatch } = await import("../src/lib/match-controller.ts");
+  const { completedOfflineMatch } = await import("../src/lib/offline-result.ts");
+  for (const preset of rules.PRESETS) {
+    for (const lead of [0, 1]) {
+      let c = reduceMatch(createMatchController(), { type: "preset", id: preset.id, at: 1 });
+      let at = 2;
+      // Level every game at target-1 all, then trade points until the game ends.
+      while (!c.match.matchOver) {
+        const [a, b] = c.match.score;
+        const team =
+          a < preset.target - 1 && a <= b ? 0 : b < preset.target - 1 ? 1 : (a + b + lead) % 2;
+        c = reduceMatch(c, { type: "point", team, reason: "won", at: at++ });
+      }
+      const games = c.match.completedGames;
+      assert.ok(
+        games.some((game) => Math.max(game.a, game.b) === preset.cap),
+        `${preset.id} reaches its cap`,
+      );
+      const { payload } = completedOfflineMatch("owner", "id", c.match);
+      const problem = matchResultProblem(
+        payload.games,
+        payload.winner,
+        rulesForResult(payload.points_to_win, payload.best_of, payload.format),
+        { bestOf: payload.best_of, complete: true },
+      );
+      assert.equal(problem, null, `${preset.id}: ${JSON.stringify(games)}`);
+    }
+  }
 });

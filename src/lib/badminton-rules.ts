@@ -114,16 +114,40 @@ export function rulesForResult(
 }
 
 /**
+ * A game under rules we do not know: the winner reached the target, and only
+ * a deuce takes a game past it, by at most two points.
+ */
+function finishesUnknownGame(game: { a: number; b: number }, target: number) {
+  const high = Math.max(game.a, game.b);
+  const low = Math.min(game.a, game.b);
+  return high >= target && (high === target || high - low <= 2);
+}
+
+/** Tag on a manually logged match that ended when a player retired or conceded. */
+export const RETIRED_TAG = "retired";
+
+export interface ResultCheckOptions {
+  bestOf: number;
+  /** The winner must have won the match outright (offline uploads). */
+  complete: boolean;
+  /** Points to win a game, for a check when the rules are unknown. */
+  pointsToWin?: number;
+  /** A player retired or conceded during the last game, which stays unfinished. */
+  retired?: boolean;
+}
+
+/**
  * Explains why a finished result cannot have happened, or returns null. With
  * `complete`, the winner must also have won the match outright; otherwise a
  * shortened match is allowed as long as the winner won more games. Without
- * rules, only the consistency between games and winner is checked.
+ * rules, each game must still reach the target. After a retirement the last
+ * game can stop at any score and the winner is the player who did not retire.
  */
 export function matchResultProblem(
   games: ReadonlyArray<{ a: number; b: number }>,
   winner: "A" | "B" | null,
   r: MatchRules | null,
-  options: { bestOf: number; complete: boolean },
+  options: ResultCheckOptions,
 ): string | null {
   if (!games.length) return "a finished match needs at least one game.";
   const needed = Math.ceil(options.bestOf / 2);
@@ -132,16 +156,19 @@ export function matchResultProblem(
     if (Math.max(...won) >= needed) {
       return `game ${index + 1} was played after the match was already decided.`;
     }
+    if (options.retired && index === games.length - 1) break;
     if (game.a === game.b) return `game ${index + 1} is tied ${game.a}-${game.b}.`;
-    const legal =
-      !r ||
-      isLegalGameScore(game, r) ||
-      (EARLIER_CAPS[r.id] ?? []).some((cap) => isLegalGameScore(game, { ...r, cap }));
+    const legal = r
+      ? isLegalGameScore(game, r) ||
+        (EARLIER_CAPS[r.id] ?? []).some((cap) => isLegalGameScore(game, { ...r, cap }))
+      : options.pointsToWin === undefined || finishesUnknownGame(game, options.pointsToWin);
     if (!legal) {
-      return `game ${index + 1} (${game.a}-${game.b}) is not a finished ${r.target}-point game.`;
+      const target = r?.target ?? options.pointsToWin;
+      return `game ${index + 1} (${game.a}-${game.b}) is not a finished ${target}-point game.`;
     }
     won[game.a > game.b ? 0 : 1] += 1;
   }
+  if (options.retired) return winner ? null : "a retired match still needs a winner.";
   const decided = won[0] >= needed ? "A" : won[1] >= needed ? "B" : null;
   if (options.complete && !decided) return "the match is not finished.";
   const leader = decided ?? (won[0] > won[1] ? "A" : won[1] > won[0] ? "B" : null);
