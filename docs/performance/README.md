@@ -109,3 +109,21 @@ fixture on port 5183. Complete its summary, hot reload the diagnostic module ten
 times, and open progress details; exactly one diagnostic panel should remain and
 readiness should still update. This tests observer cleanup and never supplies an
 authenticated session or contributes to the live-account measurements.
+
+For bounded local collection, use `/dashboard?dashboardMetrics=1&dashboardCapture=1`
+in a temporary signed-in tab. The capture panel persists fixed-label summary
+timings across reloads and client navigation in that tab's session storage.
+Use **Export local timing session** to download the report. Closing the temporary
+tab ends the session; a normal reload without diagnostic flags disables collection.
+No credentials, account identifiers, match content, or raw errors are stored.
+
+Capture retains at most 60 samples for requests started during a 30-minute
+session. These are collection limits, not app rate limits: the test operator must
+stop issuing requests at the investigation cap. Completed in-flight responses can
+be retained after the time boundary. Missing response timings remain null;
+interrupted requests are separate entries. Visibility flags include initially
+hidden tabs. No scheduled polling or production monitoring was added.
+
+See [bounded capture results](dashboard-summary-capture.md). Regenerate the
+computed report with `node benchmarks/dashboard/capture-report.mjs INPUT.json NEW_PREFIX`; its source
+JSON retains the excluded warmup and setup duplicate entries for auditability.

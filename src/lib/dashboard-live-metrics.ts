@@ -1,5 +1,6 @@
 // Opt-in local diagnostics. This module is excluded from production builds.
 import type { QueryClient } from "@tanstack/react-query";
+import { startDashboardCapture } from "./dashboard-capture.client";
 let enabled = false;
 let dispose: (() => void) | undefined;
 let run = 0;
@@ -122,9 +123,17 @@ export function startDashboardLiveMetrics(routeStart: number, queryClient?: Quer
         responseTimingAvailable: entry.responseStart > 0,
         transferBytes: entry.transferSize,
         decodedBytes: entry.decodedBodySize,
+        serverTiming: entry.serverTiming
+          .filter((span) =>
+            /^dash_(auth_setup|module_load|matches|quests|progress|insights|completed|aggregate|total)$/.test(
+              span.name,
+            ),
+          )
+          .map((span) => ({ name: span.name, durationMs: span.duration })),
       })),
     });
   };
+  const stopCapture = startDashboardCapture(queryClient, firstRoute, endpointName);
   const sample = () => {
     if (location.pathname !== "/dashboard") return;
     if (primaryMs === null && document.querySelector('[data-dashboard-ready="true"]'))
@@ -167,6 +176,7 @@ export function startDashboardLiveMetrics(routeStart: number, queryClient?: Quer
     output.dataset.expired = "true";
   }, 120_000);
   dispose = () => {
+    stopCapture();
     dom.disconnect();
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("visibilitychange", onVisibilityChange);

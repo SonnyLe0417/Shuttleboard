@@ -1,3 +1,4 @@
+import type { dashboardTimer, DashboardSpan } from "./dashboard-timing";
 import { matchForPlayer } from "./player-matches";
 import {
   dashboardStats,
@@ -36,49 +37,65 @@ export async function readDashboardSummary(
   db: any,
   userId: string,
   weekStart: string,
+  timer?: ReturnType<typeof dashboardTimer>,
 ): Promise<DashboardSummaryData> {
+  const timed = <T>(name: DashboardSpan, work: () => T | PromiseLike<T>) =>
+    timer ? timer.measure(name, work) : Promise.resolve(work());
   const [matches, quests, progress, insights, completed] = await Promise.all([
-    db.from("matches").select(STAT_COLUMNS).order("started_at", { ascending: false }).limit(100),
-    db
-      .from("coach_quests")
-      .select("id,cadence,title,description,progress,target_value,status,ends_at")
-      .eq("user_id", userId)
-      .in("status", ["active", "completed"])
-      .gt("ends_at", new Date().toISOString())
-      .order("starts_at", { ascending: false })
-      .limit(2),
-    db
-      .from("player_progress")
-      .select("total_xp,current_level,quest_cadence")
-      .eq("user_id", userId)
-      .maybeSingle(),
-    db.from("player_insights").select("insights,stats").eq("user_id", userId).maybeSingle(),
+    timed("matches", () =>
+      db.from("matches").select(STAT_COLUMNS).order("started_at", { ascending: false }).limit(100),
+    ),
+    timed("quests", () =>
+      db
+        .from("coach_quests")
+        .select("id,cadence,title,description,progress,target_value,status,ends_at")
+        .eq("user_id", userId)
+        .in("status", ["active", "completed"])
+        .gt("ends_at", new Date().toISOString())
+        .order("starts_at", { ascending: false })
+        .limit(2),
+    ),
+    timed("progress", () =>
+      db
+        .from("player_progress")
+        .select("total_xp,current_level,quest_cadence")
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ),
+    timed("insights", () =>
+      db.from("player_insights").select("insights,stats").eq("user_id", userId).maybeSingle(),
+    ),
     // Preserve existence semantics even when >100 newer matches are unfinished.
-    db
-      .from("matches")
-      .select("id")
-      .neq("status", "abandoned")
-      .in("winner", ["A", "B"])
-      .or(`creator_id.eq.${userId},team_a_user_ids.cs.{${userId}},team_b_user_ids.cs.{${userId}}`)
-      .order("started_at", { ascending: false })
-      .limit(1),
+    timed("completed", () =>
+      db
+        .from("matches")
+        .select("id")
+        .neq("status", "abandoned")
+        .in("winner", ["A", "B"])
+        .or(`creator_id.eq.${userId},team_a_user_ids.cs.{${userId}},team_b_user_ids.cs.{${userId}}`)
+        .order("started_at", { ascending: false })
+        .limit(1),
+    ),
   ]);
-  const rows = (checked(matches) ?? []).map((row: any) => matchForPlayer(row, userId));
-  const p = checked(progress) ?? {},
-    i = checked(insights) ?? {},
-    q = checked(quests) ?? [];
-  return {
-    stats: dashboardStats(rows),
-    weekMatchCount: rows.filter((row: any) => new Date(row.started_at) >= new Date(weekStart))
-      .length,
-    hasMatches: (checked(completed) ?? []).length > 0,
-    activeQuest: q.find((quest: any) => quest.cadence === (p.quest_cadence ?? "weekly")) ?? null,
-    progress: {
-      total_xp: Number(p.total_xp ?? 0),
-      current_level: Number(p.current_level ?? 1),
-      level_name: dashboardLevelName(Number(p.current_level ?? 1)),
-      current_streak: Number(i.stats?.currentStreak ?? 0),
-    },
-    insight: Array.isArray(i.insights) ? (i.insights[0] ?? null) : null,
+  const aggregate = () => {
+    const rows = (checked(matches) ?? []).map((row: any) => matchForPlayer(row, userId));
+    const p = checked(progress) ?? {},
+      i = checked(insights) ?? {},
+      q = checked(quests) ?? [];
+    return {
+      stats: dashboardStats(rows),
+      weekMatchCount: rows.filter((row: any) => new Date(row.started_at) >= new Date(weekStart))
+        .length,
+      hasMatches: (checked(completed) ?? []).length > 0,
+      activeQuest: q.find((quest: any) => quest.cadence === (p.quest_cadence ?? "weekly")) ?? null,
+      progress: {
+        total_xp: Number(p.total_xp ?? 0),
+        current_level: Number(p.current_level ?? 1),
+        level_name: dashboardLevelName(Number(p.current_level ?? 1)),
+        current_streak: Number(i.stats?.currentStreak ?? 0),
+      },
+      insight: Array.isArray(i.insights) ? (i.insights[0] ?? null) : null,
+    };
   };
+  return timer ? timer.measure("aggregate", aggregate) : aggregate();
 }
