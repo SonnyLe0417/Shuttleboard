@@ -56,6 +56,7 @@ import { AnalysisProgressPanel } from "@/components/video/AnalysisProgressPanel"
 import { AnalysisResultsPanel } from "@/components/video/AnalysisResultsPanel";
 import { AnalysisControlsPanel } from "@/components/video/AnalysisControlsPanel";
 import { VideoMatchPanel } from "@/components/video/VideoMatchPanel";
+import { cornersForPlayerOne } from "@/lib/vision-geometry";
 import { previewFailureMessage, shouldCreateBrowserPreview } from "@/lib/video-preview";
 import {
   addCourtCorner,
@@ -696,8 +697,13 @@ function VideoAnalyzerPage() {
       return;
     }
     const track = detection.track;
+    // Only fresh detections are evidence. While the tracker coasts it projects
+    // the old velocity, which runs past the real landing.
     const visibleNow = Boolean(
-      track && track.visible && track.confidence > LOCAL_TRACK_MIN_CONFIDENCE,
+      track &&
+      track.visible &&
+      track.confidence > LOCAL_TRACK_MIN_CONFIDENCE &&
+      track.lastSeen === now,
     );
 
     if (visibleNow && track) {
@@ -778,7 +784,7 @@ function VideoAnalyzerPage() {
           image: dataUrl,
           mode,
           p1Side: near === "p1" ? "bottom" : "top",
-          courtCorners: normalizedCornersRef.current,
+          courtCorners: cornersForPlayerOne(normalizedCornersRef.current, near === "p1"),
           lastHitter: lastHitterRef.current,
         });
         if (resp.ok) {

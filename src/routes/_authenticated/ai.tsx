@@ -1584,7 +1584,9 @@ function AiVisionPage() {
               Candidates: {candidateCount} · motion pixels {motionPixels}
             </span>
             <span>Search radius: {Math.round(searchRadius * 100)}%</span>
-            <span>Camera shift: {Math.round(Math.hypot(cameraShift.x, cameraShift.y))}px</span>
+            <span>
+              Camera shift: {(Math.hypot(cameraShift.x, cameraShift.y) * 100).toFixed(1)}% of frame
+            </span>
             <span>Confidence: {confidenceReason}</span>
           </div>
         </details>
