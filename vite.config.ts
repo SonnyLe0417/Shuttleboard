@@ -6,6 +6,7 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import type { ConfigEnv } from "vite";
+import { startupPreloads } from "./scripts/startup-preloads";
 import { offlineScoreboardBuild } from "./scripts/offline-scoreboard-build";
 
 const createConfig = defineConfig({
@@ -33,9 +34,24 @@ const createConfig = defineConfig({
               codeSplitting: {
                 groups: [
                   {
+                    // Group the small router primitives shared by both startup routes.
+                    name: "startup-router",
+                    test: /node_modules[\\/]@tanstack[\\/](?:(?:react-store|store)[\\/]|react-router[\\/]dist[\\/]esm[\\/](?:link|useRouter|useMatch|matchContext|useRouterState)\.js$|router-core[\\/]dist[\\/]esm[\\/]redirect\.js$)/,
+                    includeDependenciesRecursively: true,
+                    priority: 15,
+                  },
+                  {
+                    // These icons are already needed by the public or dashboard startup path.
+                    // Keep other feature icons deferred rather than loading the entire icon set.
+                    name: "startup-icons",
+                    test: /node_modules[\\/]lucide-react[\\/]dist[\\/]esm[\\/]icons[\\/](arrow-right|arrow-up-right|calendar-days|check|chevron-down|chevron-right|clock-3|flame|gauge|goal|history|loader-circle|menu|play|plus|sparkles|swords|trophy|undo-2|users|video|wand-sparkles|x)\.js$/,
+                    includeDependenciesRecursively: false,
+                    priority: 10,
+                  },
+                  {
                     name: "supabase-client",
                     test: /node_modules[\\/]@supabase[\\/]/,
-                    // Keep the app bootstrap independent of a failed SDK download.
+                    // Keep Vite's shared preload helper out of this deferred SDK chunk.
                     includeDependenciesRecursively: false,
                     priority: 30,
                   },
@@ -72,6 +88,7 @@ export default async (env: ConfigEnv) => {
         plugin.name === "vite-tsconfig-paths"
       ),
   );
+  config.plugins.push(startupPreloads(env.command === "build"));
   if (env.command === "build") config.plugins.push(offlineScoreboardBuild());
   return config;
 };

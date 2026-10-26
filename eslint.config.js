@@ -6,7 +6,17 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi", ".tanstack", ".nitro", ".tracknet-v3"] },
+  {
+    ignores: [
+      "dist",
+      ".output",
+      ".vinxi",
+      ".tanstack",
+      ".nitro",
+      ".tracknet-v3",
+      "tests/database/.runtime/**",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

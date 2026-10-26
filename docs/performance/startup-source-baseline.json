@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-10-23T05:19:31.733Z",
+  "revision": "c34a8440fe1145f8862513bfeb24189ca2165de3",
+  "workingTreeSha256": "990d88df76579655106fe9f65e4c9cf65d4412aecd0578b09532761bd2955020",
+  "lockfileSha256": "2c0f9e8a8d6993dc1fb50906a633c4c0dde18d48c32e554704be81129157e138",
+  "entryAsset": "index-B-yGw3P8.js",
+  "entryBytes": 161139,
+  "staticInitialJavascriptBytes": 581162,
+  "staticInitialAssetCount": 10
+}

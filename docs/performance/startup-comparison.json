@@ -1,0 +1,2201 @@
+{
+  "protocol": "Production assets; actual homepage; real app shell/routes with synthetic auth and RPC adapters for dashboard. Cold=new context; warm=HTTP-cache reload; cached=client return. One discarded warmup per scenario. External fonts remain live and failures are retained.",
+  "rows": [
+    {
+      "profile": "mobile",
+      "kind": "homepage",
+      "count": null,
+      "scenario": "cold",
+      "required": true,
+      "passed": false,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [
+        "lcpMs"
+      ],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2257.7500000074506,
+            "p90": 2454.7999999970198,
+            "max": 2489.7999999970198
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2179.25,
+            "p90": 4536.79999999702,
+            "max": 4677.29999999702
+          },
+          "improvementPercent": 3.476912856037716
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 1234,
+            "p90": 1332,
+            "max": 1376
+          },
+          "optimized": {
+            "n": 10,
+            "median": 1366,
+            "p90": 2048,
+            "max": 2500
+          },
+          "improvementPercent": -10.696920583468396
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0.000005621438746438746,
+            "p90": 0.000005621438746438746,
+            "max": 0.000005621438746438746
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0.000005621438746438746,
+            "p90": 0.000005621438746438746,
+            "max": 0.000005621438746438746
+          },
+          "improvementPercent": 0
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "optimized": {
+            "n": 10,
+            "median": 23,
+            "p90": 23,
+            "max": 23
+          },
+          "improvementPercent": 17.857142857142858
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 294160,
+            "p90": 294161,
+            "max": 294161
+          },
+          "optimized": {
+            "n": 10,
+            "median": 293453,
+            "p90": 293453,
+            "max": 293870
+          },
+          "improvementPercent": 0.240345390263802
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 191162,
+            "p90": 191162,
+            "max": 191162
+          },
+          "optimized": {
+            "n": 10,
+            "median": 190602,
+            "p90": 190602,
+            "max": 190602
+          },
+          "improvementPercent": 0.2929452506251242
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "mobile",
+      "kind": "homepage",
+      "count": null,
+      "scenario": "warm",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 1170.1499999985099,
+            "p90": 1256,
+            "max": 1304.2999999970198
+          },
+          "optimized": {
+            "n": 10,
+            "median": 1229.25,
+            "p90": 1310.5,
+            "max": 1563.8999999910593
+          },
+          "improvementPercent": -5.050634534167874
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 600,
+            "p90": 632,
+            "max": 672
+          },
+          "optimized": {
+            "n": 10,
+            "median": 612,
+            "p90": 676,
+            "max": 692
+          },
+          "improvementPercent": -2
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "optimized": {
+            "n": 10,
+            "median": 23,
+            "p90": 23,
+            "max": 23
+          },
+          "improvementPercent": 17.857142857142858
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 4064,
+            "p90": 4065,
+            "max": 4065
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3917,
+            "p90": 3917,
+            "max": 3917
+          },
+          "improvementPercent": 3.6171259842519685
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "mobile",
+      "kind": "dashboard",
+      "count": 0,
+      "scenario": "cold",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2737.0499999970198,
+            "p90": 3021.5,
+            "max": 3106.2000000029802
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2407.9499999955297,
+            "p90": 2665.0999999940395,
+            "max": 2801.2000000029802
+          },
+          "improvementPercent": 12.023894338862952
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2737.0499999970198,
+            "p90": 3626.5,
+            "max": 3933.1000000089407
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2408.2499999925494,
+            "p90": 2665.0999999940395,
+            "max": 2801.2000000029802
+          },
+          "improvementPercent": 12.012933633102367
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2722,
+            "p90": 3552,
+            "max": 3780
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2546,
+            "p90": 2764,
+            "max": 2844
+          },
+          "improvementPercent": 6.465833945628215
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0.04740493827160494,
+            "p90": 0.11058148148148148,
+            "max": 0.11058148148148148
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0.04740493827160494,
+            "p90": 0.04740493827160494,
+            "max": 0.04740493827160494
+          },
+          "improvementPercent": 0
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 45,
+            "p90": 45,
+            "max": 45
+          },
+          "optimized": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "improvementPercent": 37.77777777777778
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 257750,
+            "p90": 257752,
+            "max": 258167
+          },
+          "optimized": {
+            "n": 10,
+            "median": 250929,
+            "p90": 250931,
+            "max": 250932
+          },
+          "improvementPercent": 2.6463627546071775
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 206583,
+            "p90": 206583,
+            "max": 206583
+          },
+          "optimized": {
+            "n": 10,
+            "median": 200044,
+            "p90": 200044,
+            "max": 200044
+          },
+          "improvementPercent": 3.1653136995783777
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "improvementPercent": 0
+        }
+      }
+    },
+    {
+      "profile": "mobile",
+      "kind": "dashboard",
+      "count": 0,
+      "scenario": "cached",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 514.1999999955297,
+            "p90": 886.9000000059605,
+            "max": 987.7999999970198
+          },
+          "optimized": {
+            "n": 10,
+            "median": 490.8999999985099,
+            "p90": 599.1000000089407,
+            "max": 631.2999999970198
+          },
+          "improvementPercent": 4.5313107734777
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 514.3999999910593,
+            "p90": 887.3000000119209,
+            "max": 987.7999999970198
+          },
+          "optimized": {
+            "n": 10,
+            "median": 491,
+            "p90": 599.1000000089407,
+            "max": 631.2999999970198
+          },
+          "improvementPercent": 4.548989111871309
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "cls": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "optimized": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "improvementPercent": 0
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "mobile",
+      "kind": "dashboard",
+      "count": 20,
+      "scenario": "cold",
+      "required": true,
+      "passed": false,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2761.6999999955297,
+            "p90": 3361,
+            "max": 4340
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2507.4000000059605,
+            "p90": 2695.7000000029802,
+            "max": 2923.4000000059605
+          },
+          "improvementPercent": 9.20809646196114
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2798.1999999955297,
+            "p90": 4273.9000000059605,
+            "max": 4340.29999999702
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2599.3500000089407,
+            "p90": 2695.7000000029802,
+            "max": 2923.6000000089407
+          },
+          "improvementPercent": 7.106354084300859
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2928,
+            "p90": 4172,
+            "max": 5276
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2598,
+            "p90": 2760,
+            "max": 3436
+          },
+          "improvementPercent": 11.270491803278688
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0.11058148148148148,
+            "p90": 0.11058148148148148,
+            "max": 0.15735555555555553
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0.04163703703703704,
+            "p90": 0.04740493827160494,
+            "max": 0.11058148148148148
+          },
+          "improvementPercent": 62.34718826405867
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 45,
+            "p90": 45,
+            "max": 45
+          },
+          "optimized": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "improvementPercent": 37.77777777777778
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 259177,
+            "p90": 259179,
+            "max": 259179
+          },
+          "optimized": {
+            "n": 10,
+            "median": 252358,
+            "p90": 252358,
+            "max": 252358
+          },
+          "improvementPercent": 2.6310204995041997
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 206583,
+            "p90": 206583,
+            "max": 206583
+          },
+          "optimized": {
+            "n": 10,
+            "median": 200044,
+            "p90": 200044,
+            "max": 200044
+          },
+          "improvementPercent": 3.1653136995783777
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "improvementPercent": 0
+        }
+      }
+    },
+    {
+      "profile": "mobile",
+      "kind": "dashboard",
+      "count": 20,
+      "scenario": "cached",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 515.0000000074506,
+            "p90": 721.6000000089407,
+            "max": 773.7000000029802
+          },
+          "optimized": {
+            "n": 10,
+            "median": 473.69999999552965,
+            "p90": 511.09999999403954,
+            "max": 529.5
+          },
+          "improvementPercent": 8.019417477926881
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 515.1000000014901,
+            "p90": 721.6000000089407,
+            "max": 773.9000000059605
+          },
+          "optimized": {
+            "n": 10,
+            "median": 473.75,
+            "p90": 511.20000000298023,
+            "max": 529.5999999940395
+          },
+          "improvementPercent": 8.02756746289468
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "cls": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "optimized": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "improvementPercent": 0
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "mobile",
+      "kind": "dashboard",
+      "count": 100,
+      "scenario": "cold",
+      "required": true,
+      "passed": false,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2727.60000000149,
+            "p90": 2853.4000000059605,
+            "max": 3094.7000000029802
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2736,
+            "p90": 2955,
+            "max": 3892.4000000059605
+          },
+          "improvementPercent": -0.30796304437986854
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 2730.60000000149,
+            "p90": 3411.2999999970198,
+            "max": 3759.2000000029802
+          },
+          "optimized": {
+            "n": 10,
+            "median": 2736,
+            "p90": 2955.2000000029802,
+            "max": 3893.1000000089407
+          },
+          "improvementPercent": -0.19775873428942126
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 3058,
+            "p90": 3332,
+            "max": 3608
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3034,
+            "p90": 3720,
+            "max": 4896
+          },
+          "improvementPercent": 0.7848266841072596
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0.07899320987654321,
+            "p90": 0.11058148148148148,
+            "max": 0.11058148148148148
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0.04740493827160494,
+            "p90": 0.04740493827160494,
+            "max": 0.04740493827160494
+          },
+          "improvementPercent": 39.98859098687963
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 45,
+            "p90": 45,
+            "max": 45
+          },
+          "optimized": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "improvementPercent": 37.77777777777778
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 259179,
+            "p90": 259179,
+            "max": 259179
+          },
+          "optimized": {
+            "n": 10,
+            "median": 252360,
+            "p90": 252360,
+            "max": 252360
+          },
+          "improvementPercent": 2.6310001967752017
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 206583,
+            "p90": 206583,
+            "max": 206583
+          },
+          "optimized": {
+            "n": 10,
+            "median": 200044,
+            "p90": 200044,
+            "max": 200044
+          },
+          "improvementPercent": 3.1653136995783777
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "improvementPercent": 0
+        }
+      }
+    },
+    {
+      "profile": "mobile",
+      "kind": "dashboard",
+      "count": 100,
+      "scenario": "cached",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 486.05000000447035,
+            "p90": 538,
+            "max": 602.0999999940395
+          },
+          "optimized": {
+            "n": 10,
+            "median": 516.7999999970198,
+            "p90": 628.7000000029802,
+            "max": 668.1999999880791
+          },
+          "improvementPercent": -6.326509616760951
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 486.3500000014901,
+            "p90": 538.2000000029802,
+            "max": 602.2999999970198
+          },
+          "optimized": {
+            "n": 10,
+            "median": 516.7999999970198,
+            "p90": 629.1000000089407,
+            "max": 668.2999999970198
+          },
+          "improvementPercent": -6.260923202515957
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "cls": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "optimized": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "improvementPercent": 0
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "kind": "homepage",
+      "count": null,
+      "scenario": "cold",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 344.3999999985099,
+            "p90": 456.90000000596046,
+            "max": 511
+          },
+          "optimized": {
+            "n": 10,
+            "median": 333.20000000298023,
+            "p90": 354.29999999701977,
+            "max": 393.19999998807907
+          },
+          "improvementPercent": 3.252032519041263
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 334,
+            "p90": 440,
+            "max": 492
+          },
+          "optimized": {
+            "n": 10,
+            "median": 334,
+            "p90": 352,
+            "max": 388
+          },
+          "improvementPercent": 0
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0.00006729580600565844,
+            "p90": 0.00006729580600565844,
+            "max": 0.00006729580600565844
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0.00006729580600565844,
+            "p90": 0.00006729580600565844,
+            "max": 0.00006729580600565844
+          },
+          "improvementPercent": 0
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "optimized": {
+            "n": 10,
+            "median": 23,
+            "p90": 23,
+            "max": 23
+          },
+          "improvementPercent": 17.857142857142858
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 340224,
+            "p90": 340225,
+            "max": 340337
+          },
+          "optimized": {
+            "n": 10,
+            "median": 339517,
+            "p90": 339517,
+            "max": 339517
+          },
+          "improvementPercent": 0.20780427012791572
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 191162,
+            "p90": 191162,
+            "max": 191162
+          },
+          "optimized": {
+            "n": 10,
+            "median": 190602,
+            "p90": 190602,
+            "max": 190602
+          },
+          "improvementPercent": 0.2929452506251242
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "kind": "homepage",
+      "count": null,
+      "scenario": "warm",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [
+        "lcpMs"
+      ],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 311.3500000089407,
+            "p90": 312.90000000596046,
+            "max": 323.09999999403954
+          },
+          "optimized": {
+            "n": 10,
+            "median": 161.85000000149012,
+            "p90": 168.5,
+            "max": 189.59999999403954
+          },
+          "improvementPercent": 48.01670146239202
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 138,
+            "p90": 172,
+            "max": 180
+          },
+          "optimized": {
+            "n": 10,
+            "median": 184,
+            "p90": 196,
+            "max": 204
+          },
+          "improvementPercent": -33.333333333333336
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "optimized": {
+            "n": 10,
+            "median": 23,
+            "p90": 23,
+            "max": 23
+          },
+          "improvementPercent": 17.857142857142858
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 4064,
+            "p90": 4065,
+            "max": 4065
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3917,
+            "p90": 3917,
+            "max": 3917
+          },
+          "improvementPercent": 3.6171259842519685
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "kind": "dashboard",
+      "count": 0,
+      "scenario": "cold",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 845.6499999985099,
+            "p90": 914.5,
+            "max": 935.6999999880791
+          },
+          "optimized": {
+            "n": 10,
+            "median": 812.4000000059605,
+            "p90": 835.9000000059605,
+            "max": 850.9000000059605
+          },
+          "improvementPercent": 3.9318867134876143
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 845.6499999985099,
+            "p90": 914.5,
+            "max": 935.6999999880791
+          },
+          "optimized": {
+            "n": 10,
+            "median": 812.4000000059605,
+            "p90": 835.9000000059605,
+            "max": 850.9000000059605
+          },
+          "improvementPercent": 3.9318867134876143
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 914,
+            "p90": 956,
+            "max": 988
+          },
+          "optimized": {
+            "n": 10,
+            "median": 848,
+            "p90": 872,
+            "max": 884
+          },
+          "improvementPercent": 7.2210065645514225
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 45,
+            "p90": 45,
+            "max": 45
+          },
+          "optimized": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "improvementPercent": 37.77777777777778
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 257748,
+            "p90": 257748,
+            "max": 257748
+          },
+          "optimized": {
+            "n": 10,
+            "median": 250929,
+            "p90": 250931,
+            "max": 251441
+          },
+          "improvementPercent": 2.64560733739932
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 206583,
+            "p90": 206583,
+            "max": 206583
+          },
+          "optimized": {
+            "n": 10,
+            "median": 200044,
+            "p90": 200044,
+            "max": 200044
+          },
+          "improvementPercent": 3.1653136995783777
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "improvementPercent": 0
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "kind": "dashboard",
+      "count": 0,
+      "scenario": "cached",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 111.25,
+            "p90": 131,
+            "max": 133.79999999701977
+          },
+          "optimized": {
+            "n": 10,
+            "median": 103.85000000149012,
+            "p90": 107.40000000596046,
+            "max": 111.5
+          },
+          "improvementPercent": 6.651685391918996
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 111.25,
+            "p90": 131,
+            "max": 133.79999999701977
+          },
+          "optimized": {
+            "n": 10,
+            "median": 103.85000000149012,
+            "p90": 107.40000000596046,
+            "max": 111.5
+          },
+          "improvementPercent": 6.651685391918996
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "cls": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "optimized": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "improvementPercent": 0
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "kind": "dashboard",
+      "count": 20,
+      "scenario": "cold",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 848.5500000044703,
+            "p90": 918.2000000029802,
+            "max": 950.2000000029802
+          },
+          "optimized": {
+            "n": 10,
+            "median": 804.8500000089407,
+            "p90": 844.7000000029802,
+            "max": 917.8999999910593
+          },
+          "improvementPercent": 5.149961698815559
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 848.5500000044703,
+            "p90": 918.2000000029802,
+            "max": 950.2000000029802
+          },
+          "optimized": {
+            "n": 10,
+            "median": 805.0000000074506,
+            "p90": 844.7000000029802,
+            "max": 917.8999999910593
+          },
+          "improvementPercent": 5.132284484920198
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 884,
+            "p90": 976,
+            "max": 1000
+          },
+          "optimized": {
+            "n": 10,
+            "median": 846,
+            "p90": 896,
+            "max": 952
+          },
+          "improvementPercent": 4.298642533936651
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 45,
+            "p90": 45,
+            "max": 45
+          },
+          "optimized": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "improvementPercent": 37.77777777777778
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 259177,
+            "p90": 259179,
+            "max": 259180
+          },
+          "optimized": {
+            "n": 10,
+            "median": 252358,
+            "p90": 252870,
+            "max": 252870
+          },
+          "improvementPercent": 2.6310204995041997
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 206583,
+            "p90": 206583,
+            "max": 206583
+          },
+          "optimized": {
+            "n": 10,
+            "median": 200044,
+            "p90": 200044,
+            "max": 200044
+          },
+          "improvementPercent": 3.1653136995783777
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "improvementPercent": 0
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "kind": "dashboard",
+      "count": 20,
+      "scenario": "cached",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 105.39999999850988,
+            "p90": 122.29999999701977,
+            "max": 130.29999999701977
+          },
+          "optimized": {
+            "n": 10,
+            "median": 107.09999999403954,
+            "p90": 110.80000001192093,
+            "max": 120.59999999403954
+          },
+          "improvementPercent": -1.612903221587937
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 105.39999999850988,
+            "p90": 122.29999999701977,
+            "max": 130.29999999701977
+          },
+          "optimized": {
+            "n": 10,
+            "median": 107.09999999403954,
+            "p90": 110.80000001192093,
+            "max": 120.59999999403954
+          },
+          "improvementPercent": -1.612903221587937
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "cls": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "optimized": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "improvementPercent": 0
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "kind": "dashboard",
+      "count": 100,
+      "scenario": "cold",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 911.7000000029802,
+            "p90": 937.2000000029802,
+            "max": 946.1000000089407
+          },
+          "optimized": {
+            "n": 10,
+            "median": 817.1000000014901,
+            "p90": 828.2000000029802,
+            "max": 833.2000000029802
+          },
+          "improvementPercent": 10.376220248018084
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 911.7000000029802,
+            "p90": 937.2000000029802,
+            "max": 946.1000000089407
+          },
+          "optimized": {
+            "n": 10,
+            "median": 817.1000000014901,
+            "p90": 828.2000000029802,
+            "max": 833.2000000029802
+          },
+          "improvementPercent": 10.376220248018084
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 10,
+            "median": 904,
+            "p90": 984,
+            "max": 1004
+          },
+          "optimized": {
+            "n": 10,
+            "median": 854,
+            "p90": 864,
+            "max": 868
+          },
+          "improvementPercent": 5.530973451327434
+        },
+        "cls": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 45,
+            "p90": 45,
+            "max": 45
+          },
+          "optimized": {
+            "n": 10,
+            "median": 28,
+            "p90": 28,
+            "max": 28
+          },
+          "improvementPercent": 37.77777777777778
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 259178,
+            "p90": 259184,
+            "max": 259287
+          },
+          "optimized": {
+            "n": 10,
+            "median": 252360,
+            "p90": 252360,
+            "max": 252362
+          },
+          "improvementPercent": 2.630624512883038
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 206583,
+            "p90": 206583,
+            "max": 206583
+          },
+          "optimized": {
+            "n": 10,
+            "median": 200044,
+            "p90": 200044,
+            "max": 200044
+          },
+          "improvementPercent": 3.1653136995783777
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "optimized": {
+            "n": 10,
+            "median": 3,
+            "p90": 3,
+            "max": 3
+          },
+          "improvementPercent": 0
+        }
+      }
+    },
+    {
+      "profile": "desktop",
+      "kind": "dashboard",
+      "count": 100,
+      "scenario": "cached",
+      "required": false,
+      "passed": true,
+      "baselineFailures": 0,
+      "optimizedFailures": 0,
+      "baselinePageErrors": 0,
+      "optimizedPageErrors": 0,
+      "baselineNetworkFailures": 0,
+      "optimizedNetworkFailures": 0,
+      "regressions": [],
+      "metrics": {
+        "readyMs": {
+          "baseline": {
+            "n": 10,
+            "median": 103.69999999552965,
+            "p90": 121.70000000298023,
+            "max": 127.5
+          },
+          "optimized": {
+            "n": 10,
+            "median": 109.84999999403954,
+            "p90": 119.69999998807907,
+            "max": 121.09999999403954
+          },
+          "improvementPercent": -5.930568947709741
+        },
+        "summaryMs": {
+          "baseline": {
+            "n": 10,
+            "median": 103.69999999552965,
+            "p90": 121.70000000298023,
+            "max": 127.5
+          },
+          "optimized": {
+            "n": 10,
+            "median": 109.84999999403954,
+            "p90": 119.69999998807907,
+            "max": 121.09999999403954
+          },
+          "improvementPercent": -5.930568947709741
+        },
+        "lcpMs": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "cls": {
+          "baseline": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "optimized": {
+            "n": 0,
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "improvementPercent": null
+        },
+        "requests": {
+          "baseline": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "optimized": {
+            "n": 10,
+            "median": 1,
+            "p90": 1,
+            "max": 1
+          },
+          "improvementPercent": 0
+        },
+        "transferBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "javascriptBytes": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        },
+        "fixtureRequests": {
+          "baseline": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "optimized": {
+            "n": 10,
+            "median": 0,
+            "p90": 0,
+            "max": 0
+          },
+          "improvementPercent": null
+        }
+      }
+    }
+  ]
+}

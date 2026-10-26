@@ -1,0 +1,63 @@
+{
+  "version": "baseline",
+  "browser": "155.0.4283.62",
+  "runs": 1,
+  "profile": {
+    "mobile": {
+      "width": 390,
+      "latencyMs": 150,
+      "downloadBytesPerSecond": 200000,
+      "cpuSlowdown": 4
+    },
+    "desktop": {
+      "width": 1440,
+      "throttling": "none"
+    }
+  },
+  "protocol": "Production assets; actual homepage; real app shell/routes with synthetic auth and RPC adapters for dashboard. Cold=new context; warm=HTTP-cache reload; cached=client return. One discarded warmup per scenario. External fonts remain live and failures are retained.",
+  "results": [
+    {
+      "profile": "mobile",
+      "kind": "homepage",
+      "scenario": "cold",
+      "samples": [
+        {
+          "readyMs": 2359.7000000029802,
+          "summaryMs": null,
+          "lcpMs": 1176,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "ttfbMs": 27.799999997019768,
+          "requests": 28,
+          "transferBytes": 294159,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        }
+      ]
+    },
+    {
+      "profile": "mobile",
+      "kind": "dashboard",
+      "scenario": "cold",
+      "count": 20,
+      "samples": [
+        {
+          "readyMs": 2184.0999999940395,
+          "summaryMs": 2393.8999999910593,
+          "lcpMs": 2356,
+          "cls": 0.11058148148148148,
+          "phases": {},
+          "ttfbMs": 28.5,
+          "requests": 44,
+          "transferBytes": 207099,
+          "javascriptBytes": 154559,
+          "fixtureRequests": 3,
+          "failedRequests": 0,
+          "pageErrors": 0
+        }
+      ]
+    }
+  ]
+}

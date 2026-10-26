@@ -1,0 +1,349 @@
+{
+  "version": "optimized",
+  "browser": "155.0.4283.62",
+  "runs": 1,
+  "profile": {
+    "mobile": {
+      "width": 390,
+      "latencyMs": 150,
+      "downloadBytesPerSecond": 200000,
+      "cpuSlowdown": 4
+    },
+    "desktop": {
+      "width": 1440,
+      "throttling": "none"
+    }
+  },
+  "protocol": "Production assets; actual homepage; real app shell/routes with synthetic auth and RPC adapters for dashboard. Cold=new context; warm=HTTP-cache reload; cached=client return. One discarded warmup per scenario. External fonts remain live and failures are retained.",
+  "results": [
+    {
+      "profile": "mobile",
+      "kind": "homepage",
+      "scenario": "cold",
+      "samples": [
+        {
+          "readyMs": 2110.9000000059605,
+          "summaryMs": null,
+          "lcpMs": 1424,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 24.400000005960464,
+          "resourcePhases": [
+            {
+              "name": "index-DT8p8Gki.js",
+              "startMs": 198.40000000596046,
+              "endMs": 1198.7000000029802,
+              "durationMs": 1000.2999999970198,
+              "transferBytes": 51007
+            },
+            {
+              "name": "rolldown-runtime-QTnfLwEv.js",
+              "startMs": 198.5,
+              "endMs": 404.59999999403954,
+              "durationMs": 206.09999999403954,
+              "transferBytes": 722
+            },
+            {
+              "name": "react-runtime-CmibgiMe.js",
+              "startMs": 198.59999999403954,
+              "endMs": 1243.5,
+              "durationMs": 1044.9000000059605,
+              "transferBytes": 59342
+            },
+            {
+              "name": "useStore-Boedr2rs.js",
+              "startMs": 198.70000000298023,
+              "endMs": 733.0999999940395,
+              "durationMs": 534.3999999910593,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-C5EUS_-0.js",
+              "startMs": 198.90000000596046,
+              "endMs": 644.2000000029802,
+              "durationMs": 445.29999999701977,
+              "transferBytes": 489
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 199,
+              "endMs": 823.7999999970198,
+              "durationMs": 624.7999999970198,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 199,
+              "endMs": 824.2000000029802,
+              "durationMs": 625.2000000029802,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BJlPR0kl.js",
+              "startMs": 199.20000000298023,
+              "endMs": 928.5,
+              "durationMs": 729.2999999970198,
+              "transferBytes": 2471
+            },
+            {
+              "name": "matchContext-mSf23G2x.js",
+              "startMs": 199.20000000298023,
+              "endMs": 973.7000000029802,
+              "durationMs": 774.5,
+              "transferBytes": 448
+            },
+            {
+              "name": "startup-icons-DGjifESV.js",
+              "startMs": 199.29999999701977,
+              "endMs": 1033.2000000029802,
+              "durationMs": 833.9000000059605,
+              "transferBytes": 2071
+            },
+            {
+              "name": "routes-BipvgmQu.js",
+              "startMs": 199.40000000596046,
+              "endMs": 1033.7999999970198,
+              "durationMs": 834.3999999910593,
+              "transferBytes": 2516
+            },
+            {
+              "name": "ClubBrand-cpOO6MUR.js",
+              "startMs": 199.5,
+              "endMs": 1108.7999999970198,
+              "durationMs": 909.2999999970198,
+              "transferBytes": 704
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 199.59999999403954,
+              "endMs": 1153.7999999970198,
+              "durationMs": 954.2000000029802,
+              "transferBytes": 678
+            },
+            {
+              "name": "createLucideIcon-CEqJdPMk.js",
+              "startMs": 1488.5999999940395,
+              "endMs": 1664,
+              "durationMs": 175.40000000596046,
+              "transferBytes": 1011
+            }
+          ],
+          "requests": 26,
+          "transferBytes": 294917,
+          "javascriptBytes": 192008,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        }
+      ]
+    },
+    {
+      "profile": "mobile",
+      "kind": "dashboard",
+      "scenario": "cold",
+      "count": 20,
+      "samples": [
+        {
+          "readyMs": 2415.5,
+          "summaryMs": 2415.5,
+          "lcpMs": 2572,
+          "cls": 0.04740493827160494,
+          "phases": {},
+          "target": "/dashboard",
+          "ttfbMs": 19.399999991059303,
+          "resourcePhases": [
+            {
+              "name": "index-D7NQ6xDk.js",
+              "startMs": 218.19999998807907,
+              "endMs": 1011.1999999880791,
+              "durationMs": 793,
+              "transferBytes": 34238
+            },
+            {
+              "name": "rolldown-runtime-QTnfLwEv.js",
+              "startMs": 219.19999998807907,
+              "endMs": 427.5,
+              "durationMs": 208.30000001192093,
+              "transferBytes": 722
+            },
+            {
+              "name": "react-runtime-CmibgiMe.js",
+              "startMs": 220.3999999910593,
+              "endMs": 1392.0999999940395,
+              "durationMs": 1171.7000000029802,
+              "transferBytes": 59342
+            },
+            {
+              "name": "useStore-TA_Nmwxt.js",
+              "startMs": 221.19999998807907,
+              "endMs": 568,
+              "durationMs": 346.80000001192093,
+              "transferBytes": 7139
+            },
+            {
+              "name": "Match-B3341kOR.js",
+              "startMs": 221.79999999701977,
+              "endMs": 895.5999999940395,
+              "durationMs": 673.7999999970198,
+              "transferBytes": 15978
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 222.79999999701977,
+              "endMs": 646.3999999910593,
+              "durationMs": 423.59999999403954,
+              "transferBytes": 352
+            },
+            {
+              "name": "redirect-Dhm19zUi.js",
+              "startMs": 224.3999999910593,
+              "endMs": 758.5999999940395,
+              "durationMs": 534.2000000029802,
+              "transferBytes": 611
+            },
+            {
+              "name": "link-Bge-sUv3.js",
+              "startMs": 225.3999999910593,
+              "endMs": 852.1999999880791,
+              "durationMs": 626.7999999970198,
+              "transferBytes": 2473
+            },
+            {
+              "name": "useRouter-CE9T_0Ln.js",
+              "startMs": 226.69999998807907,
+              "endMs": 930.2999999970198,
+              "durationMs": 703.6000000089407,
+              "transferBytes": 459
+            },
+            {
+              "name": "matchContext-mSf23G2x.js",
+              "startMs": 228.09999999403954,
+              "endMs": 947.3999999910593,
+              "durationMs": 719.2999999970198,
+              "transferBytes": 448
+            },
+            {
+              "name": "startup-icons-DGjifESV.js",
+              "startMs": 229,
+              "endMs": 1042.199999988079,
+              "durationMs": 813.1999999880791,
+              "transferBytes": 2071
+            },
+            {
+              "name": "route-J3xiYJ7A.js",
+              "startMs": 229.3999999910593,
+              "endMs": 1074.5,
+              "durationMs": 845.1000000089407,
+              "transferBytes": 439
+            },
+            {
+              "name": "dashboard-CVRmEYd-.js",
+              "startMs": 229.69999998807907,
+              "endMs": 1200.199999988079,
+              "durationMs": 970.5,
+              "transferBytes": 7482
+            },
+            {
+              "name": "useServerFn-B7kmioiH.js",
+              "startMs": 230.09999999403954,
+              "endMs": 1121.5,
+              "durationMs": 891.4000000059605,
+              "transferBytes": 597
+            },
+            {
+              "name": "useQuery-CpZy2sOD.js",
+              "startMs": 230.29999999701977,
+              "endMs": 1248.5999999940395,
+              "durationMs": 1018.2999999970198,
+              "transferBytes": 3529
+            },
+            {
+              "name": "progress.functions-D_NG41pM.js",
+              "startMs": 230.79999999701977,
+              "endMs": 1232.5,
+              "durationMs": 1001.7000000029802,
+              "transferBytes": 636
+            },
+            {
+              "name": "client-pyA2OvIh.js",
+              "startMs": 231,
+              "endMs": 1280.0999999940395,
+              "durationMs": 1049.0999999940395,
+              "transferBytes": 2483
+            },
+            {
+              "name": "supabase-client-DJHidqWs.js",
+              "startMs": 231.3999999910593,
+              "endMs": 1660.0999999940395,
+              "durationMs": 1428.7000000029802,
+              "transferBytes": 50600
+            },
+            {
+              "name": "createLucideIcon-CEqJdPMk.js",
+              "startMs": 232.09999999403954,
+              "endMs": 1376.3999999910593,
+              "durationMs": 1144.2999999970198,
+              "transferBytes": 1011
+            },
+            {
+              "name": "ClubNavigation-Bx8BH5Ji.js",
+              "startMs": 1757.5,
+              "endMs": 1945.5,
+              "durationMs": 188,
+              "transferBytes": 1729
+            },
+            {
+              "name": "ClubBrand-DmwNoMgM.js",
+              "startMs": 1758.8999999910593,
+              "endMs": 1929.8999999910593,
+              "durationMs": 171,
+              "transferBytes": 703
+            },
+            {
+              "name": "AppToaster-BpxZLZZ3.js",
+              "startMs": 1763.699999988079,
+              "endMs": 1930.0999999940395,
+              "durationMs": 166.40000000596046,
+              "transferBytes": 472
+            },
+            {
+              "name": "dist-Orc-XepM.js",
+              "startMs": 1764.5,
+              "endMs": 1993.199999988079,
+              "durationMs": 228.69999998807907,
+              "transferBytes": 9436
+            },
+            {
+              "name": "getOnboardingStatus",
+              "startMs": 1827.7999999970198,
+              "endMs": 2025.2999999970198,
+              "durationMs": 197.5,
+              "transferBytes": 318
+            },
+            {
+              "name": "getDashboardCore",
+              "startMs": 2049.2999999970198,
+              "endMs": 2242.8999999910593,
+              "durationMs": 193.59999999403954,
+              "transferBytes": 1970
+            },
+            {
+              "name": "getDashboardSummary",
+              "startMs": 2053.5,
+              "endMs": 2257.7999999970198,
+              "durationMs": 204.29999999701977,
+              "transferBytes": 573
+            }
+          ],
+          "requests": 32,
+          "transferBytes": 254376,
+          "javascriptBytes": 201963,
+          "fixtureRequests": 3,
+          "failedRequests": 0,
+          "pageErrors": 0
+        }
+      ]
+    }
+  ]
+}

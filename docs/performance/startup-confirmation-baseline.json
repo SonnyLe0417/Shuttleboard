@@ -1,0 +1,1457 @@
+{
+  "version": "baseline",
+  "browser": "155.0.4283.62",
+  "runs": 10,
+  "profile": {
+    "mobile": {
+      "width": 390,
+      "latencyMs": 150,
+      "downloadBytesPerSecond": 200000,
+      "cpuSlowdown": 4
+    },
+    "desktop": {
+      "width": 1440,
+      "throttling": "none"
+    }
+  },
+  "protocol": "Production assets; actual homepage; real app shell/routes with synthetic auth and RPC adapters for dashboard. Cold=new context; warm=HTTP-cache reload; cached=client return. One discarded warmup per scenario. External fonts remain live and failures are retained.",
+  "results": [
+    {
+      "profile": "mobile",
+      "kind": "homepage",
+      "scenario": "cold",
+      "samples": [
+        {
+          "readyMs": 2176.9000000059605,
+          "summaryMs": null,
+          "lcpMs": 1204,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 11.599999994039536,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 203.5,
+              "endMs": 1314.5999999940395,
+              "durationMs": 1111.0999999940395,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 204.5,
+              "endMs": 399.90000000596046,
+              "durationMs": 195.40000000596046,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 204.90000000596046,
+              "endMs": 1438,
+              "durationMs": 1233.0999999940395,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 205.29999999701977,
+              "endMs": 736,
+              "durationMs": 530.7000000029802,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 205.5,
+              "endMs": 631.5,
+              "durationMs": 426,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 205.90000000596046,
+              "endMs": 812,
+              "durationMs": 606.0999999940395,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 206.09999999403954,
+              "endMs": 916.2000000029802,
+              "durationMs": 710.1000000089407,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 206.29999999701977,
+              "endMs": 960.9000000059605,
+              "durationMs": 754.6000000089407,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 206.59999999403954,
+              "endMs": 991.5999999940395,
+              "durationMs": 785,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 206.90000000596046,
+              "endMs": 1783.4000000059605,
+              "durationMs": 1576.5,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 207.09999999403954,
+              "endMs": 1127.2999999970198,
+              "durationMs": 920.2000000029802,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 207.29999999701977,
+              "endMs": 1159.5999999940395,
+              "durationMs": 952.2999999970198,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 207.5,
+              "endMs": 1162.5,
+              "durationMs": 955,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 207.70000000298023,
+              "endMs": 1315,
+              "durationMs": 1107.2999999970198,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 207.90000000596046,
+              "endMs": 1346.7000000029802,
+              "durationMs": 1138.7999999970198,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 208.20000000298023,
+              "endMs": 1346.9000000059605,
+              "durationMs": 1138.7000000029802,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 208.29999999701977,
+              "endMs": 1483.5999999940395,
+              "durationMs": 1275.2999999970198,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 208.59999999403954,
+              "endMs": 1483.7000000029802,
+              "durationMs": 1275.1000000089407,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294159,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2263.7999999970198,
+          "summaryMs": null,
+          "lcpMs": 1096,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 13.299999997019768,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 218.5,
+              "endMs": 1312.2999999970198,
+              "durationMs": 1093.7999999970198,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 218.8999999910593,
+              "endMs": 419.29999999701977,
+              "durationMs": 200.40000000596046,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 219.69999998807907,
+              "endMs": 1467.8999999910593,
+              "durationMs": 1248.2000000029802,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 220.3999999910593,
+              "endMs": 755.2999999970198,
+              "durationMs": 534.9000000059605,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 220.8999999910593,
+              "endMs": 650.7999999970198,
+              "durationMs": 429.90000000596046,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 221.09999999403954,
+              "endMs": 830.5,
+              "durationMs": 609.4000000059605,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 221.5,
+              "endMs": 890.5999999940395,
+              "durationMs": 669.0999999940395,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 221.69999998807907,
+              "endMs": 950.2999999970198,
+              "durationMs": 728.6000000089407,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 222.09999999403954,
+              "endMs": 996.0999999940395,
+              "durationMs": 774,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 222.29999999701977,
+              "endMs": 1813.5,
+              "durationMs": 1591.2000000029802,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 222.69999998807907,
+              "endMs": 1089.7999999970198,
+              "durationMs": 867.1000000089407,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 222.8999999910593,
+              "endMs": 1129.2999999970198,
+              "durationMs": 906.4000000059605,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 223.29999999701977,
+              "endMs": 1171.8999999910593,
+              "durationMs": 948.5999999940395,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 223.5,
+              "endMs": 1262.0999999940395,
+              "durationMs": 1038.5999999940395,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 223.8999999910593,
+              "endMs": 1310.0999999940395,
+              "durationMs": 1086.2000000029802,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 224.3999999910593,
+              "endMs": 1358.199999988079,
+              "durationMs": 1133.7999999970198,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 224.5,
+              "endMs": 1436.199999988079,
+              "durationMs": 1211.699999988079,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 225.19999998807907,
+              "endMs": 1483.699999988079,
+              "durationMs": 1258.5,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2272,
+          "summaryMs": null,
+          "lcpMs": 1204,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 15.5,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 219.40000000596046,
+              "endMs": 1315.0999999940395,
+              "durationMs": 1095.699999988079,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 220.40000000596046,
+              "endMs": 430.20000000298023,
+              "durationMs": 209.79999999701977,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 221.29999999701977,
+              "endMs": 1422.7000000029802,
+              "durationMs": 1201.4000000059605,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 221.79999999701977,
+              "endMs": 765,
+              "durationMs": 543.2000000029802,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 222.40000000596046,
+              "endMs": 656.5,
+              "durationMs": 434.09999999403954,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 224.5,
+              "endMs": 828.4000000059605,
+              "durationMs": 603.9000000059605,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 225.09999999403954,
+              "endMs": 859.4000000059605,
+              "durationMs": 634.3000000119209,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 226.09999999403954,
+              "endMs": 951,
+              "durationMs": 724.9000000059605,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 226.5,
+              "endMs": 966.2000000029802,
+              "durationMs": 739.7000000029802,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 227.09999999403954,
+              "endMs": 1750.5999999940395,
+              "durationMs": 1523.5,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 227.79999999701977,
+              "endMs": 1061,
+              "durationMs": 833.2000000029802,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 228.29999999701977,
+              "endMs": 1124.2000000029802,
+              "durationMs": 895.9000000059605,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 228.90000000596046,
+              "endMs": 1154.5999999940395,
+              "durationMs": 925.6999999880791,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 229.79999999701977,
+              "endMs": 1234.4000000059605,
+              "durationMs": 1004.6000000089407,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 230.5,
+              "endMs": 1307.0999999940395,
+              "durationMs": 1076.5999999940395,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 230.59999999403954,
+              "endMs": 1344.4000000059605,
+              "durationMs": 1113.800000011921,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 230.79999999701977,
+              "endMs": 1407.2000000029802,
+              "durationMs": 1176.4000000059605,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 230.79999999701977,
+              "endMs": 1486.2000000029802,
+              "durationMs": 1255.4000000059605,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2372,
+          "summaryMs": null,
+          "lcpMs": 1156,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 21.5,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 219.6000000089407,
+              "endMs": 1310.7000000029802,
+              "durationMs": 1091.0999999940395,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 219.90000000596046,
+              "endMs": 408.5,
+              "durationMs": 188.59999999403954,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 220.20000000298023,
+              "endMs": 1429.7000000029802,
+              "durationMs": 1209.5,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 220.6000000089407,
+              "endMs": 753,
+              "durationMs": 532.3999999910593,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 221.70000000298023,
+              "endMs": 663.7000000029802,
+              "durationMs": 442,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 223.6000000089407,
+              "endMs": 843.2000000029802,
+              "durationMs": 619.5999999940395,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 224.70000000298023,
+              "endMs": 873.8000000119209,
+              "durationMs": 649.1000000089407,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 225.40000000596046,
+              "endMs": 948,
+              "durationMs": 722.5999999940395,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 226.90000000596046,
+              "endMs": 993.1000000089407,
+              "durationMs": 766.2000000029802,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 227.90000000596046,
+              "endMs": 1803.300000011921,
+              "durationMs": 1575.4000000059605,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 228.30000001192093,
+              "endMs": 1083,
+              "durationMs": 854.6999999880791,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 228.5,
+              "endMs": 1128.1000000089407,
+              "durationMs": 899.6000000089407,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 228.90000000596046,
+              "endMs": 1174.4000000059605,
+              "durationMs": 945.5,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 229.90000000596046,
+              "endMs": 1263.2000000029802,
+              "durationMs": 1033.2999999970198,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 230.30000001192093,
+              "endMs": 1308.300000011921,
+              "durationMs": 1078,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 230.70000000298023,
+              "endMs": 1353.2000000029802,
+              "durationMs": 1122.5,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 231.20000000298023,
+              "endMs": 1445.5,
+              "durationMs": 1214.2999999970198,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 231.30000001192093,
+              "endMs": 1476.6000000089407,
+              "durationMs": 1245.2999999970198,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2202.4000000059605,
+          "summaryMs": null,
+          "lcpMs": 1200,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 18.700000002980232,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 228.40000000596046,
+              "endMs": 1339.5,
+              "durationMs": 1111.0999999940395,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 228.70000000298023,
+              "endMs": 446,
+              "durationMs": 217.29999999701977,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 229.1000000089407,
+              "endMs": 1451.4000000059605,
+              "durationMs": 1222.2999999970198,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 229.6000000089407,
+              "endMs": 777.7999999970198,
+              "durationMs": 548.1999999880791,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 230,
+              "endMs": 658.2999999970198,
+              "durationMs": 428.29999999701977,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 230.40000000596046,
+              "endMs": 838.1000000089407,
+              "durationMs": 607.7000000029802,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 230.79999999701977,
+              "endMs": 929.7000000029802,
+              "durationMs": 698.9000000059605,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 231.40000000596046,
+              "endMs": 961.7999999970198,
+              "durationMs": 730.3999999910593,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 233.5,
+              "endMs": 992.7999999970198,
+              "durationMs": 759.2999999970198,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 235.5,
+              "endMs": 1788.2000000029802,
+              "durationMs": 1552.7000000029802,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 240.90000000596046,
+              "endMs": 1133.5,
+              "durationMs": 892.5999999940395,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 241.79999999701977,
+              "endMs": 1134.7999999970198,
+              "durationMs": 893,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 242.40000000596046,
+              "endMs": 1165.7999999970198,
+              "durationMs": 923.3999999910593,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 243.79999999701977,
+              "endMs": 1324,
+              "durationMs": 1080.2000000029802,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 244.40000000596046,
+              "endMs": 1324.1000000089407,
+              "durationMs": 1079.7000000029802,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 244.79999999701977,
+              "endMs": 1355.9000000059605,
+              "durationMs": 1111.1000000089407,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 245.5,
+              "endMs": 1498.4000000059605,
+              "durationMs": 1252.9000000059605,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 246.1000000089407,
+              "endMs": 1498.7999999970198,
+              "durationMs": 1252.699999988079,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2431.9000000059605,
+          "summaryMs": null,
+          "lcpMs": 1148,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 12,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 196.40000000596046,
+              "endMs": 1299.9000000059605,
+              "durationMs": 1103.5,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 197.79999999701977,
+              "endMs": 388.29999999701977,
+              "durationMs": 190.5,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 199.5,
+              "endMs": 1408.2000000029802,
+              "durationMs": 1208.7000000029802,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 199.79999999701977,
+              "endMs": 732.9000000059605,
+              "durationMs": 533.1000000089407,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 200.20000000298023,
+              "endMs": 624.2000000029802,
+              "durationMs": 424,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 200.5,
+              "endMs": 797.7000000029802,
+              "durationMs": 597.2000000029802,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 200.70000000298023,
+              "endMs": 890.0999999940395,
+              "durationMs": 689.3999999910593,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 200.79999999701977,
+              "endMs": 937.9000000059605,
+              "durationMs": 737.1000000089407,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 201.09999999403954,
+              "endMs": 970.2000000029802,
+              "durationMs": 769.1000000089407,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 201.29999999701977,
+              "endMs": 1710.9000000059605,
+              "durationMs": 1509.6000000089407,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 201.40000000596046,
+              "endMs": 1095.5,
+              "durationMs": 894.0999999940395,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 201.59999999403954,
+              "endMs": 1121.2999999970198,
+              "durationMs": 919.7000000029802,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 201.90000000596046,
+              "endMs": 1142.5999999940395,
+              "durationMs": 940.6999999880791,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 202.09999999403954,
+              "endMs": 1266.7000000029802,
+              "durationMs": 1064.6000000089407,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 202.5,
+              "endMs": 1299.0999999940395,
+              "durationMs": 1096.5999999940395,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 202.70000000298023,
+              "endMs": 1316.5999999940395,
+              "durationMs": 1113.8999999910593,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 202.79999999701977,
+              "endMs": 1438.9000000059605,
+              "durationMs": 1236.1000000089407,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 203.09999999403954,
+              "endMs": 1471.5999999940395,
+              "durationMs": 1268.5,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2092.3999999910593,
+          "summaryMs": null,
+          "lcpMs": 1088,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 13.599999994039536,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 206.69999998807907,
+              "endMs": 1316.3999999910593,
+              "durationMs": 1109.7000000029802,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 207.29999999701977,
+              "endMs": 416,
+              "durationMs": 208.70000000298023,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 207.5,
+              "endMs": 1458.3999999910593,
+              "durationMs": 1250.8999999910593,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 207.8999999910593,
+              "endMs": 758.1999999880791,
+              "durationMs": 550.2999999970198,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 208.19999998807907,
+              "endMs": 633.6999999880791,
+              "durationMs": 425.5,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 208.3999999910593,
+              "endMs": 805.8999999910593,
+              "durationMs": 597.5,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 208.59999999403954,
+              "endMs": 929.8999999910593,
+              "durationMs": 721.2999999970198,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 208.69999998807907,
+              "endMs": 961.5,
+              "durationMs": 752.8000000119209,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 208.8999999910593,
+              "endMs": 976.6999999880791,
+              "durationMs": 767.7999999970198,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 209.09999999403954,
+              "endMs": 1791.5999999940395,
+              "durationMs": 1582.5,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 209.3999999910593,
+              "endMs": 1146.199999988079,
+              "durationMs": 936.7999999970198,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 209.59999999403954,
+              "endMs": 1146,
+              "durationMs": 936.4000000059605,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 209.79999999701977,
+              "endMs": 1162,
+              "durationMs": 952.2000000029802,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 209.8999999910593,
+              "endMs": 1317,
+              "durationMs": 1107.1000000089407,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 210.19999998807907,
+              "endMs": 1332.0999999940395,
+              "durationMs": 1121.9000000059605,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 210.3999999910593,
+              "endMs": 1348.0999999940395,
+              "durationMs": 1137.7000000029802,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 210.59999999403954,
+              "endMs": 1489.8999999910593,
+              "durationMs": 1279.2999999970198,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 210.79999999701977,
+              "endMs": 1490.0999999940395,
+              "durationMs": 1279.2999999970198,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2209.2000000029802,
+          "summaryMs": null,
+          "lcpMs": 1044,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 11.299999997019768,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 197.5,
+              "endMs": 1309.5,
+              "durationMs": 1112,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 197.70000000298023,
+              "endMs": 384.8999999910593,
+              "durationMs": 187.19999998807907,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 198.09999999403954,
+              "endMs": 1445.5,
+              "durationMs": 1247.4000000059605,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 198.29999999701977,
+              "endMs": 720.7000000029802,
+              "durationMs": 522.4000000059605,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 198.59999999403954,
+              "endMs": 613.2999999970198,
+              "durationMs": 414.70000000298023,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 198.8999999910593,
+              "endMs": 783.2000000029802,
+              "durationMs": 584.3000000119209,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 199.09999999403954,
+              "endMs": 873.8999999910593,
+              "durationMs": 674.7999999970198,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 199.29999999701977,
+              "endMs": 918.7000000029802,
+              "durationMs": 719.4000000059605,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 199.59999999403954,
+              "endMs": 965.0999999940395,
+              "durationMs": 765.5,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 199.79999999701977,
+              "endMs": 1774.7000000029802,
+              "durationMs": 1574.9000000059605,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 199.8999999910593,
+              "endMs": 1075.5,
+              "durationMs": 875.6000000089407,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 200.09999999403954,
+              "endMs": 1094,
+              "durationMs": 893.9000000059605,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 200.29999999701977,
+              "endMs": 1137.0999999940395,
+              "durationMs": 936.7999999970198,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 200.59999999403954,
+              "endMs": 1246.2999999970198,
+              "durationMs": 1045.7000000029802,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 200.70000000298023,
+              "endMs": 1278.2999999970198,
+              "durationMs": 1077.5999999940395,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 201.09999999403954,
+              "endMs": 1311,
+              "durationMs": 1109.9000000059605,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 201.29999999701977,
+              "endMs": 1414.5999999940395,
+              "durationMs": 1213.2999999970198,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 201.5,
+              "endMs": 1445.8999999910593,
+              "durationMs": 1244.3999999910593,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2105.2000000029802,
+          "summaryMs": null,
+          "lcpMs": 1188,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 18.099999994039536,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 212.20000000298023,
+              "endMs": 1330.5999999940395,
+              "durationMs": 1118.3999999910593,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 212.29999999701977,
+              "endMs": 428.29999999701977,
+              "durationMs": 216,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 212.79999999701977,
+              "endMs": 1422.3999999910593,
+              "durationMs": 1209.5999999940395,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 213.20000000298023,
+              "endMs": 752.5999999940395,
+              "durationMs": 539.3999999910593,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 213.59999999403954,
+              "endMs": 645.2999999970198,
+              "durationMs": 431.70000000298023,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 214,
+              "endMs": 816.0999999940395,
+              "durationMs": 602.0999999940395,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 214.09999999403954,
+              "endMs": 863.8999999910593,
+              "durationMs": 649.7999999970198,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 214.29999999701977,
+              "endMs": 940.2000000029802,
+              "durationMs": 725.9000000059605,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 214.8999999910593,
+              "endMs": 956.2999999970198,
+              "durationMs": 741.4000000059605,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 215.09999999403954,
+              "endMs": 1769.5999999940395,
+              "durationMs": 1554.5,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 215.5,
+              "endMs": 1060.0999999940395,
+              "durationMs": 844.5999999940395,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 215.8999999910593,
+              "endMs": 1136.0999999940395,
+              "durationMs": 920.2000000029802,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 216.29999999701977,
+              "endMs": 1136.5,
+              "durationMs": 920.2000000029802,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 216.5,
+              "endMs": 1238.5,
+              "durationMs": 1022,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 217,
+              "endMs": 1330.8999999910593,
+              "durationMs": 1113.8999999910593,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 217.59999999403954,
+              "endMs": 1331.2000000029802,
+              "durationMs": 1113.6000000089407,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 218,
+              "endMs": 1405.7000000029802,
+              "durationMs": 1187.7000000029802,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 218.29999999701977,
+              "endMs": 1495.7999999970198,
+              "durationMs": 1277.5,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        },
+        {
+          "readyMs": 2108.5999999940395,
+          "summaryMs": null,
+          "lcpMs": 1060,
+          "cls": 0.000005621438746438746,
+          "phases": {},
+          "target": "/",
+          "ttfbMs": 11.399999991059303,
+          "resourcePhases": [
+            {
+              "name": "index-B-yGw3P8.js",
+              "startMs": 201.09999999403954,
+              "endMs": 1314.2999999970198,
+              "durationMs": 1113.2000000029802,
+              "transferBytes": 51636
+            },
+            {
+              "name": "rolldown-runtime-Bh1tDfsg.js",
+              "startMs": 201.59999999403954,
+              "endMs": 385.09999999403954,
+              "durationMs": 183.5,
+              "transferBytes": 660
+            },
+            {
+              "name": "react-runtime-BNgfYwb6.js",
+              "startMs": 202.09999999403954,
+              "endMs": 1474.5,
+              "durationMs": 1272.4000000059605,
+              "transferBytes": 59341
+            },
+            {
+              "name": "useStore-BgdRJf50.js",
+              "startMs": 202.29999999701977,
+              "endMs": 733,
+              "durationMs": 530.7000000029802,
+              "transferBytes": 7139
+            },
+            {
+              "name": "useRouter-BiRcGM7U.js",
+              "startMs": 202.5,
+              "endMs": 627.3999999910593,
+              "durationMs": 424.8999999910593,
+              "transferBytes": 491
+            },
+            {
+              "name": "redirect-CaDPrkdo.js",
+              "startMs": 202.69999998807907,
+              "endMs": 795.2999999970198,
+              "durationMs": 592.6000000089407,
+              "transferBytes": 821
+            },
+            {
+              "name": "root-DLTE-HSj.js",
+              "startMs": 202.8999999910593,
+              "endMs": 898.2999999970198,
+              "durationMs": 695.4000000059605,
+              "transferBytes": 352
+            },
+            {
+              "name": "link-BFRPCk3v.js",
+              "startMs": 203.29999999701977,
+              "endMs": 942.7999999970198,
+              "durationMs": 739.5,
+              "transferBytes": 2474
+            },
+            {
+              "name": "matchContext-fk8RfpZp.js",
+              "startMs": 203.5,
+              "endMs": 973.5,
+              "durationMs": 770,
+              "transferBytes": 447
+            },
+            {
+              "name": "supabase-client-C8tKHlne.js",
+              "startMs": 203.69999998807907,
+              "endMs": 1772.2999999970198,
+              "durationMs": 1568.6000000089407,
+              "transferBytes": 52482
+            },
+            {
+              "name": "routes-nBLe__xM.js",
+              "startMs": 203.8999999910593,
+              "endMs": 1111.8999999910593,
+              "durationMs": 908,
+              "transferBytes": 2624
+            },
+            {
+              "name": "arrow-right-BuAJOc-z.js",
+              "startMs": 204,
+              "endMs": 1112.0999999940395,
+              "durationMs": 908.0999999940395,
+              "transferBytes": 455
+            },
+            {
+              "name": "arrow-up-right-CJ2l-um4.js",
+              "startMs": 204.29999999701977,
+              "endMs": 1143.0999999940395,
+              "durationMs": 938.7999999970198,
+              "transferBytes": 451
+            },
+            {
+              "name": "plus-th0XRx4a.js",
+              "startMs": 204.69999998807907,
+              "endMs": 1284.0999999940395,
+              "durationMs": 1079.4000000059605,
+              "transferBytes": 441
+            },
+            {
+              "name": "undo-2-oNKgCCAA.js",
+              "startMs": 205.19999998807907,
+              "endMs": 1299.199999988079,
+              "durationMs": 1094,
+              "transferBytes": 471
+            },
+            {
+              "name": "x-BFFRsz0h.js",
+              "startMs": 205.29999999701977,
+              "endMs": 1330.7999999970198,
+              "durationMs": 1125.5,
+              "transferBytes": 442
+            },
+            {
+              "name": "ClubBrand-Rti2lJjm.js",
+              "startMs": 205.69999998807907,
+              "endMs": 1458.5999999940395,
+              "durationMs": 1252.9000000059605,
+              "transferBytes": 708
+            },
+            {
+              "name": "badminton-rules-C7pNEXIT.js",
+              "startMs": 205.8999999910593,
+              "endMs": 1491,
+              "durationMs": 1285.1000000089407,
+              "transferBytes": 678
+            }
+          ],
+          "requests": 28,
+          "transferBytes": 294160,
+          "javascriptBytes": 191162,
+          "fixtureRequests": 0,
+          "failedRequests": 0,
+          "pageErrors": 0
+        }
+      ]
+    }
+  ]
+}

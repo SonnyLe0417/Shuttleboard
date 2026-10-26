@@ -18,6 +18,23 @@ dist-ssr
 
 # Wrangler / Cloudflare
 .wrangler/
+
+# Local credentials, CLI state and generated test caches
+.env.*
+!.env.example
+!.env.*.example
+supabase/.temp/
+.pytest_cache/
+
+# Preserve raw account attempts and large baseline snapshots locally.
+# Reviewed numeric summaries and synthetic comparison reports are versioned.
+docs/performance/startup-account-*
+docs/performance/startup-collector-*
+docs/performance/startup-baseline.json
+docs/performance/startup-optimized.json
+docs/performance/startup-baseline-source.json.gz
+docs/performance/startup-baseline-package-lock.json
+docs/performance/startup-*.md
 .tracknet-v3/
 tests/fixtures/*.mp4
 __pycache__/

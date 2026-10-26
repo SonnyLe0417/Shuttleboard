@@ -25,6 +25,8 @@ function AuthPage() {
   const [confirmationEmail, setConfirmationEmail] = useState("");
 
   useEffect(() => {
+    let active = true;
+    let navigating = false;
     const referral = new URLSearchParams(window.location.search).get("ref");
     if (referral) window.localStorage.setItem("shuttleboard.referral", referral);
     const continuePath = () => {
@@ -35,15 +37,23 @@ function AuthPage() {
       }
       return "/dashboard" as const;
     };
+    const continueOnce = () => {
+      if (!active || navigating) return;
+      navigating = true;
+      void navigate({ to: continuePath() as any });
+    };
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: continuePath() as any });
+      if (data.session) continueOnce();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((e, s) => {
       if (s && (e === "SIGNED_IN" || e === "INITIAL_SESSION")) {
-        navigate({ to: continuePath() as any });
+        continueOnce();
       }
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   async function handleEmail(e: React.FormEvent) {

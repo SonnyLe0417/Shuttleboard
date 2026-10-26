@@ -19,6 +19,7 @@ import { useSession } from "../hooks/useSession";
 import { loadBrowserSupabase } from "../lib/browser-supabase";
 import { deferredSubscription } from "../lib/deferred-subscription";
 import { LoaderCircle } from "lucide-react";
+import { sessionPreloads } from "virtual:startup-preloads";
 import { SessionRecovery } from "../components/SessionRecovery";
 import {
   TrackNetAnalysisProvider,
@@ -114,7 +115,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
@@ -134,6 +135,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      ...(import.meta.env.SSR &&
+      matches.some(
+        (match) =>
+          match.routeId.startsWith("/_authenticated") ||
+          String(match.routeId) === "/scoreboard" ||
+          String(match.routeId) === "/settings",
+      )
+        ? sessionPreloads.map((href) => ({
+            rel: "modulepreload",
+            href,
+            crossOrigin: "anonymous" as const,
+          }))
+        : []),
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/shuttleboard-icon.svg", type: "image/svg+xml" },
       { rel: "manifest", href: "/manifest.webmanifest" },

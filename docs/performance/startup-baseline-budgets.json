@@ -1,0 +1,63 @@
+{
+  "version": "baseline",
+  "routes": {
+    "/": {
+      "uncompressedInitialJavascriptBytes": 589941,
+      "assets": [
+        "ClubBrand-Rti2lJjm.js",
+        "arrow-right-BuAJOc-z.js",
+        "arrow-up-right-CJ2l-um4.js",
+        "badminton-rules-C7pNEXIT.js",
+        "index-B-yGw3P8.js",
+        "link-BFRPCk3v.js",
+        "matchContext-fk8RfpZp.js",
+        "plus-th0XRx4a.js",
+        "react-runtime-BNgfYwb6.js",
+        "redirect-CaDPrkdo.js",
+        "rolldown-runtime-Bh1tDfsg.js",
+        "root-DLTE-HSj.js",
+        "routes-nBLe__xM.js",
+        "supabase-client-C8tKHlne.js",
+        "undo-2-oNKgCCAA.js",
+        "useRouter-BiRcGM7U.js",
+        "useStore-BgdRJf50.js",
+        "x-BFFRsz0h.js"
+      ]
+    },
+    "/dashboard": {
+      "uncompressedInitialJavascriptBytes": 624213,
+      "assets": [
+        "arrow-right-BuAJOc-z.js",
+        "calendar-days-VauPTeap.js",
+        "check-D7fHNXAl.js",
+        "chevron-right-D03EL_wX.js",
+        "clock-3-CAZ_zkj4.js",
+        "dashboard-DHAUuf-t.js",
+        "flame-DJRF24Op.js",
+        "gauge-lxRwvcXD.js",
+        "history-Co_YK26A.js",
+        "index-B-yGw3P8.js",
+        "link-BFRPCk3v.js",
+        "matchContext-fk8RfpZp.js",
+        "play-L-lstlI0.js",
+        "plus-th0XRx4a.js",
+        "progress.functions-Ds78ifWy.js",
+        "react-runtime-BNgfYwb6.js",
+        "redirect-CaDPrkdo.js",
+        "rolldown-runtime-Bh1tDfsg.js",
+        "root-DLTE-HSj.js",
+        "route-DqlYpoV8.js",
+        "sparkles-DbGHezs4.js",
+        "supabase-client-C8tKHlne.js",
+        "swords-BmOQy__s.js",
+        "trophy-CPxeZPzD.js",
+        "useQuery-DDVOnXpX.js",
+        "useRouter-BiRcGM7U.js",
+        "useServerFn--21Wgwc3.js",
+        "useStore-BgdRJf50.js",
+        "users-D7LRoZfB.js",
+        "video-CpMHWJGX.js"
+      ]
+    }
+  }
+}

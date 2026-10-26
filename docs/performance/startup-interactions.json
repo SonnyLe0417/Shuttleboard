@@ -1,0 +1,33 @@
+{
+  "syntheticAccountTests": true,
+  "checks": [
+    {
+      "name": "production phone menu and real badminton deuce example",
+      "passed": true
+    },
+    {
+      "name": "production protected entry redirects signed-out visitors without hydration errors",
+      "passed": true
+    },
+    {
+      "name": "production anonymous scoring limit remains enforced",
+      "passed": true
+    },
+    {
+      "name": "onboarding blocks essential and summary requests",
+      "passed": true
+    },
+    {
+      "name": "expired synthetic session is rejected without protected requests",
+      "passed": true
+    },
+    {
+      "name": "pending invitation navigation is stable after session initialization",
+      "passed": true
+    },
+    {
+      "name": "saved goal, active-match action and analysis polling survive navigation",
+      "passed": true
+    }
+  ]
+}

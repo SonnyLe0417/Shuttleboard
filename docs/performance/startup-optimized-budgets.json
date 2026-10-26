@@ -1,0 +1,41 @@
+{
+  "version": "optimized",
+  "routes": {
+    "/": {
+      "uncompressedInitialJavascriptBytes": 388594,
+      "assets": [
+        "ClubBrand-C0WgocOa.js",
+        "badminton-rules-C7pNEXIT.js",
+        "createLucideIcon-CEqJdPMk.js",
+        "index-xaw_vGXW.js",
+        "qss-Bqk2G4CH.js",
+        "react-runtime-CmibgiMe.js",
+        "rolldown-runtime-QTnfLwEv.js",
+        "root-DLTE-HSj.js",
+        "routes-DzBxY35y.js",
+        "startup-icons-DGjifESV.js",
+        "startup-router-Bapw1sae.js"
+      ]
+    },
+    "/dashboard": {
+      "uncompressedInitialJavascriptBytes": 623144,
+      "assets": [
+        "client-CoWgtZ3m.js",
+        "createLucideIcon-CEqJdPMk.js",
+        "dashboard-BAYd8yKU.js",
+        "index-xaw_vGXW.js",
+        "progress.functions-BePM1cRn.js",
+        "qss-Bqk2G4CH.js",
+        "react-runtime-CmibgiMe.js",
+        "rolldown-runtime-QTnfLwEv.js",
+        "root-DLTE-HSj.js",
+        "route--5aYWXaL.js",
+        "startup-icons-DGjifESV.js",
+        "startup-router-Bapw1sae.js",
+        "supabase-client-CJFD4ZL7.js",
+        "useQuery-BA5vHGy6.js",
+        "useServerFn-CBScR-1z.js"
+      ]
+    }
+  }
+}

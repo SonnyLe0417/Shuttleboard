@@ -11,6 +11,9 @@ export const Route = createFileRoute("/_authenticated")({
     const user = data.session?.user;
     if (error || !user) throw redirect({ to: "/auth" });
 
+    // Static navigation code can load alongside onboarding; protected data still waits for the guard.
+    void import("@/components/layout/ClubNavigation").catch(() => undefined);
+
     if (location.pathname !== "/onboarding") {
       const status = await context.queryClient.fetchQuery({
         queryKey: ["auth", "onboarding", user.id],
