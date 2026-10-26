@@ -186,6 +186,7 @@ function VideoAnalyzerPage() {
   const tracknetPointsRef = useRef<TrackNetPoint[]>([]);
   const previewAttemptedRef = useRef(false);
   const cameraMotionRef = useRef(createCameraMotionState());
+  const lastFrameTimeRef = useRef(-1);
   const rafRef = useRef<number>(0);
   const processedJobIdRef = useRef<string | null>(null);
   const reviewedJobIdRef = useRef<string | null>(null);
@@ -673,6 +674,10 @@ function VideoAnalyzerPage() {
     const overlay = overlayRef.current;
     const work = workRef.current;
     if (!video || !overlay || !work || video.paused || video.ended) return;
+    // Animation frames outrun a 30 fps video. A repeated picture shows no
+    // motion and no camera shift, which would hide both from the checks below.
+    if (video.currentTime === lastFrameTimeRef.current) return;
+    lastFrameTimeRef.current = video.currentTime;
 
     const wctx = work.getContext("2d", { willReadFrequently: true });
     if (!wctx) return;

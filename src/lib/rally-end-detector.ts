@@ -46,6 +46,12 @@ export const MAX_SPEED_GAP_SECONDS = 0.5;
 export const DESCENT_WINDOW_SECONDS = 1;
 /** How far the shuttle must move from where the last rally ended to start a new one. */
 export const REARM_DISTANCE = 0.05;
+/**
+ * Rallies are separated by the shuttle being fetched and the next serve being
+ * set up. Play sooner than this after an end (a shuttle knocked back to the
+ * server, or swept off the court) is not a new rally.
+ */
+export const REARM_AFTER_SECONDS = 4;
 
 export function createRallyEndState(): RallyEndState {
   return {
@@ -149,7 +155,8 @@ export function updateRallyEndState(
       anchor.x === null ||
       anchor.y === null ||
       Math.hypot(sample.x - anchor.x, sample.y - anchor.y) > REARM_DISTANCE;
-    if (leftSpot && motion === "moving") {
+    const deadTimeOver = !anchor || sample.time - anchor.time >= REARM_AFTER_SECONDS;
+    if (leftSpot && deadTimeOver && motion === "moving") {
       const descending =
         state.lastVisible !== null &&
         state.lastVisible.y !== null &&
@@ -242,8 +249,9 @@ export function updateRallyEndState(
         reasons.push("The players were still moving during the possible landing.");
       }
 
+      // A stop with no fall before it (a pickup, a held serve) is not a landing.
       const event: RallyEndEvent = reasons.length
-        ? reviewEvent(sample, reasons, true, landingTime)
+        ? reviewEvent(sample, reasons, descended, landingTime)
         : { type: "confirmed-end", point: sample, reasons: [], landingSeen: true, landingTime };
       return {
         state: { ...createRallyEndState(), phase: "waiting-for-next-rally", restAnchor: sample },

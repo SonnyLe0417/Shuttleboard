@@ -84,6 +84,7 @@ test("a new hit cancels a possible point", () => {
 });
 
 test("a confirmed point locks once and the next rally can score", () => {
+  // Between rallies the shuttle lies still while the next serve is set up.
   const result = feed([
     sample(0, 0.2, 0.2),
     sample(0.2, 0.5, 0.4),
@@ -91,11 +92,11 @@ test("a confirmed point locks once and the next rally can score", () => {
     sample(0.8, 0.7, 0.6),
     sample(1.9, 0.7, 0.6),
     sample(2.1, 0.7, 0.6),
-    sample(2.4, 0.2, 0.2),
-    sample(2.6, 0.5, 0.4),
-    sample(2.8, 0.7, 0.6),
-    sample(3.2, 0.7, 0.6),
-    sample(4.3, 0.7, 0.6),
+    sample(7.4, 0.2, 0.2),
+    sample(7.6, 0.5, 0.4),
+    sample(7.8, 0.7, 0.6),
+    sample(8.2, 0.7, 0.6),
+    sample(9.3, 0.7, 0.6),
   ]);
 
   assert.equal(result.events.length, 2);
