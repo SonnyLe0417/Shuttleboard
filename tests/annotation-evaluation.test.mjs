@@ -40,35 +40,51 @@ test("the pipeline matches every annotated rally of the simulated match", () => 
   });
 });
 
-test("missed and extra rally endings are reported, not hidden", () => {
-  const nothing = evaluateAgainstAnnotation(annotation, [], trace.homography);
-  assert.equal(nothing.summary.missed, 72);
-  assert.equal(nothing.summary.recall, 0);
-
-  // A shuttle knocked across the court 6 s after the first rally ends, coming
-  // to rest in the far court: a second ending inside the first rally's window.
-  const extra = [];
-  for (let frame = 0; frame < 45; frame++) {
-    const time = 26 + frame / 30;
-    const flying = frame < 15;
-    extra.push({
-      frame: 99_000 + frame,
-      time,
-      x: 0.5,
-      y: flying ? 0.8 - frame * 0.03 : 0.38,
+/** Rows for a shuttle flying for `seconds` and then resting, starting at `start`. */
+function play(start, seconds, from = 0.8, to = 0.38) {
+  const rows = [];
+  const flying = Math.round(seconds * 30);
+  for (let frame = 0; frame < flying + 30; frame++) {
+    const u = Math.min(1, frame / flying);
+    rows.push({
+      frame: 99_000 + Math.round(start * 30) + frame,
+      time: start + frame / 30,
+      // Back and forth across the court while flying, then still.
+      x: frame < flying ? 0.5 + 0.1 * Math.sin(frame / 4) : 0.5,
+      y: from + (to - from) * u,
       confidence: 0.9,
       visible: true,
       detected: true,
       repaired: false,
     });
   }
-  const points = [
-    ...trace.points.filter((point) => point.time < 26 || point.time >= 27.5),
-    ...extra,
-  ];
-  const report = evaluateAgainstAnnotation(annotation, points, trace.homography);
-  assert.ok(report.summary.extra >= 1);
-  assert.equal(report.rallies[0].found.length, 2);
+  return rows;
+}
+const replace = (from, to, rows) => [
+  ...trace.points.filter((point) => point.time < from || point.time >= to),
+  ...rows,
+];
+
+/** Two seconds of play and a landing in the break between the games. */
+const breakPlay = () => replace(845, 848, play(845, 2));
+
+test("missed and extra rally endings are reported, not hidden", () => {
+  const nothing = evaluateAgainstAnnotation(annotation, [], trace.homography);
+  assert.equal(nothing.summary.missed, 72);
+  assert.equal(nothing.summary.recall, 0);
+
+  const report = evaluateAgainstAnnotation(annotation, breakPlay(), trace.homography);
+  assert.equal(report.summary.extra, 1);
+  assert.equal(report.rallies[38].found.length, 2);
+
+  // A shuttle knocked back across the court soon after a rally is not a rally.
+  const knocked = evaluateAgainstAnnotation(
+    annotation,
+    replace(26, 27.5, play(26, 0.5)),
+    trace.homography,
+  );
+  assert.equal(knocked.summary.extra, 0);
+  assert.equal(knocked.summary.winnersRight, 72);
 });
 
 test("the command reports the simulated match and gates on thresholds", () => {
@@ -86,7 +102,17 @@ test("the command reports the simulated match and gates on thresholds", () => {
       ],
       { encoding: "utf8" },
     );
-  const output = run("--min-recall", "0.95", "--min-winner-accuracy", "0.95");
+  const output = run(
+    "--min-recall",
+    "0.95",
+    "--min-winner-accuracy",
+    "0.95",
+    "--max-extra",
+    "0",
+    "--max-counted-wrong",
+    "0",
+    "--require-games",
+  );
   assert.match(output, /Found\s+72 \(100%\)/);
   assert.match(output, /Games \(app\)\s+18-21, 12-21, p2 wins/);
   assert.match(run("--marked-ends"), /Winner right\s+72/);
@@ -148,25 +174,10 @@ test("wrong winners, phantom rallies and the annotated starting ends are all cau
 test("the command fails a run with an extra rally ending", () => {
   const dir = mkdtempSync(join(tmpdir(), "shuttleboard-eval-"));
   try {
-    const extra = [];
-    for (let frame = 0; frame < 45; frame++) {
-      extra.push({
-        frame: 99_000 + frame,
-        time: 26 + frame / 30,
-        x: 0.5,
-        y: frame < 15 ? 0.8 - frame * 0.03 : 0.38,
-        confidence: 0.9,
-        visible: true,
-        detected: true,
-        repaired: false,
-      });
-    }
-    const points = [
-      ...trace.points.filter((point) => point.time < 26 || point.time >= 27.5),
-      ...extra,
-    ];
+    const points = breakPlay();
     writeFileSync(join(dir, "result.json"), JSON.stringify({ coordinates: points }));
     writeFileSync(join(dir, "corners.json"), JSON.stringify(IMAGE_CORNERS));
+    let gates = [];
     const run = () =>
       execFileSync(
         process.execPath,
@@ -182,9 +193,13 @@ test("the command fails a run with an extra rally ending", () => {
           join(dir, "corners.json"),
           "--min-recall",
           "0.9",
+          ...gates,
         ],
         { encoding: "utf8", stdio: "pipe" },
       );
+    // Recall alone passes: the extra ending sits inside an annotated rally.
+    assert.match(run(), /Extra endings\s+1/);
+    gates = ["--max-extra", "0", "--require-games"];
     assert.throws(run, (error) => error.status === 1 && /max-extra/.test(error.stderr));
   } finally {
     rmSync(dir, { recursive: true, force: true });

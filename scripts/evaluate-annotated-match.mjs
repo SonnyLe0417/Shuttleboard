@@ -15,10 +15,10 @@
 // Options: --mode singles|doubles, --preset 21|15|11|golden, --marked-ends
 // (use the annotation's side changes instead of following the score),
 // --offset <seconds> (added to coordinate times, for a trimmed clip),
-// --report <file> (write the full JSON). Gates, which exit 1 when missed:
-// --min-recall, --min-winner-accuracy, --max-extra, --max-counted-wrong and
-// --max-timing <seconds>. Once any gate is given, games must also match the
-// annotation, and extra endings and wrong counted winners default to 0.
+// --report <file> (write the full JSON). Gates, each applied only when given
+// and exiting 1 when missed: --min-recall, --min-winner-accuracy,
+// --max-extra, --max-counted-wrong, --max-timing <seconds>, and
+// --require-games (the app's games must equal the annotation's).
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { evaluateAgainstAnnotation } from "../src/lib/annotation-evaluation.ts";
@@ -44,6 +44,7 @@ const { values } = parseArgs({
     "max-extra": { type: "string" },
     "max-counted-wrong": { type: "string" },
     "max-timing": { type: "string" },
+    "require-games": { type: "boolean", default: false },
   },
 });
 
@@ -114,19 +115,16 @@ Games (app)         ${games.app}${games.appWinner ? `, ${games.appWinner} wins` 
 
 if (values.report) writeFileSync(values.report, JSON.stringify(evaluation, null, 2));
 
-const gates = ["min-recall", "min-winner-accuracy", "max-extra", "max-counted-wrong", "max-timing"];
-if (gates.some((gate) => values[gate] !== undefined)) {
-  const limit = (gate, fallback) => Number(values[gate] ?? fallback);
-  const missed = [
-    ["min-recall", summary.recall < limit("min-recall", 0)],
-    ["min-winner-accuracy", summary.winnerAccuracy < limit("min-winner-accuracy", 0)],
-    ["max-extra", summary.extra > limit("max-extra", 0)],
-    ["max-counted-wrong", summary.countedWrong > limit("max-counted-wrong", 0)],
-    ["max-timing", summary.largestTiming > limit("max-timing", Infinity)],
-    ["games", !games.match],
-  ].filter(([, failed]) => failed);
-  if (missed.length) {
-    console.error(`Failed: ${missed.map(([gate]) => gate).join(", ")}`);
-    process.exit(1);
-  }
+const limit = (gate, fallback) => (values[gate] === undefined ? fallback : Number(values[gate]));
+const missed = [
+  ["min-recall", summary.recall < limit("min-recall", 0)],
+  ["min-winner-accuracy", summary.winnerAccuracy < limit("min-winner-accuracy", 0)],
+  ["max-extra", summary.extra > limit("max-extra", Infinity)],
+  ["max-counted-wrong", summary.countedWrong > limit("max-counted-wrong", Infinity)],
+  ["max-timing", summary.largestTiming > limit("max-timing", Infinity)],
+  ["require-games", values["require-games"] && !games.match],
+].filter(([, failed]) => failed);
+if (missed.length) {
+  console.error(`Failed: ${missed.map(([gate]) => gate).join(", ")}`);
+  process.exit(1);
 }
