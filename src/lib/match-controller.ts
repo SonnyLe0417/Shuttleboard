@@ -160,6 +160,32 @@ export type MatchController = {
   sequence: number;
 };
 /**
+ * Which team was at the near end in a draft saved before ends were tracked.
+ * Back then nearSide was a manual "the server is at the near end" flag.
+ */
+export function nearTeamOf(state: Partial<Pick<MatchState, "nearTeam" | "nearSide" | "server">>) {
+  if (state.nearTeam === 0 || state.nearTeam === 1) return state.nearTeam;
+  const server = state.server === 1 ? 1 : 0;
+  return state.nearSide === false ? (server === 0 ? 1 : 0) : server;
+}
+
+/** Fills in what older drafts and undo snapshots lack, and re-reads the preset by id. */
+export function withEnds<T extends Partial<MatchState>>(
+  state: T,
+): T & Pick<MatchState, "nearTeam" | "rightCourt"> {
+  const rightCourt =
+    Array.isArray(state.rightCourt) && state.rightCourt.length === 2
+      ? state.rightCourt
+      : ([0, 0] as [0 | 1, 0 | 1]);
+  return {
+    ...state,
+    nearTeam: nearTeamOf(state),
+    rightCourt,
+    ...(state.preset ? { preset: findPreset(state.preset.id) } : {}),
+  };
+}
+
+/**
  * BWF doubles: the server stands in the court named by their side's score.
  * Partners only swap courts when their side wins a rally it served, so who
  * that is depends on the rally history kept in rightCourt.
@@ -327,10 +353,11 @@ export function reduceMatch(controller: MatchController, action: MatchAction): M
         effects: controller.effects.filter((effect) => effect.sequence > action.sequence),
       };
     case "restore":
+      // Drafts saved by earlier versions (in IndexedDB or localStorage) lack newer fields.
       return {
         ...controller,
-        match: action.match,
-        history: action.history?.slice(-60) ?? [],
+        match: withEnds(action.match),
+        history: (action.history ?? []).slice(-60).map(withEnds),
         effects: [],
       };
     case "undo": {
@@ -373,7 +400,7 @@ export function reduceMatch(controller: MatchController, action: MatchAction): M
       };
     }
     case "reset":
-      next = initialState(prev.preset);
+      next = initialState(findPreset(prev.preset.id));
       remember = true;
       break;
     case "name": {
@@ -425,16 +452,20 @@ export function reduceMatch(controller: MatchController, action: MatchAction): M
     case "preset": {
       const preset = findPreset(action.id);
       // A new match keeps the names and settings but none of the old match's state.
+      // Before the first rally the toss (first server and ends) also stands.
       const fresh = initialState(preset);
+      const keepToss = !matchHasStarted(prev);
+      const server = keepToss ? prev.server : fresh.server;
+      const nearTeam = keepToss ? prev.nearTeam : fresh.nearTeam;
       next = {
         ...prev,
         preset,
         score: fresh.score,
         games: fresh.games,
         completedGames: [],
-        server: fresh.server,
-        nearSide: fresh.nearSide,
-        nearTeam: fresh.nearTeam,
+        server,
+        nearSide: server === nearTeam,
+        nearTeam,
         rightCourt: fresh.rightCourt,
         declaredSide: fresh.declaredSide,
         landing: null,

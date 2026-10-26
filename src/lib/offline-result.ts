@@ -1,7 +1,7 @@
 import type { MatchState } from "./match-controller";
 import type { QueuedMatch } from "./offline-db";
 import { z } from "zod";
-import { initialState, totalMatchPoints } from "./match-controller";
+import { initialState, nearTeamOf, totalMatchPoints } from "./match-controller";
 import { findPreset } from "./badminton-rules";
 const side = z.union([z.literal(0), z.literal(1)]),
   score = z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]);
@@ -52,6 +52,7 @@ export function restoreLegacyOfflineDraft(raw: string): MatchState {
   return {
     ...initialState(preset),
     ...result.data,
+    nearTeam: nearTeamOf(result.data),
     preset,
     celebrateAt: null,
     celebrateKind: null,

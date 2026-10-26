@@ -180,3 +180,84 @@ test("drafts saved before the ends model restore with Team A at the near end", (
   assert.equal(restored.nearTeam, 0);
   assert.deepEqual(restored.rightCourt, [0, 0]);
 });
+
+/** A draft as the previous version stored it: no ends or doubles courts, an old 15-point cap. */
+function previousVersionDraft(controller) {
+  const strip = ({ nearTeam, rightCourt, ...rest }) => rest;
+  return {
+    match: { ...strip(controller.match), preset: { ...controller.match.preset, cap: 20 } },
+    history: controller.history.map(strip),
+  };
+}
+
+test("drafts saved by the previous version restore and keep scoring", () => {
+  for (const mode of ["singles", "doubles"]) {
+    let saved = createMatchController();
+    saved = reduceMatch(saved, { type: "mode", value: mode });
+    saved = reduceMatch(saved, point(1, 1));
+    saved = reduceMatch(saved, point(1, 2));
+    const old = previousVersionDraft(saved);
+    let c = reduceMatch(createMatchController(), { type: "restore", ...old });
+    if (mode === "doubles") assert.ok(doublesServe(c.match).server);
+    c = reduceMatch(c, point(0, 3));
+    assert.deepEqual(c.match.score, [1, 2]);
+    c = reduceMatch(c, { type: "undo" });
+    c = reduceMatch(c, { type: "undo" });
+    assert.deepEqual(c.match.score, [0, 1]);
+    assert.deepEqual(c.match.rightCourt, [0, 0]);
+  }
+});
+
+test("a restored draft keeps the server's end it recorded", () => {
+  // The old version: Team B serving, "near side" ticked, so Team B was at the near end.
+  const old = { ...initialState({ id: "21" }), server: 1, nearSide: true, score: [3, 5] };
+  delete old.nearTeam;
+  let c = reduceMatch(createMatchController(), { type: "restore", match: old });
+  assert.equal(c.match.nearTeam, 1);
+  c = reduceMatch(c, point(1, 1));
+  assert.equal(c.match.nearSide, true);
+  const legacy = restoreLegacyOfflineDraft(
+    JSON.stringify({
+      ...old,
+      nearSide: false,
+      server: 0,
+      preset: { id: "21" },
+      matchStartedAt: null,
+    }),
+  );
+  assert.equal(legacy.nearTeam, 1);
+});
+
+test("a restored 15-point draft and the matches after it use the 3x15 cap", () => {
+  let saved = reduceMatch(createMatchController(), { type: "preset", id: "15", at: 0 });
+  let c = reduceMatch(createMatchController(), { type: "restore", ...previousVersionDraft(saved) });
+  assert.equal(c.match.preset.cap, 21);
+  c = reduceMatch(c, { type: "reset" });
+  for (let i = 0; i < 20; i++) {
+    c = reduceMatch(c, point(0, 10 + i * 2));
+    c = reduceMatch(c, point(1, 11 + i * 2));
+  }
+  // 20-all: the old cap would already have ended the game at 20-19.
+  assert.deepEqual(c.match.score, [20, 20]);
+  c = reduceMatch(c, point(0, 100));
+  assert.deepEqual(c.match.completedGames, [{ a: 21, b: 20 }]);
+});
+
+test("choosing a preset before the first rally keeps the toss", () => {
+  let c = createMatchController();
+  c = reduceMatch(c, { type: "firstServer", team: 1 });
+  c = reduceMatch(c, { type: "preset", id: "15", at: 1 });
+  assert.equal(c.match.server, 1);
+  assert.equal(c.match.nearSide, false);
+});
+
+test("every point is a rally for the saved total, timed or not", () => {
+  let c = reduceMatch(createMatchController(), { type: "preset", id: "golden", at: 0 });
+  for (let at = 1; !c.match.matchOver; at++) c = reduceMatch(c, point(at % 3 ? 0 : 1, at));
+  assert.equal(c.match.rallyHistory.length, 0);
+  assert.equal(
+    completedOfflineMatch("owner", "id", c.match).payload.total_rallies,
+    totalMatchPoints(c.match),
+  );
+  assert.ok(totalMatchPoints(c.match) >= 21);
+});

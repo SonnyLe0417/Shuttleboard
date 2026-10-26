@@ -742,7 +742,7 @@ function ScoreboardPage({ owner }: { owner: string | null }) {
                   {([0, 1] as const).map((team) => (
                     <ToggleButton
                       key={team}
-                      selected={state.server === team}
+                      selected={!matchHasStarted(state) && state.server === team}
                       disabled={matchHasStarted(state)}
                       onClick={() => setFirstServer(team)}
                     >

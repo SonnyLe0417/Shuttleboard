@@ -20,6 +20,7 @@ import {
   MATCH_DRAFT_KEY,
   type MatchState,
   doublesServe,
+  nearTeamOf,
   type CompletedGame,
   type Snapshot,
 } from "@/lib/match-controller";
@@ -54,6 +55,8 @@ export function useBadmintonMatch(managed = false) {
         const restored: MatchState = {
           ...initialState(preset),
           ...parsed,
+          // Drafts from before ends were tracked keep the server's end they recorded.
+          nearTeam: nearTeamOf(parsed),
           preset,
           score:
             Array.isArray(parsed.score) && parsed.score.length === 2
