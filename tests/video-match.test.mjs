@@ -12,6 +12,8 @@ import {
 } from "../src/lib/video-match.ts";
 import { correctRally, excludeRally, setRallyReviewStatus } from "../src/lib/analysis-results.ts";
 import { traceFromAnnotation } from "./fixtures/annotation-trace.mjs";
+import { replayMatch } from "../src/lib/match-timeline.ts";
+import { threeGameWinners } from "./fixtures/three-game-match.mjs";
 
 const annotation = loadMatchAnnotation(
   JSON.parse(readFileSync(new URL("./fixtures/singles-match-1.json", import.meta.url), "utf8")),
@@ -185,6 +187,38 @@ test("serve ends read wrongly from a low camera stop counting as evidence", () =
   ]);
   assert.deepEqual(once.ignoredServeEnds, []);
   assert.equal(once.rallies[0].countsTowardScore, false);
+});
+
+test("an unsure landing that is not a line or net call stays in review when the serve agrees", () => {
+  const match = resolveVideoMatch([
+    landed(1, 10, "near", true, {
+      countsTowardScore: false,
+      needsReview: true,
+      landingAmbiguous: false,
+      reviewReasons: ["AI confidence is low."],
+    }),
+    // In court at the near end gives the rally to p2, who is far and serves next.
+    landed(2, 30, "far", true, { startT: 20, serveEnd: "far" }),
+  ]);
+  assert.equal(match.rallies[0].winner, "p2");
+  assert.equal(match.rallies[0].countsTowardScore, false);
+  assert.match(match.rallies[0].reviewReasons.join(" "), /confidence is low/);
+});
+
+test("landings in a deciding game follow the change of ends at 11", () => {
+  const winners = threeGameWinners();
+  const steps = replayMatch(winners.map((winner) => ({ winner }))).steps;
+  // Every rally ends in court at the loser's end.
+  const rallies = winners.map((winner, index) =>
+    landed(index + 1, 10 + index * 10, steps[index].near === winner ? "far" : "near", true),
+  );
+  const match = resolveVideoMatch(rallies);
+  assert.equal(formatGameScores(match.timeline.games), "21-19, 0-21, 21-15");
+  assert.deepEqual(
+    match.rallies.map((rally) => rally.winner),
+    winners,
+  );
+  assert.equal(match.rallies[82].near, "p2");
 });
 
 test("a line call the next serve agrees with is settled", () => {

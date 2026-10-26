@@ -10,6 +10,7 @@ import {
 } from "../src/lib/match-annotation.ts";
 import { formatGameScores, replayMatch } from "../src/lib/match-timeline.ts";
 import { PRESETS } from "../src/lib/badminton-rules.ts";
+import { threeGameWinners } from "./fixtures/three-game-match.mjs";
 
 const raw = JSON.parse(
   readFileSync(new URL("./fixtures/singles-match-1.json", import.meta.url), "utf8"),
@@ -156,4 +157,18 @@ test("the description conflicts are pinned so new ones are noticed", () => {
   });
   assert.deepEqual(conflicts, [33, 54]);
   assert.equal(raw.reviewNotes.length, 3);
+});
+
+test("a three-game match changes ends after each game and once at 11 in the deciding game", () => {
+  const timeline = replayMatch(threeGameWinners().map((winner) => ({ winner })));
+  assert.equal(formatGameScores(timeline.games), "21-19, 0-21, 21-15");
+  assert.equal(timeline.matchWinner, "p1");
+  const changes = timeline.steps.flatMap((step, index) => (step.changedEnds ? [index] : []));
+  // After game 1 (rally 40), after game 2 (rally 61) and at 11-10 in game 3 (rally 82).
+  assert.deepEqual(changes, [39, 60, 81]);
+  assert.deepEqual(timeline.steps[81].scoreAfter, { p1: 11, p2: 10 });
+  assert.deepEqual(
+    [0, 40, 61, 82].map((index) => timeline.steps[index].near),
+    ["p1", "p2", "p1", "p2"],
+  );
 });
