@@ -1,0 +1,183 @@
+{
+  "base": "738c9dacf4e85184a0f3d3559e4b8c9f76c95a87",
+  "branch": "codex/offline-scoring-and-reviewed-fixes",
+  "groups": [
+    {
+      "message": "Fix account boundaries, match correctness and durable offline scoring",
+      "paths": [
+        "package.json",
+        "package-lock.json",
+        "public/sw.js",
+        "src/components/BadmintonMatchProvider.tsx",
+        "src/components/profile/ProfilePage.tsx",
+        "src/components/badminton/OfflineScoreboardPanel.tsx",
+        "src/hooks/useBadmintonMatch.ts",
+        "src/hooks/useDurableScoreboard.ts",
+        "src/hooks/useMessageHistory.ts",
+        "src/lib/dashboard-model.ts",
+        "src/lib/growth.functions.ts",
+        "src/lib/matches.functions.ts",
+        "src/lib/progress.server.ts",
+        "src/lib/social.functions.ts",
+        "src/lib/durable-match-controller.ts",
+        "src/lib/invitations.server.ts",
+        "src/lib/match-controller.ts",
+        "src/lib/match-save.server.ts",
+        "src/lib/message-history.ts",
+        "src/lib/notification-jobs.server.ts",
+        "src/lib/notification-worker.server.ts",
+        "src/lib/offline-account.ts",
+        "src/lib/offline-db.ts",
+        "src/lib/offline-prepare.functions.ts",
+        "src/lib/offline-prepare.ts",
+        "src/lib/offline-result.ts",
+        "src/lib/offline-sync.ts",
+        "src/lib/public-profile-stats.server.ts",
+        "src/lib/vision-access.server.ts",
+        "src/lib/vision-request.ts",
+        "src/routes/_authenticated/ai.tsx",
+        "src/routes/_authenticated/match-lobby.tsx",
+        "src/routes/_authenticated/social.tsx",
+        "src/routes/_authenticated/video.tsx",
+        "src/routes/api/ai-vision.ts",
+        "src/routes/api/public/hooks/notifications.ts",
+        "src/routes/scoreboard.tsx",
+        "src/routes/settings.tsx",
+        "src/client.tsx",
+        "src/offline-entry.tsx",
+        "scripts/check-bugfix-build.mjs",
+        "scripts/offline-scoreboard-build.ts",
+        "supabase/migrations/20261025183506_secure_ai_and_invitation_transactions.sql",
+        "tests/database/.gitignore",
+        "tests/database/run-local.mjs",
+        "tests/database/verify.mjs",
+        "tests/database/offline-checks.mjs",
+        "tests/database/local/supabase/config.toml",
+        "tests/database/local/supabase/.gitignore",
+        "tests/dashboard-performance.test.mjs",
+        "tests/fixtures/load-runtime.mjs",
+        "tests/fixtures/match-controller-browser.mjs",
+        "tests/fixtures/offline-storage.mjs",
+        "tests/invitation-boundary.test.mjs",
+        "tests/match-controller-browser.test.mjs",
+        "tests/match-controller.test.mjs",
+        "tests/message-functions.test.mjs",
+        "tests/message-history.test.mjs",
+        "tests/notification-jobs.test.mjs",
+        "tests/offline-access.test.mjs",
+        "tests/offline-browser.test.mjs",
+        "tests/offline-save-boundary.test.mjs",
+        "tests/offline-scoring.test.mjs",
+        "tests/offline-storage-browser.test.mjs",
+        "tests/offline-worker.test.mjs",
+        "tests/result-statistics.test.mjs",
+        "tests/vision-access.test.mjs",
+        "tests/vision-route.test.mjs",
+        "docs/bugfix-rollout.md",
+        "docs/offline-scoring.md",
+        "docs/database-advisors-2026-10-25.json",
+        "src/routes/__root.tsx",
+        "vite.config.ts",
+        "docs/release-review-2026-10-25.md",
+        "docs/release-file-manifest-2026-10-25.json",
+        "docs/release-selected-hunks-2026-10-25.patch"
+      ],
+      "selectedHunks": [
+        "src/routes/__root.tsx",
+        "vite.config.ts"
+      ]
+    },
+    {
+      "message": "Review startup preloads and preserve benchmark outputs",
+      "paths": [
+        ".gitignore",
+        "eslint.config.js",
+        "src/routes/__root.tsx",
+        "src/routes/auth.tsx",
+        "src/routes/_authenticated/route.tsx",
+        "vite.config.ts",
+        "src/startup-assets.d.ts",
+        "scripts/startup-preloads.ts",
+        "tests/benchmark-output.test.mjs",
+        "benchmarks/startup/README.md",
+        "benchmarks/startup/account-report.mjs",
+        "benchmarks/startup/budget.mjs",
+        "benchmarks/startup/capture.mjs",
+        "benchmarks/startup/output.mjs",
+        "benchmarks/startup/report.mjs",
+        "benchmarks/startup/run.mjs",
+        "benchmarks/startup/session.ts",
+        "benchmarks/startup/statistics.mjs",
+        "benchmarks/startup/verify.mjs",
+        "benchmarks/startup/vite.config.mjs",
+        "docs/performance/startup-baseline-budgets.json",
+        "docs/performance/startup-comparison.json",
+        "docs/performance/startup-confirmation-baseline.json",
+        "docs/performance/startup-confirmation-optimized.json",
+        "docs/performance/startup-interactions.json",
+        "docs/performance/startup-optimized-budgets.json",
+        "docs/performance/startup-smoke-baseline.json",
+        "docs/performance/startup-smoke-optimized.json",
+        "docs/performance/startup-source-baseline.json"
+      ]
+    },
+    {
+      "message": "Add bounded development dashboard timing diagnostics",
+      "paths": [
+        "src/lib/dashboard-live-metrics.ts",
+        "src/lib/dashboard.functions.ts",
+        "src/lib/dashboard.server.ts",
+        "src/lib/dashboard-capture.client.ts",
+        "src/lib/dashboard-capture.ts",
+        "src/lib/dashboard-timing.server.ts",
+        "src/lib/dashboard-timing.ts",
+        "tests/dashboard-capture-browser.test.mjs",
+        "tests/dashboard-capture.test.mjs",
+        "tests/dashboard-timing.test.mjs",
+        "benchmarks/dashboard/capture-report.mjs",
+        "docs/performance/README.md",
+        "docs/performance/dashboard-summary-capture-summary.json",
+        "docs/performance/dashboard-summary-capture.json",
+        "docs/performance/dashboard-summary-capture.md",
+        "docs/performance/dashboard-summary-investigation.json",
+        "docs/performance/dashboard-summary-investigation.md"
+      ]
+    },
+    {
+      "message": "Complete singles rally annotations and validate fixture JSON",
+      "paths": [
+        "tests/fixtures/singles-match-1.json",
+        "tests/scoring-fixture.test.mjs"
+      ]
+    },
+    {
+      "message": "Document combined validation and reviewed publication scope",
+      "paths": [
+        "docs/performance/combined-review-2026-10-25.md",
+        "docs/combined-publication-manifest-2026-10-25.json"
+      ]
+    }
+  ],
+  "validation": {
+    "javascript": {
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0
+    },
+    "python": {
+      "passed": 99
+    },
+    "productionBuild": "passed",
+    "typecheck": "passed",
+    "lint": "0 errors; 3 existing warnings",
+    "routes": 7,
+    "realLocalDatabase": "passed",
+    "advisors": {
+      "errors": 0,
+      "warnings": 37,
+      "info": 34
+    }
+  },
+  "rollout": "Not deployed; migration and scheduler coordination still require separate authorization.",
+  "privacy": "Raw account records, collector attempts, large matrices, source archives, credentials and generated files remain local/ignored."
+}
