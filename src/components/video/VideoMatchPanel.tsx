@@ -76,6 +76,13 @@ export function VideoMatchPanel({
           {match.confirmed.map((game) => `${game.p1}–${game.p2}`).join(", ") || "none"}.
         </p>
       )}
+      {match.ignoredServeEnds.length > 0 && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Serves read as coming from the {match.ignoredServeEnds.join(" and ")} end kept
+          contradicting clear landings, so they are not used as evidence. This happens when the
+          camera is low.
+        </p>
+      )}
 
       <div className="mt-4 grid gap-3 text-xs sm:grid-cols-3">
         <label className="block">

@@ -89,10 +89,21 @@ export interface VideoMatch {
   pending: number;
   /** Who is at the near end now, after the last rally, honouring marked changes of ends. */
   near: PlayerId;
+  /** Serve ends that kept contradicting clear landings, so they were not used. */
+  ignoredServeEnds: CourtEnd[];
 }
 
 const other = (player: PlayerId): PlayerId => (player === "p1" ? "p2" : "p1");
+const opposite = (end: CourtEnd): CourtEnd => (end === "near" ? "far" : "near");
 const name = (player: PlayerId) => (player === "p1" ? "Player 1" : "Player 2");
+
+// Which end served is read from where the held shuttle projects onto the
+// floor. From a low camera a near server's shuttle can project past the net
+// and read as a far serve, every time. A reading that keeps contradicting clear
+// landings (the winner serves next) is dropped for the whole video. Each change
+// of ends contradicts once honestly, hence the allowance.
+const SERVE_CHECK_MIN_CONTRADICTIONS = 3;
+const SERVE_CHECK_MAX_CONTRADICTION_RATE = 1 / 3;
 
 /**
  * The rally list is the record; winners, games and ends are derived from it on
@@ -118,6 +129,7 @@ export function resolveVideoMatch(
 
   const ordered = [...rallies].sort((a, b) => a.t - b.t || a.id - b.id);
   const inPlay = ordered.filter((rally) => !rally.excluded);
+  const ignoredServeEnds = unreliableServeEnds(inPlay);
   // Games and ends follow the best reading of every rally with evidence, so a
   // rally waiting for review neither delays the change of ends (and with it
   // the players on every later rally) nor moves a game into the next one.
@@ -152,7 +164,7 @@ export function resolveVideoMatch(
     const visionWinner = rally.aiWinnerEnd ? owner(rally.aiWinnerEnd) : null;
     const seenWinner = visionWinner ?? landingWinner;
     const following = inPlay[inPlay.indexOf(rally) + 1];
-    const serveWinner = nextServer(state, rally, following, nearAt);
+    const serveWinner = nextServer(state, rally, following, nearAt, ignoredServeEnds);
     const seenBy = visionWinner ? "vision check" : "landing";
 
     const reasons = [...(rally.reviewReasons ?? [])];
@@ -233,7 +245,34 @@ export function resolveVideoMatch(
     confirmed,
     pending,
     near: nearAt(state, last ? last.t + 1 : 0),
+    ignoredServeEnds,
   };
+}
+
+/** The end whose player won, when the rally says so without the next serve. */
+function plainWinnerEnd(rally: AnalysisRally): CourtEnd | null {
+  if (rally.reviewerWinnerEnd) return rally.reviewerWinnerEnd;
+  if (rally.aiWinnerEnd) return rally.aiWinnerEnd;
+  const clean = rally.reviewerCall || (!rally.landingAmbiguous && !rally.reviewReasons?.length);
+  if (rally.landingSeen === false || !rally.landingEnd || !clean) return null;
+  return rally.inBounds ? opposite(rally.landingEnd) : rally.landingEnd;
+}
+
+/** Serve-end readings that disagree with clear landings too often to be evidence. */
+function unreliableServeEnds(inPlay: readonly AnalysisRally[]): CourtEnd[] {
+  const tally = { near: { agree: 0, contradict: 0 }, far: { agree: 0, contradict: 0 } };
+  inPlay.forEach((rally, index) => {
+    const reading = inPlay[index + 1]?.serveEnd;
+    const winnerEnd = plainWinnerEnd(rally);
+    if (reading && winnerEnd) tally[reading][reading === winnerEnd ? "agree" : "contradict"]++;
+  });
+  return (["near", "far"] as const).filter((end) => {
+    const { agree, contradict } = tally[end];
+    return (
+      contradict >= SERVE_CHECK_MIN_CONTRADICTIONS &&
+      contradict > (agree + contradict) * SERVE_CHECK_MAX_CONTRADICTION_RATE
+    );
+  });
 }
 
 /**
@@ -246,8 +285,10 @@ function nextServer(
   rally: AnalysisRally,
   following: AnalysisRally | undefined,
   nearAt: (state: TimelineState, time: number) => PlayerId,
+  ignored: readonly CourtEnd[],
 ): PlayerId | null {
-  if (!following?.serveEnd || state.matchWinner) return null;
+  if (!following?.serveEnd || ignored.includes(following.serveEnd) || state.matchWinner)
+    return null;
   const consistent = (["p1", "p2"] as const).filter((winner) => {
     const after = advanceTimeline(state, winner).state;
     const near = nearAt(after, following.startT ?? following.t);

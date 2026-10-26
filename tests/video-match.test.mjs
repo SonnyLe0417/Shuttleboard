@@ -36,6 +36,8 @@ test("the annotated match is found as one rally ending per annotated rally", () 
 
 test("the video scores the annotated match as p2 winning 21-18, 21-12", () => {
   const match = resolveVideoMatch(built);
+  // Every serve end in the simulated match is read right, changes of ends aside.
+  assert.deepEqual(match.ignoredServeEnds, []);
   assert.equal(formatGameScores(match.timeline.games), "18-21, 12-21");
   assert.equal(match.timeline.matchWinner, "p2");
   assert.deepEqual(match.timeline.gamesWon, { p1: 0, p2: 2 });
@@ -157,6 +159,32 @@ test("a landing that the next serve contradicts goes to review", () => {
   assert.equal(match.rallies[0].winner, "p2");
   assert.equal(match.rallies[0].countsTowardScore, false);
   assert.match(match.rallies[0].reviewReasons.join(" "), /Player 1 served next/);
+});
+
+test("serve ends read wrongly from a low camera stop counting as evidence", () => {
+  // Every serve reads as a far-end serve, as when a near server's raised
+  // shuttle projects past the net. p1 (near) wins every other rally.
+  const rallies = [];
+  for (let i = 0; i < 12; i++) {
+    const p1Won = i % 2 === 0;
+    rallies.push(
+      landed(i + 1, 10 + i * 20, p1Won ? "far" : "near", true, {
+        startT: 2 + i * 20,
+        serveEnd: i === 0 ? undefined : "far",
+      }),
+    );
+  }
+  const match = resolveVideoMatch(rallies);
+  assert.deepEqual(match.ignoredServeEnds, ["far"]);
+  assert.ok(match.rallies.every((rally) => rally.countsTowardScore));
+  assert.equal(match.score.p1, 6);
+  // A single contradiction is still sent to review.
+  const once = resolveVideoMatch([
+    landed(1, 10, "near", true),
+    landed(2, 30, "far", true, { startT: 20, serveEnd: "near" }),
+  ]);
+  assert.deepEqual(once.ignoredServeEnds, []);
+  assert.equal(once.rallies[0].countsTowardScore, false);
 });
 
 test("a line call the next serve agrees with is settled", () => {
