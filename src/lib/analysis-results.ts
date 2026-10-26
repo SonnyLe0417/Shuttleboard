@@ -1,5 +1,6 @@
 import type { TrackNetPoint } from "./tracknet-client";
 import { isDirectTrackNetDetection, type TrackNetFrameDiagnostics } from "./tracknet-evidence";
+import { COURT, COURT_LENGTH_M, COURT_WIDTH_M, type CourtEnd, type GameMode } from "./badminton";
 
 export type ShotType = "unknown" | "smash" | "clear" | "drop" | "drive" | "lift" | "net";
 export type RallyReviewStatus = "needs-review" | "confirmed" | "corrected";
@@ -24,6 +25,24 @@ export interface AnalysisRally {
   reviewStatus?: RallyReviewStatus;
   shotType?: ShotType;
   manuallyCorrected?: boolean;
+  /** When the rally was served (its first fast flight), if seen. */
+  startT?: number;
+  /** End of the court the shuttle came to rest on; missing when no landing was seen. */
+  landingEnd?: CourtEnd;
+  landingSeen?: boolean;
+  /** Only a line or the net makes the call uncertain, so a matching next serve settles it. */
+  landingAmbiguous?: boolean;
+  /** Which end served this rally, when the serve position was clear. */
+  serveEnd?: CourtEnd;
+  /** The reviewer chose the winner, so evidence no longer changes it. */
+  winnerLocked?: boolean;
+  /** The reviewer chose whether the rally counts. */
+  countLocked?: boolean;
+  /** Filled in by the match timeline. */
+  decidedBy?: "landing" | "next serve" | "landing and next serve" | "reviewer";
+  game?: number;
+  scoreAfter?: AnalysisScore;
+  afterMatch?: boolean;
 }
 
 export interface AnalysisScore {
@@ -54,40 +73,54 @@ export function averageTrackNetConfidence(points: TrackNetPoint[] = []) {
   );
 }
 
-export function scoreAfterWinnerCorrection(
-  score: AnalysisScore,
-  previousWinner: "p1" | "p2",
-  nextWinner: "p1" | "p2",
-) {
-  if (previousWinner === nextWinner) return score;
-  return {
-    p1: score.p1 + (nextWinner === "p1" ? 1 : -1),
-    p2: score.p2 + (nextWinner === "p2" ? 1 : -1),
-  };
-}
-
-export function applyRallyCorrection(
-  rallies: AnalysisRally[],
-  score: AnalysisScore,
-  id: number,
-  patch: AnalysisRallyPatch,
-) {
-  const previous = rallies.find((rally) => rally.id === id);
-  if (!previous) return { rallies, score };
-
-  return {
-    rallies: rallies.map((rally) =>
-      rally.id === id ? { ...rally, ...patch, manuallyCorrected: true } : rally,
-    ),
-    score:
-      patch.winner && patch.winner !== previous.winner && rallyCountsTowardScore(previous)
-        ? scoreAfterWinnerCorrection(score, previous.winner, patch.winner)
-        : score,
-  };
+/**
+ * Applies a reviewer's correction. Choosing a winner pins it. Marking a
+ * landing in or out lets the in/out rule decide again, which hands the rally
+ * to the other player at the same spot. A shot label is only a label.
+ */
+export function correctRally(rallies: AnalysisRally[], id: number, patch: AnalysisRallyPatch) {
+  return rallies.map((rally) => {
+    if (rally.id !== id) return rally;
+    const next = { ...rally, ...patch };
+    if (patch.winner === undefined && patch.inBounds === undefined) return next;
+    if (patch.winner !== undefined) {
+      next.winnerLocked = true;
+    } else if (patch.inBounds !== rally.inBounds) {
+      next.winnerLocked = false;
+      // Without a recorded landing end, flip the stored winner directly.
+      if (!rally.landingEnd) next.winner = rally.winner === "p1" ? "p2" : "p1";
+    }
+    next.manuallyCorrected = true;
+    next.reviewStatus = rallyCountsTowardScore(rally) ? "corrected" : "needs-review";
+    return next;
+  });
 }
 
 export function getDownloadFileName() {
   return "tracknet_predict.mp4";
+}
+
+const LINE_BAND_M = 0.15;
+const NET_BAND_M = 0.6;
+// Further out than this the shuttle was more likely knocked or carried there.
+const FAR_OUT_M = 2;
+
+/** Landings where tracking error could change the call, measured on the real court. */
+export function landingAmbiguityReasons(courtX: number, courtY: number, mode: GameMode) {
+  const reasons: string[] = [];
+  const side = mode === "singles" ? COURT.singlesSideline : 0;
+  const dx = Math.min(Math.abs(courtX - side), Math.abs(courtX - (1 - side))) * COURT_WIDTH_M;
+  const dy = Math.min(Math.abs(courtY), Math.abs(courtY - 1)) * COURT_LENGTH_M;
+  if (Math.min(dx, dy) < LINE_BAND_M) reasons.push("The landing is on or near a boundary line.");
+  const outX = Math.max(side - courtX, courtX - (1 - side), 0) * COURT_WIDTH_M;
+  const outY = Math.max(-courtY, courtY - 1, 0) * COURT_LENGTH_M;
+  if (Math.hypot(outX, outY) > FAR_OUT_M) {
+    reasons.push("The shuttle stopped far outside the court.");
+  }
+  if (Math.abs(courtY - COURT.center) * COURT_LENGTH_M < NET_BAND_M) {
+    reasons.push("The landing is close to the net, so which side it fell on is uncertain.");
+  }
+  return reasons;
 }
 
 export function getRallyReviewReasons(
@@ -95,6 +128,7 @@ export function getRallyReviewReasons(
     AnalysisRally,
     "aiConfidence" | "evidenceFrames" | "offCamera" | "landingCourtX" | "landingCourtY"
   >,
+  mode: GameMode = "singles",
 ) {
   const reasons: string[] = [];
   if (rally.aiConfidence < 0.75) reasons.push("AI confidence is low.");
@@ -102,12 +136,9 @@ export function getRallyReviewReasons(
     reasons.push("The landing evidence is short.");
   }
   if (rally.offCamera) reasons.push("The shuttle left the camera view before a clear landing.");
-  const nearBoundary =
-    rally.landingCourtX < 0.05 ||
-    rally.landingCourtX > 0.95 ||
-    rally.landingCourtY < 0.05 ||
-    rally.landingCourtY > 0.95;
-  if (nearBoundary) reasons.push("The landing is close to a court boundary.");
+  if (Number.isFinite(rally.landingCourtX) && Number.isFinite(rally.landingCourtY)) {
+    reasons.push(...landingAmbiguityReasons(rally.landingCourtX, rally.landingCourtY, mode));
+  }
   return reasons;
 }
 
@@ -161,18 +192,24 @@ export function reviewFilterMatches(
   return status === filter;
 }
 
+/** The reviewer decides whether a rally counts. Confirming keeps the winner shown. */
 export function setRallyReviewStatus(
   rallies: AnalysisRally[],
   id: number,
   status: RallyReviewStatus,
+  shownWinner?: AnalysisRally["winner"],
 ) {
   return rallies.map((rally) =>
     rally.id === id
       ? {
           ...rally,
+          ...(status === "confirmed" && shownWinner
+            ? { winner: shownWinner, winnerLocked: true }
+            : {}),
           reviewStatus: status,
           needsReview: status === "needs-review",
           countsTowardScore: status !== "needs-review",
+          countLocked: true,
         }
       : rally,
   );

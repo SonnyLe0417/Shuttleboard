@@ -2,16 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   EMPTY_RALLIES_MESSAGE,
-  applyRallyCorrection,
   averageTrackNetConfidence,
+  correctRally,
   countTrackNetDetections,
   formatAnalysisTime,
   getDownloadFileName,
   getRallyReviewReasons,
   rallyNeedsReview,
   reviewFilterMatches,
+  scoreFromRallies,
   setRallyReviewStatus,
 } from "../src/lib/analysis-results.ts";
+import { COURT } from "../src/lib/badminton.ts";
 import {
   VIDEO_ANALYSIS_SESSION_KEY,
   clearVideoAnalysisSession,
@@ -27,7 +29,7 @@ function rally(id, winner = "p1", inBounds = true) {
     landingImgX: 10,
     landingImgY: 20,
     landingCourtX: 0.5,
-    landingCourtY: 0.5,
+    landingCourtY: 0.25,
     inBounds,
     winner,
     aiConfidence: 0.9,
@@ -64,25 +66,35 @@ test("no rallies has a clear empty message", () => {
   assert.match(EMPTY_RALLIES_MESSAGE, /No rallies scored yet/);
 });
 
-test("correcting a winner updates the score once", () => {
-  const result = applyRallyCorrection([rally(1, "p1")], { p1: 1, p2: 0 }, 1, {
-    winner: "p2",
-  });
-
-  assert.equal(result.rallies[0].winner, "p2");
-  assert.deepEqual(result.score, { p1: 0, p2: 1 });
-
-  const repeated = applyRallyCorrection(result.rallies, result.score, 1, { winner: "p2" });
-  assert.deepEqual(repeated.score, { p1: 0, p2: 1 });
+test("correcting a winner updates the score once and pins the winner", () => {
+  const corrected = correctRally([rally(1, "p1")], 1, { winner: "p2" });
+  assert.equal(corrected[0].winner, "p2");
+  assert.equal(corrected[0].winnerLocked, true);
+  assert.equal(corrected[0].reviewStatus, "corrected");
+  assert.deepEqual(scoreFromRallies(corrected), { p1: 0, p2: 1 });
+  const repeated = correctRally(corrected, 1, { winner: "p2" });
+  assert.deepEqual(scoreFromRallies(repeated), { p1: 0, p2: 1 });
 });
 
-test("marking a rally IN or OUT updates its display value", () => {
-  const result = applyRallyCorrection([rally(1, "p1", true)], { p1: 1, p2: 0 }, 1, {
+test("marking a rally IN or OUT hands it to the other player", () => {
+  // With the landing end recorded, the in/out rule decides the winner again.
+  const recorded = correctRally([{ ...rally(1, "p2", true), landingEnd: "near" }], 1, {
     inBounds: false,
   });
+  assert.equal(recorded[0].inBounds, false);
+  assert.equal(recorded[0].winnerLocked, false);
+  assert.equal(recorded[0].manuallyCorrected, true);
+  // Older rallies without a landing end flip the stored winner directly.
+  const legacy = correctRally([rally(1, "p1", true)], 1, { inBounds: false });
+  assert.equal(legacy[0].winner, "p2");
+  assert.deepEqual(scoreFromRallies(legacy), { p1: 0, p2: 1 });
+});
 
-  assert.equal(result.rallies[0].inBounds, false);
-  assert.equal(result.rallies[0].manuallyCorrected, true);
+test("a shot label is only a label", () => {
+  const labelled = correctRally([rally(1, "p1")], 1, { shotType: "smash" });
+  assert.equal(labelled[0].shotType, "smash");
+  assert.equal(labelled[0].manuallyCorrected, undefined);
+  assert.equal(labelled[0].reviewStatus, undefined);
 });
 
 test("selecting a key moment uses the rally video time", () => {
@@ -107,7 +119,7 @@ test("high-confidence landing evidence does not need review", () => {
       evidenceFrames: 12,
       offCamera: false,
       landingCourtX: 0.5,
-      landingCourtY: 0.5,
+      landingCourtY: 0.25,
     }),
     false,
   );
@@ -118,21 +130,35 @@ test("low-confidence and off-camera rallies explain why review is needed", () =>
     aiConfidence: 0.5,
     evidenceFrames: 4,
     offCamera: true,
-    landingCourtX: 0.98,
+    landingCourtX: COURT.singlesSideline + 0.01,
     landingCourtY: 0.5,
   });
 
   assert.match(reasons.join(" "), /low/);
   assert.match(reasons.join(" "), /short/);
   assert.match(reasons.join(" "), /camera view/);
-  assert.match(reasons.join(" "), /boundary/);
+  assert.match(reasons.join(" "), /boundary line/);
+  assert.match(reasons.join(" "), /close to the net/);
+});
+
+test("line calls are judged against the singles or doubles lines in play", () => {
+  const nearDoublesLine = {
+    aiConfidence: 0.9,
+    evidenceFrames: 12,
+    offCamera: false,
+    landingCourtX: 0.01,
+    landingCourtY: 0.25,
+  };
+  assert.equal(rallyNeedsReview(nearDoublesLine), false);
+  assert.match(getRallyReviewReasons(nearDoublesLine, "doubles").join(" "), /boundary line/);
 });
 
 test("a review-only rally does not change the score", () => {
   const uncertain = { ...rally(1, "p1"), countsTowardScore: false };
-  const result = applyRallyCorrection([uncertain], { p1: 0, p2: 0 }, 1, { winner: "p2" });
-  assert.equal(result.rallies[0].winner, "p2");
-  assert.deepEqual(result.score, { p1: 0, p2: 0 });
+  const corrected = correctRally([uncertain], 1, { winner: "p2" });
+  assert.equal(corrected[0].winner, "p2");
+  assert.equal(corrected[0].reviewStatus, "needs-review");
+  assert.deepEqual(scoreFromRallies(corrected), { p1: 0, p2: 0 });
 });
 
 test("confirming a review rally makes it count without changing the chosen winner", () => {
@@ -163,6 +189,11 @@ test("confirming a rally preserves winner and court decision", () => {
   const updated = setRallyReviewStatus([original], 1, "confirmed")[0];
   assert.equal(updated.winner, original.winner);
   assert.equal(updated.inBounds, original.inBounds);
+  assert.equal(updated.countLocked, true);
+  // Confirming what the reviewer was shown pins that winner.
+  const shown = setRallyReviewStatus([original], 1, "confirmed", "p1")[0];
+  assert.equal(shown.winner, "p1");
+  assert.equal(shown.winnerLocked, true);
 });
 
 test("saves and restores review statuses and corrections", () => {
