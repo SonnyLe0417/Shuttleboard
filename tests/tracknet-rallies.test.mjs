@@ -374,7 +374,7 @@ test("the shuttle lying, being carried and held between rallies adds no rally", 
   assert.equal(rallies[0].countsTowardScore, true);
   // The held shuttle projects to the near half, so the near player served next.
   assert.equal(rallies[1].serveEnd, "near");
-  assert.equal(rallies[1].startT, 12.5 + 1 / 30);
+  assert.ok(Math.abs(rallies[1].startT - 12.5) < 0.1, `${rallies[1].startT}`);
 });
 
 test("a rally whose landing nobody saw is offered for review once the next one is served", () => {

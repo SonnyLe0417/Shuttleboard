@@ -3,23 +3,31 @@ import type { AnalysisRally } from "./analysis-results";
 import { getRallyReviewReasons, landingAmbiguityReasons } from "./analysis-results";
 import { applyHomography } from "./birdie-tracker";
 import { isDirectTrackNetDetection } from "./tracknet-evidence";
-import { type CourtEnd, type GameMode, rallyLanding } from "./badminton";
+import {
+  COURT_LENGTH_M,
+  COURT_WIDTH_M,
+  type CourtEnd,
+  type GameMode,
+  rallyLanding,
+} from "./badminton";
 
 // A rally is a run of fast shuttle flight. It starts with a serve, after the
 // quiet spell in which the last shuttle is picked up, carried and held, and it
 // ends at the first rest that settles straight after the last flight. Rests
 // between rallies (lying on the floor, in a hand, before the serve) are never
-// landings. Speeds are in normalized image units per second.
-const FLIGHT_SPEED = 0.25;
+// landings. Speeds are in metres per second across the court plane, so a shot
+// at the far end, small in the picture, is as fast as the same shot up close.
+const FLIGHT_SPEED = 4;
 // Slow shots (a net shot into the tape) still move; they keep a rally's landing
 // window open but cannot start or prolong a rally on their own.
-const MOVING_SPEED = 0.08;
+const MOVING_SPEED = 1.2;
 // A pickup or a flick of the racket is a step or two; even a one-second
 // service fault is many samples of flight. A burst of motion only counts for
 // anything once it shows this much flight in a short window.
 const MIN_FLIGHT_SAMPLES = 3;
 const BURST_SECONDS = 0.5;
 const MAX_STEP_SECONDS = 0.35;
+const SPEED_WINDOW_SECONDS = 0.2;
 const RALLY_QUIET_SECONDS = 2.5;
 const LANDING_WINDOW_SECONDS = 1.5;
 const SERVE_GAP_SECONDS = 4;
@@ -54,6 +62,9 @@ interface DirectSample {
   x: number;
   y: number;
   confidence: number;
+  /** The position mapped onto the court plane, in metres. */
+  courtX: number;
+  courtY: number;
 }
 
 interface Rest {
@@ -92,7 +103,7 @@ export function buildTrackNetRallies(
 ): AnalysisRally[] {
   if (!validHomography(homography)) return [];
   const mode = options.mode ?? "singles";
-  const samples = directSamples(points);
+  const samples = directSamples(points, homography);
   const rests = findRests(samples);
   const clusters = findRallies(samples, rests);
 
@@ -120,7 +131,7 @@ export function buildTrackNetRallies(
   return rallies;
 }
 
-function directSamples(points: TrackNetPoint[]): DirectSample[] {
+function directSamples(points: TrackNetPoint[], homography: number[]): DirectSample[] {
   return points
     .filter(
       (point) =>
@@ -130,21 +141,42 @@ function directSamples(points: TrackNetPoint[]): DirectSample[] {
     )
     .slice()
     .sort((a, b) => a.time - b.time || a.frame - b.frame)
-    .map((point) => ({
-      time: point.time,
-      x: point.x!,
-      y: point.y!,
-      confidence: Number.isFinite(point.confidence) ? point.confidence : 0,
-    }));
+    .map((point) => {
+      const court = applyHomography(homography, { x: point.x!, y: point.y! });
+      return {
+        time: point.time,
+        x: point.x!,
+        y: point.y!,
+        confidence: Number.isFinite(point.confidence) ? point.confidence : 0,
+        courtX: court.x * COURT_WIDTH_M,
+        courtY: court.y * COURT_LENGTH_M,
+      };
+    });
 }
 
+/**
+ * Speed over the last fifth of a second or so. TrackNet reports whole grid
+ * cells, and at the far end one cell is about 15 cm of court, so frame to
+ * frame a slowly carried shuttle would look as fast as a shot.
+ */
 function stepSpeed(samples: readonly DirectSample[], index: number) {
   if (index < 1) return 0;
-  const from = samples[index - 1];
   const to = samples[index];
-  const elapsed = to.time - from.time;
+  let from = index;
+  while (
+    from > 0 &&
+    to.time - samples[from].time < SPEED_WINDOW_SECONDS &&
+    samples[from].time - samples[from - 1].time <= MAX_STEP_SECONDS
+  )
+    from--;
+  const start = samples[from];
+  const elapsed = to.time - start.time;
   if (elapsed <= 0 || elapsed > MAX_STEP_SECONDS) return 0;
-  return Math.hypot(to.x - from.x, to.y - from.y) / elapsed;
+  const metres = Math.hypot(to.courtX - start.courtX, to.courtY - start.courtY);
+  // Near the horizon of the court plane a raised shuttle has no finite
+  // position; it is high in the air, so treat it as flying if it moved at all.
+  if (!Number.isFinite(metres)) return to.x === start.x && to.y === start.y ? 0 : FLIGHT_SPEED;
+  return metres / elapsed;
 }
 
 /** Windows where the shuttle stays put, allowing whole-cell flicker and dropped frames. */
