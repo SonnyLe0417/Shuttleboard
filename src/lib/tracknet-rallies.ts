@@ -32,15 +32,15 @@ const RALLY_QUIET_SECONDS = 2.5;
 const LANDING_WINDOW_SECONDS = 1.5;
 const SERVE_GAP_SECONDS = 4;
 // After a landing the shuttle is fetched, often knocked back to the server.
-// Play this soon after a seen landing is that, not the next rally, and a
-// short piece of play that is followed this closely by a serve was too.
+// Play this soon after a seen landing is that, not the next rally, and so is
+// a short piece of play soon after a rally whose flight ends this soon before
+// a serve. A real rally is followed by more dead time than that.
 const RETURN_SECONDS = 6;
 const RETURN_FLIGHT_SECONDS = 1.5;
 const RETURN_AFTER_LANDING_SECONDS = 10;
-// Play that starts from where the last rally's shuttle landed is that shuttle
-// being picked up or scooped back, never a serve. Where a rally's landing was
-// not seen, the spot it is next seen still could be the server's hand, so play
-// from there only counts once it crosses the net.
+// Play that starts from where the last rally's shuttle lay is that shuttle
+// being scooped up, unless it crosses the net: the spot can also be where the
+// server stands with it, after a knock-back or when the landing was not seen.
 const PICKUP_RADIUS = 0.02;
 const NET_Y_M = COURT_LENGTH_M / 2;
 // A rally whose landing nobody saw is still offered at the end of the video
@@ -107,7 +107,7 @@ interface Cluster {
   landing: Rest | null;
   /** A rest came too late to be the landing, so the rally is over, landing unseen. */
   closedBy?: Rest;
-  /** Launched from where the last rally's shuttle was next seen lying. */
+  /** Launched from where the last rally's shuttle was seen lying. */
   fromRest?: boolean;
 }
 
@@ -265,8 +265,7 @@ function findRallies(samples: readonly DirectSample[], rests: readonly Rest[]): 
     return false;
   };
   const close = () => {
-    // A scoop from where an unseen landing was found never crosses the net.
-    if (current && !(current.fromRest && !crossedNet(current))) clusters.push(current);
+    if (current && (!current.fromRest || admitted(current))) clusters.push(current);
     current = null;
   };
   const onRest = (rest: Rest) => {
@@ -290,8 +289,33 @@ function findRallies(samples: readonly DirectSample[], rests: readonly Rest[]): 
       cluster.lastFlight - cluster.start < RETURN_FLIGHT_SECONDS
     );
   };
+  /** The last cluster was the shuttle knocked back to the server just before `time`. */
+  const knockBackBefore = (time: number) => {
+    const previous = clusters.at(-1);
+    return (
+      previous !== undefined &&
+      isReturn(previous, clusters.at(-2)) &&
+      time - previous.lastFlight < RETURN_SECONDS
+    );
+  };
+  const soonAfterLanding = (cluster: Cluster | undefined, time: number) =>
+    cluster?.landing !== undefined &&
+    cluster.landing !== null &&
+    time - cluster.landing.startTime < RETURN_SECONDS;
+  /**
+   * Play that left from where the last shuttle lay, judged once it is over: a
+   * scoop unless it crossed the net, and otherwise like any other play.
+   */
+  const admitted = (cluster: Cluster) => {
+    if (!crossedNet(cluster)) return false;
+    if (knockBackBefore(cluster.start)) clusters.pop();
+    return !soonAfterLanding(clusters.at(-1), cluster.start);
+  };
   /** The serve leaves the hand: the first flight after a hold that just ended. */
-  const serveStart = (burst: { index: number; time: number }) => {
+  const serveStart = (burst: {
+    index: number;
+    time: number;
+  }): { index: number; time: number; hold?: Rest } => {
     let hold: Rest | undefined;
     for (const rest of rests) {
       if (rest.endTime > burst.time) break;
@@ -302,27 +326,25 @@ function findRallies(samples: readonly DirectSample[], rests: readonly Rest[]): 
     if (!hold || hold.endTime <= previousEnd || burst.time - hold.endTime > RALLY_QUIET_SECONDS)
       return burst;
     for (let i = hold.endIndex + 1; i <= burst.index; i++) {
-      if (stepSpeed(samples, i) >= FLIGHT_SPEED) return { index: i, time: samples[i].time };
+      if (stepSpeed(samples, i) >= FLIGHT_SPEED) return { index: i, time: samples[i].time, hold };
     }
-    return burst;
+    return { ...burst, hold };
   };
   /** What a sustained burst of flight is, once it has proved itself. */
   const startFrom = (burst: { index: number; time: number; count: number }) => {
     const start = serveStart(burst);
-    const launch = samples[Math.max(0, start.index - 1)];
+    // Where it left from: the spot it rested at just before, when there was one.
+    // The sample before the first fast one is already a few frames into the motion.
+    const launch = start.hold ?? samples[Math.max(0, start.index - 1)];
     const launchedFrom = (rest: Rest | null | undefined) =>
       Boolean(rest) && Math.hypot(launch.x - rest!.x, launch.y - rest!.y) <= PICKUP_RADIUS;
-    let previous = clusters.at(-1);
-    if (launchedFrom(previous?.landing)) return null;
-    if (
-      previous &&
-      isReturn(previous, clusters.at(-2)) &&
-      start.time - (previous.landing?.endTime ?? previous.lastFlight) < RETURN_SECONDS
-    ) {
-      clusters.pop();
-      previous = clusters.at(-1);
-    }
-    if (previous?.landing && start.time - previous.landing.startTime < RETURN_SECONDS) return null;
+    const fromRest = launchedFrom(settled(clusters.at(-1)));
+    const knockBack = knockBackBefore(start.time);
+    // A serve straight after a knock-back replaces it. Play from where the last
+    // shuttle lay may be a scoop, so it waits to be admitted when it is over.
+    if (knockBack && !fromRest) clusters.pop();
+    const previous = clusters.at(knockBack && fromRest ? -2 : -1);
+    if (!fromRest && soonAfterLanding(previous, start.time)) return null;
     if (!previous || start.time - previous.lastFlight >= SERVE_GAP_SECONDS) {
       return {
         start: start.time,
@@ -333,11 +355,11 @@ function findRallies(samples: readonly DirectSample[], rests: readonly Rest[]): 
         flightSamples: 0,
         isServe: true,
         landing: null,
-        fromRest: launchedFrom(previous?.closedBy),
+        fromRest,
       };
     }
     // The shuttle went out of view mid-rally and came back.
-    if (!previous.landing && !previous.closedBy) return clusters.pop()!;
+    if (!fromRest && !previous.landing && !previous.closedBy) return clusters.pop()!;
     // Otherwise it is play between rallies.
     return null;
   };
