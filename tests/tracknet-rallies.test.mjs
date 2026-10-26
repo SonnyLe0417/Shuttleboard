@@ -393,3 +393,25 @@ test("a rally whose landing nobody saw is offered for review once the next one i
   // Without a following serve, a disappearance alone still proposes nothing.
   assert.equal(buildTrackNetRallies(points.slice(0, 15), H).length, 0);
 });
+
+test("a pickup shortly before the serve neither starts a rally nor hides the serve", () => {
+  const landing = { x: 0.5, y: 0.3 };
+  const server = { x: 0.6, y: 0.75 };
+  const points = [
+    ...flightTo(0, { x: 0.5, y: 0.8 }, landing),
+    ...at30(0.5, 3.5, () => landing),
+    // Scooped up with the racket: one fast step, then carried and held.
+    ...at30(3.5, 3.54, () => ({ x: 0.5, y: 0.36 })),
+    ...at30(3.54, 5.5, (t) => ({
+      x: 0.5 + ((t - 3.54) / 2) * 0.1,
+      y: 0.36 + ((t - 3.54) / 2) * 0.39,
+    })),
+    ...at30(5.5, 6.5, () => server),
+    ...flightTo(6.5, server, { x: 0.4, y: 0.25 }),
+    ...at30(7, 9, () => ({ x: 0.4, y: 0.25 })),
+  ];
+  const rallies = buildTrackNetRallies(points, H);
+  assert.equal(rallies.length, 2);
+  assert.ok(Math.abs(rallies[1].startT - 6.5) < 0.1, `${rallies[1].startT}`);
+  assert.equal(rallies[1].serveEnd, "near");
+});

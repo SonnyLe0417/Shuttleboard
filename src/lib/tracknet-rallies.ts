@@ -15,8 +15,10 @@ const FLIGHT_SPEED = 0.25;
 // window open but cannot start or prolong a rally on their own.
 const MOVING_SPEED = 0.08;
 // A pickup or a flick of the racket is a step or two; even a one-second
-// service fault is many samples of flight.
+// service fault is many samples of flight. A burst of motion only counts for
+// anything once it shows this much flight in a short window.
 const MIN_FLIGHT_SAMPLES = 3;
+const BURST_SECONDS = 0.5;
 const MAX_STEP_SECONDS = 0.35;
 const RALLY_QUIET_SECONDS = 2.5;
 const LANDING_WINDOW_SECONDS = 1.5;
@@ -62,6 +64,7 @@ interface Rest {
   confidence: number;
   evidenceFrames: number;
   startIndex: number;
+  endIndex: number;
 }
 
 interface Cluster {
@@ -180,6 +183,7 @@ function findRests(samples: readonly DirectSample[]): Rest[] {
         confidence: mean((sample) => sample.confidence),
         evidenceFrames: section.length,
         startIndex: start,
+        endIndex: kept.at(-1)!,
       });
       start = kept.at(-1)! + 1;
     } else {
@@ -192,7 +196,10 @@ function findRests(samples: readonly DirectSample[]): Rest[] {
 function findRallies(samples: readonly DirectSample[], rests: readonly Rest[]): Cluster[] {
   const clusters: Cluster[] = [];
   let current: Cluster | null = null;
+  // Last flight of a real rally. Pickups and flicks between rallies never move
+  // it, so they cannot make the next serve look like part of the dead time.
   let lastFlight = Number.NEGATIVE_INFINITY;
+  let burst: { index: number; time: number; count: number } | null = null;
   let restIndex = 0;
 
   const close = () => {
@@ -208,6 +215,40 @@ function findRallies(samples: readonly DirectSample[], rests: readonly Rest[]): 
       current.landing = rest;
     close();
   };
+  /** The serve leaves the hand: the first flight after a hold that just ended. */
+  const serveStart = (burst: { index: number; time: number }) => {
+    let hold: Rest | undefined;
+    for (const rest of rests) {
+      if (rest.endTime > burst.time) break;
+      hold = rest;
+    }
+    if (!hold || burst.time - hold.endTime > RALLY_QUIET_SECONDS) return burst;
+    for (let i = hold.endIndex + 1; i <= burst.index; i++) {
+      if (stepSpeed(samples, i) >= FLIGHT_SPEED) return { index: i, time: samples[i].time };
+    }
+    return burst;
+  };
+  /** What a sustained burst of flight is, once it has proved itself. */
+  const startFrom = (burst: { index: number; time: number; count: number }) => {
+    const previous = clusters.at(-1);
+    const start = serveStart(burst);
+    if (start.time - lastFlight >= SERVE_GAP_SECONDS || !previous) {
+      return {
+        start: start.time,
+        launchIndex: start.index - 1,
+        lastFlight: start.time,
+        lastFlightIndex: start.index,
+        lastMotion: start.time,
+        flightSamples: 0,
+        isServe: true,
+        landing: null,
+      };
+    }
+    // The shuttle went out of view mid-rally and came back.
+    if (!previous.landing) return clusters.pop()!;
+    // Otherwise it is play between rallies, after a landing was seen.
+    return null;
+  };
 
   for (let i = 1; i < samples.length; i++) {
     const speed = stepSpeed(samples, i);
@@ -221,35 +262,23 @@ function findRallies(samples: readonly DirectSample[], rests: readonly Rest[]): 
       continue;
     }
     if (!current) {
-      const previous = clusters.at(-1);
-      if (time - lastFlight >= SERVE_GAP_SECONDS || !previous) {
-        current = {
-          start: time,
-          launchIndex: i - 1,
-          lastFlight: time,
-          lastFlightIndex: i,
-          lastMotion: time,
-          flightSamples: 0,
-          isServe: true,
-          landing: null,
-        };
-      } else if (!previous.landing) {
-        // The shuttle went out of view mid-rally and came back.
-        current = clusters.pop()!;
-      }
-      // Otherwise this is a flick between rallies, after a landing was seen.
+      if (!burst || time - burst.time > BURST_SECONDS) burst = { index: i, time, count: 0 };
+      burst.count++;
+      if (burst.count < MIN_FLIGHT_SAMPLES) continue;
+      current = startFrom(burst);
+      if (current) current.flightSamples += burst.count - 1;
+      burst = null;
+      if (!current) continue;
     }
-    if (current) {
-      current.lastFlight = time;
-      current.lastFlightIndex = i;
-      current.lastMotion = time;
-      current.flightSamples++;
-    }
+    current.lastFlight = time;
+    current.lastFlightIndex = i;
+    current.lastMotion = time;
+    current.flightSamples++;
     lastFlight = time;
   }
   while (restIndex < rests.length) onRest(rests[restIndex++]);
   close();
-  return clusters.filter((cluster) => cluster.flightSamples >= MIN_FLIGHT_SAMPLES);
+  return clusters;
 }
 
 function landedRally(
