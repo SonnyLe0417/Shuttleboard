@@ -87,6 +87,28 @@ test("a shuttle knocked back or swept away soon after a point is not a new rally
   assert.equal(swept.filter((event) => event.landingSeen).length, 1);
 });
 
+test("a stop long after the shuttle last came down is not a seen landing", () => {
+  const samples = [];
+  for (let frame = 0; frame < 15; frame++) samples.push(seen(frame / FPS, 0.5, 0.3 + frame * 0.03));
+  // Then 1.5 s sideways at one height (rolling, or carried at a run), then still.
+  for (let frame = 15; frame < 60; frame++)
+    samples.push(seen(frame / FPS, 0.2 + frame * 0.01, 0.72));
+  for (let frame = 60; frame < 120; frame++) samples.push(seen(frame / FPS, 0.8, 0.72));
+  const events = feed(samples);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, "needs-review");
+  assert.equal(events[0].landingSeen, false);
+});
+
+test("sightings too far apart in time say nothing about the shuttle being still", () => {
+  const events = feed([
+    ...landing(0),
+    // Seen at the same spot every 0.6 s: no proof that it stayed there in between.
+    ...[1.1, 1.7, 2.3, 2.9, 3.5].map((time) => seen(time, 0.5, 0.75)),
+  ]);
+  assert.equal(events.length, 0);
+});
+
 test("a vanished shuttle reports where it was last seen, not a landing", () => {
   const events = feed([...landing(0), unseen(0.6), unseen(1.2), unseen(1.8)]);
   assert.equal(events.length, 1);
