@@ -20,8 +20,38 @@ export type QueuedMatch = {
   receipt?: { id: string; progressPending: boolean };
 };
 type Lease = { key: string; holder: string; fence: number; expires: number };
+type DraftSave = { draft: LocalDraft; lease: Lease; completed?: QueuedMatch };
 export const OFFLINE_DB = "shuttleboard-offline-v1";
+const UNSAVED_DRAFT_KEY = "shuttleboard.offline-unsaved-draft.v1";
 let pendingWrites: Promise<unknown> = Promise.resolve();
+let unsaved: DraftSave | null = null;
+// IndexedDB cannot finish a transaction after its page unloads, so a point tapped just before a
+// reload would be lost. When the page is hidden, the newest save still in flight is copied
+// synchronously to localStorage; acquireEditor replays it under the lease that wrote it.
+export function stashUnsavedDraft() {
+  if (!unsaved) return;
+  try {
+    localStorage.setItem(`${UNSAVED_DRAFT_KEY}:${unsaved.draft.owner}`, JSON.stringify(unsaved));
+  } catch {
+    // Quota or privacy settings: the in-flight IndexedDB save is all that remains.
+  }
+}
+function readStash(owner: string) {
+  try {
+    const raw = localStorage.getItem(`${UNSAVED_DRAFT_KEY}:${owner}`);
+    return raw ? { raw, save: JSON.parse(raw) as DraftSave } : null;
+  } catch {
+    return null;
+  }
+}
+function dropStash(owner: string, raw: string) {
+  try {
+    const key = `${UNSAVED_DRAFT_KEY}:${owner}`;
+    if (localStorage.getItem(key) === raw) localStorage.removeItem(key);
+  } catch {
+    /* storage unavailable */
+  }
+}
 export async function settleOfflineWrites() {
   let current;
   do {
@@ -143,10 +173,23 @@ export async function acquireEditor(
   takeover = false,
   now = Date.now(),
 ) {
-  return offlineTransaction(["leases"], "readwrite", async (tx) => {
+  const stash = readStash(owner);
+  const stores = stash ? ["leases", "drafts", "queue", "accounts", "meta"] : ["leases"];
+  const granted = await offlineTransaction(stores, "readwrite", async (tx) => {
     const store = tx.objectStore("leases"),
       key = `edit:${owner}`,
       old = await request<Lease | undefined>(store.get(key));
+    // Replay before the fence can move: once another editor holds the lease, a stashed save
+    // may postdate its takeover and must not overwrite that editor's draft.
+    if (
+      stash &&
+      old &&
+      stash.save.lease.key === key &&
+      stash.save.lease.holder === old.holder &&
+      stash.save.lease.fence === old.fence &&
+      stash.save.draft.updatedAt <= old.expires
+    )
+      await replayDraft(tx, stash.save);
     if (old && old.holder !== holder && old.expires > now && !takeover) return null;
     const lease = {
       key,
@@ -157,6 +200,9 @@ export async function acquireEditor(
     store.put(lease);
     return lease;
   });
+  // Replayed, superseded or fenced out: a stash is never needed after its check commits.
+  if (stash) dropStash(owner, stash.raw);
+  return granted;
 }
 export async function renewEditor(lease: Lease, now = Date.now()) {
   return offlineTransaction(["leases"], "readwrite", async (tx) => {
@@ -176,7 +222,30 @@ export async function releaseEditor(lease: Lease) {
       store.put({ ...current, expires: 0 });
   });
 }
+async function accountActive(tx: IDBTransaction, owner: string) {
+  const account = await request<OfflineAccount | undefined>(tx.objectStore("accounts").get(owner));
+  const active = await request(tx.objectStore("meta").get("active"));
+  return active === owner && account?.enabled === true;
+}
+// The draft and, once the match ends, its upload row commit together or not at all.
+async function putDraft(tx: IDBTransaction, draft: LocalDraft, completed?: QueuedMatch) {
+  const queue = tx.objectStore("queue");
+  const existing = completed && (await request<QueuedMatch | undefined>(queue.get(completed.id)));
+  if (existing && existing.owner !== draft.owner)
+    throw Error("Local match ID is unavailable. Keep this match open and download a backup.");
+  tx.objectStore("drafts").put(draft);
+  if (completed && !existing) queue.add(completed);
+}
+async function replayDraft(tx: IDBTransaction, { draft, completed }: DraftSave) {
+  const stored = await request<LocalDraft | undefined>(tx.objectStore("drafts").get(draft.owner));
+  if (!(await accountActive(tx, draft.owner)) || (stored && stored.updatedAt >= draft.updatedAt))
+    return;
+  // A match ID owned elsewhere failed the original save too; keep the stored draft.
+  await putDraft(tx, draft, completed).catch(() => {});
+}
 export async function saveLocalDraft(draft: LocalDraft, lease: Lease, completed?: QueuedMatch) {
+  const save = { draft, lease, completed };
+  unsaved = save;
   const operation = pendingWrites
     .catch(() => {})
     .then(() =>
@@ -184,33 +253,36 @@ export async function saveLocalDraft(draft: LocalDraft, lease: Lease, completed?
         ["drafts", "leases", "queue", "accounts", "meta"],
         "readwrite",
         async (tx) => {
-          const account = await request<OfflineAccount | undefined>(
-            tx.objectStore("accounts").get(draft.owner),
-          );
-          const active = await request(tx.objectStore("meta").get("active"));
+          const active = await accountActive(tx, draft.owner);
           const current = await request<Lease | undefined>(tx.objectStore("leases").get(lease.key));
           if (
-            active !== draft.owner ||
-            !account?.enabled ||
+            !active ||
             current?.holder !== lease.holder ||
             current.fence !== lease.fence ||
             current.expires <= Date.now()
           )
             throw Error("This scoreboard is read-only. Take over to continue scoring.");
-          tx.objectStore("drafts").put(draft);
-          if (completed) {
-            const queue = tx.objectStore("queue");
-            const existing = await request<QueuedMatch | undefined>(queue.get(completed.id));
-            if (existing && existing.owner !== draft.owner)
-              throw Error(
-                "Local match ID is unavailable. Keep this match open and download a backup.",
-              );
-            if (!existing) queue.add(completed);
-          }
+          await putDraft(tx, draft, completed);
         },
       ),
     );
   pendingWrites = operation;
+  void operation
+    .then(
+      () => {
+        const stash = readStash(draft.owner);
+        if (
+          stash &&
+          stash.save.lease.holder === lease.holder &&
+          stash.save.draft.updatedAt <= draft.updatedAt
+        )
+          dropStash(draft.owner, stash.raw);
+      },
+      () => {},
+    )
+    .finally(() => {
+      if (unsaved === save) unsaved = null;
+    });
   return operation;
 }
 export async function updateQueued(

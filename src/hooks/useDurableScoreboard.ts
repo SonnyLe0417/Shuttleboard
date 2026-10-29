@@ -11,6 +11,7 @@ import {
   readDraft,
   readQueue,
   saveLocalDraft,
+  stashUnsavedDraft,
   type LocalDraft,
   type QueuedMatch,
 } from "@/lib/offline-db";
@@ -170,7 +171,9 @@ export function useDurableScoreboard(owner: string | null, match: UseBadmintonMa
       current.id = crypto.randomUUID();
       current.meta = {};
     }
-    const next = { ...current, state, history: match.undoHistory, updatedAt: Date.now() };
+    // Strictly increasing, so a replayed save never ties with the one before it.
+    const updatedAt = Math.max(Date.now(), current.updatedAt + 1);
+    const next = { ...current, state, history: match.undoHistory, updatedAt };
     draft.current = next;
     let active = true;
     void (async () => {
@@ -200,6 +203,19 @@ export function useDurableScoreboard(owner: string | null, match: UseBadmintonMa
       active = false;
     };
   }, [owner, ready, readOnly, match.state, match.undoHistory, retry, refresh, sync]);
+  useEffect(() => {
+    if (!owner) return;
+    // A reload or closed tab can cut off the IndexedDB save of the last point.
+    const hidden = () => {
+      if (document.visibilityState === "hidden") stashUnsavedDraft();
+    };
+    window.addEventListener("pagehide", stashUnsavedDraft);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("pagehide", stashUnsavedDraft);
+      document.removeEventListener("visibilitychange", hidden);
+    };
+  }, [owner]);
   useEffect(() => {
     if (!owner || !ready) return;
     const controller = new AbortController();

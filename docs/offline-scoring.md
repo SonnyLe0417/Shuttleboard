@@ -50,6 +50,11 @@ Only one tab edits an account's draft. Other tabs show a read-only copy and offe
 after an abrupt close, the next tab may briefly be read-only. Fenced transactions
 reject writes from a previous editor after takeover.
 
+A reload or closed tab can cut off the IndexedDB save of the last point. When the
+page is hidden, a save still in flight is copied to localStorage; the next tab to
+request the lease commits it only if no other editor has held the lease since, then
+removes the copy.
+
 **Download unsynced matches** exports JSON containing queued results and the active
 draft, including a draft whose latest write failed. No authentication credentials
 are exported. Browser-data clearing, private browsing policies, or storage eviction
@@ -122,7 +127,7 @@ upgrade from an existing push worker, offline reopening with expired authenticat
 multiple matches, undo after reload, takeover, a dropped save response and receipt
 recovery with exact original play times. Real IndexedDB/Web
 Locks tests cover failed/aborted writes, unavailable storage, stale editor fences,
-account switching, sign-out/recovery, backoff and retained validation failures.
+a save cut off by a reload, account switching, sign-out/recovery, backoff and retained validation failures.
 Worker tests cover incomplete staging, forbidden cache paths and push handling.
 These tests do not replace database acceptance.
 
