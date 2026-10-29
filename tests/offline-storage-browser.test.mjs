@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { build } from "vite";
-import { chromium } from "playwright";
+import { launchChromium } from "./fixtures/launch-browser.mjs";
 import { createServer } from "node:http";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { resolve, join } from "node:path";
@@ -38,7 +38,7 @@ test(
         );
       });
       await new Promise((done) => server.listen(0, "127.0.0.1", done));
-      browser = await chromium.launch({ channel: "msedge", headless: true });
+      browser = await launchChromium();
       const context = await browser.newContext(),
         page = await context.newPage();
       await page.goto(`http://127.0.0.1:${server.address().port}`);

@@ -5,7 +5,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import { chromium } from "playwright";
+import { launchChromium } from "./fixtures/launch-browser.mjs";
 const owner = "20000000-0000-4000-8000-000000000001";
 const other = "20000000-0000-4000-8000-000000000002";
 const user = (id) => ({
@@ -174,7 +174,7 @@ test(
             urls.add(match[1]);
         }
       assert.ok(urls.size, "find public SDK storage namespace");
-      browser = await chromium.launch({ channel: "msedge", headless: true });
+      browser = await launchChromium();
       const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
       await context.route("**/*", (route) => {
         const url = new URL(route.request().url());
